@@ -84,6 +84,7 @@ const CHANGELOG = [
   { v: 'v1.38.0', title: 'Pause Menu Buttons',       desc: 'Replaced pause menu keyboard hints with clickable Resume, Restart, and Main Menu buttons.' },
   { v: 'v1.39.0', title: 'Pause Button Colors',      desc: 'Pause menu buttons are now green (Resume), red (Restart), and blue (Main Menu).' },
   { v: 'v1.40.0', title: 'Changelog NEW Badge',      desc: 'The newest entry in the changelog now shows a green NEW badge next to its title.' },
+  { v: 'v1.41.0', title: 'Title Renamed',            desc: 'Main menu title changed from "ASTEROID BLASTER" to "AstroShooter".' },
 ];
 
 // Power-up definitions
@@ -1438,7 +1439,7 @@ function renderMenu() {
   ctx.fillStyle = '#4af';
   ctx.shadowColor = '#0af';
   ctx.shadowBlur = 20;
-  ctx.fillText('ASTEROID BLASTER', CANVAS_W / 2, CANVAS_H / 2 - 130);
+  ctx.fillText('AstroShooter', CANVAS_W / 2, CANVAS_H / 2 - 130);
   ctx.shadowBlur = 0;
 
   // Subtitle
@@ -1499,7 +1500,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  ctx.fillText('v1.40.0', CANVAS_W - 10, CANVAS_H - 8);
+  ctx.fillText('v1.41.0', CANVAS_W - 10, CANVAS_H - 8);
 
   ctx.restore();
 }
