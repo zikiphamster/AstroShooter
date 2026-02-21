@@ -77,6 +77,12 @@ const CHANGELOG = [
   { v: 'v1.31.0', title: 'Boss Fight',                desc: 'At 10,000 points a boss spawns with a health bar, AI movement, bullet attacks, and charge attacks. Difficulty scales the boss stats and name: Easy = Spaceship Eater 450, Medium = Galaxy Warden, Hard = Omega Devourer.' },
   { v: 'v1.32.0', title: 'Boss Defeat Crash Fix',    desc: 'Fixed a crash where defeating the boss caused the game to freeze. A null reference in the bullet loop was stopping the game loop.' },
   { v: 'v1.33.0', title: 'Button-Only Navigation',   desc: 'Removed SPACE key shortcut from Game Over and Level Complete screens. Buttons must now be clicked to continue.' },
+  { v: 'v1.34.0', title: 'How to Play Text Color',   desc: 'Improved visibility of the objective blurb text at the bottom of the How to Play screen.' },
+  { v: 'v1.35.0', title: 'Save System',              desc: 'Game auto-saves when a level is completed. PLAY now shows New Game and Load Game options. Load Game resumes from the highest completed level with your saved score and lives.' },
+  { v: 'v1.36.0', title: 'Delete Save Button',       desc: 'Added a red trash can button beside Load Game that deletes the saved game. Only visible when a save exists.' },
+  { v: 'v1.37.0', title: 'Delete Save Confirmation', desc: 'Clicking the trash button now shows a confirmation popup before erasing the save file.' },
+  { v: 'v1.38.0', title: 'Pause Menu Buttons',       desc: 'Replaced pause menu keyboard hints with clickable Resume, Restart, and Main Menu buttons.' },
+  { v: 'v1.39.0', title: 'Pause Button Colors',      desc: 'Pause menu buttons are now green (Resume), red (Restart), and blue (Main Menu).' },
 ];
 
 // Power-up definitions
@@ -209,6 +215,7 @@ window.addEventListener('keydown', e => {
     if (gameState === 'PLAYING')         gameState = 'PAUSED';
     else if (gameState === 'PAUSED')     gameState = 'PLAYING';
     else if (gameState === 'DIFFICULTY') gameState = 'MENU';
+    else if (gameState === 'PLAY_MODE')  { confirmDeleteVisible = false; gameState = 'MENU'; }
     else if (gameState === 'CONTROLS')   gameState = 'MENU';
     else if (gameState === 'CHANGELOG')  gameState = 'MENU';
   }
@@ -233,7 +240,7 @@ canvas.addEventListener('click', e => {
   if (gameState === 'MENU') {
     for (const btn of menuButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-        if (btn.key === 'play')     gameState = 'DIFFICULTY';
+        if (btn.key === 'play')     gameState = 'PLAY_MODE';
         if (btn.key === 'controls')  gameState = 'CONTROLS';
         if (btn.key === 'changelog') { gameState = 'CHANGELOG'; changelogScrollY = 0; }
       }
@@ -252,6 +259,14 @@ canvas.addEventListener('click', e => {
         gameState = 'MENU';
       }
     }
+  } else if (gameState === 'PAUSED') {
+    for (const btn of pauseButtonRects) {
+      if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+        if (btn.key === 'resume')  gameState = 'PLAYING';
+        if (btn.key === 'restart') { gameState = 'PLAYING'; loadGame(); }
+        if (btn.key === 'menu')    gameState = 'MENU';
+      }
+    }
   } else if (gameState === 'GAME_OVER') {
     for (const btn of gameOverButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
@@ -264,6 +279,31 @@ canvas.addEventListener('click', e => {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
         if (btn.key === 'continue') loadLevel(currentLevel + 1);
         if (btn.key === 'menu')     gameState = 'MENU';
+      }
+    }
+  } else if (gameState === 'PLAY_MODE') {
+    for (const btn of playModeButtonRects) {
+      if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+        if (btn.key === 'new') {
+          gameState = 'DIFFICULTY';
+        } else if (btn.key === 'load') {
+          try {
+            const save = JSON.parse(localStorage.getItem('astroSave'));
+            if (save) {
+              currentDiff = save.diff;
+              score       = save.score;
+              lives       = save.lives;
+              loadLevel(save.level);
+            }
+          } catch(e) {}
+        } else if (btn.key === 'delete') {
+          confirmDeleteVisible = true;
+        } else if (btn.key === 'confirm_delete') {
+          localStorage.removeItem('astroSave');
+          confirmDeleteVisible = false;
+        } else if (btn.key === 'cancel_delete') {
+          confirmDeleteVisible = false;
+        }
       }
     }
   } else if (gameState === 'DIFFICULTY') {
@@ -872,7 +912,7 @@ class PowerUp {
 }
 
 // ─── Game State ───────────────────────────────────────────────────────────────
-let gameState;   // 'MENU' | 'PLAYING' | 'PAUSED' | 'GAME_OVER' | 'LEVEL_COMPLETE'
+let gameState;   // 'MENU' | 'PLAY_MODE' | 'PLAYING' | 'PAUSED' | 'GAME_OVER' | 'LEVEL_COMPLETE'
 let player, bullets, asteroids, particles;
 let score, lives;
 let spawnTimer, spawnInterval;
@@ -883,6 +923,9 @@ let activeEffects;  // { rapidfire, tripleshot, speedboost } — seconds remaini
 let boss, bossBullets, bossSpawned, bossDefeated, bossWarningTimer;
 let currentLevel, nextBossScore;
 const levelCompleteButtonRects = [];
+const playModeButtonRects = [];
+const pauseButtonRects = [];
+let confirmDeleteVisible = false;
 
 function loadGame() {
   const d    = DIFFICULTIES[currentDiff];
@@ -935,6 +978,15 @@ function loadLevel(level) {
   bossDefeated  = false;
   bossWarningTimer = 0;
   gameState     = 'PLAYING';
+}
+
+function saveGame() {
+  localStorage.setItem('astroSave', JSON.stringify({
+    level: currentLevel + 1,
+    diff:  currentDiff,
+    score: score,
+    lives: lives,
+  }));
 }
 
 function spawnAsteroid(tier) {
@@ -1030,7 +1082,7 @@ function update(dt) {
   if (gameState === 'MENU') {
     if (keys['Space']) {
       keys['Space'] = false;
-      gameState = 'DIFFICULTY';
+      gameState = 'PLAY_MODE';
     }
     if (keys['KeyC']) {
       keys['KeyC'] = false;
@@ -1052,6 +1104,10 @@ function update(dt) {
     if (keys['Escape']) { keys['Escape'] = false; gameState = 'MENU'; }
     if (keys['ArrowUp'])   changelogScrollY = Math.max(0, changelogScrollY - 120);
     if (keys['ArrowDown']) changelogScrollY += 120;
+    return;
+  }
+
+  if (gameState === 'PLAY_MODE') {
     return;
   }
 
@@ -1210,6 +1266,7 @@ function update(dt) {
           playBossDefeat();
           boss = null;
           gameState = 'LEVEL_COMPLETE';
+          saveGame();
           break;
         }
       }
@@ -1295,6 +1352,11 @@ function render() {
 
   if (gameState === 'MENU') {
     renderMenu();
+    return;
+  }
+
+  if (gameState === 'PLAY_MODE') {
+    renderPlayMode();
     return;
   }
 
@@ -1436,7 +1498,186 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  ctx.fillText('v1.33.0', CANVAS_W - 10, CANVAS_H - 8);
+  ctx.fillText('v1.39.0', CANVAS_W - 10, CANVAS_H - 8);
+
+  ctx.restore();
+}
+
+function renderPlayMode() {
+  ctx.save();
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.fillStyle = 'rgba(0,0,20,0.88)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  ctx.font        = 'bold 42px "Courier New", monospace';
+  ctx.fillStyle   = '#fff';
+  ctx.shadowColor = '#44f';
+  ctx.shadowBlur  = 18;
+  ctx.fillText('HOW DO YOU WANT TO PLAY?', CANVAS_W / 2, CANVAS_H / 2 - 100);
+  ctx.shadowBlur  = 0;
+
+  playModeButtonRects.length = 0;
+  const btnW = 360, cx = CANVAS_W / 2, gap = 20;
+  const save = (() => { try { return JSON.parse(localStorage.getItem('astroSave')); } catch(e) { return null; } })();
+  const hasSave = save && save.level && save.diff;
+
+  const buttons = [
+    { key: 'new',  label: 'NEW GAME', sub: null, color: '#4af', bg: 'rgba(0,40,90,0.85)', btnH: 68, enabled: true },
+    {
+      key: 'load',
+      label: 'LOAD GAME',
+      sub: hasSave ? `Level ${save.level}  ·  ${DIFFICULTIES[save.diff].label}` : 'No save found',
+      color: hasSave ? '#4f8' : '#446',
+      bg:    hasSave ? 'rgba(0,50,25,0.85)' : 'rgba(10,10,20,0.6)',
+      btnH: 68,
+      enabled: hasSave,
+    },
+  ];
+
+  const trashSize = 44, trashGap = 12;
+  let btnY = CANVAS_H / 2 - 30;
+  for (const b of buttons) {
+    const bx  = cx - btnW / 2;
+    const bcy = btnY + b.btnH / 2;
+    if (b.enabled) playModeButtonRects.push({ x: bx, y: btnY, w: btnW, h: b.btnH, key: b.key });
+
+    if (b.enabled) { ctx.shadowColor = b.color; ctx.shadowBlur = 10; }
+    ctx.fillStyle   = b.bg;
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth   = b.enabled ? 2 : 1;
+    ctx.globalAlpha = b.enabled ? 1 : 0.4;
+    ctx.beginPath();
+    ctx.roundRect(bx, btnY, btnW, b.btnH, 10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+
+    ctx.fillStyle = '#fff';
+    ctx.font      = `bold 20px "Courier New", monospace`;
+    ctx.fillText(b.label, cx, b.sub ? bcy - 10 : bcy);
+
+    if (b.sub) {
+      ctx.font      = '13px "Courier New", monospace';
+      ctx.fillStyle = b.color;
+      ctx.fillText(b.sub, cx, bcy + 12);
+    }
+
+    ctx.globalAlpha = 1;
+
+    // Trash button — only beside the load row when a save exists
+    if (b.key === 'load' && hasSave) {
+      const tx = bx + btnW + trashGap;
+      const ty = btnY + (b.btnH - trashSize) / 2;
+      playModeButtonRects.push({ x: tx, y: ty, w: trashSize, h: trashSize, key: 'delete' });
+
+      ctx.shadowColor = '#f44';
+      ctx.shadowBlur  = 8;
+      ctx.fillStyle   = 'rgba(80,0,0,0.85)';
+      ctx.strokeStyle = '#f44';
+      ctx.lineWidth   = 2;
+      ctx.beginPath();
+      ctx.roundRect(tx, ty, trashSize, trashSize, 10);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Draw trash can icon
+      const ix = tx + trashSize / 2, iy = ty + trashSize / 2;
+      ctx.strokeStyle = '#f88';
+      ctx.lineWidth   = 1.5;
+      ctx.lineCap     = 'round';
+
+      // Lid
+      ctx.beginPath();
+      ctx.moveTo(ix - 9, iy - 6);
+      ctx.lineTo(ix + 9, iy - 6);
+      ctx.stroke();
+      // Handle on lid
+      ctx.beginPath();
+      ctx.moveTo(ix - 4, iy - 6);
+      ctx.lineTo(ix - 4, iy - 9);
+      ctx.lineTo(ix + 4, iy - 9);
+      ctx.lineTo(ix + 4, iy - 6);
+      ctx.stroke();
+      // Body
+      ctx.beginPath();
+      ctx.moveTo(ix - 7, iy - 4);
+      ctx.lineTo(ix - 6, iy + 8);
+      ctx.lineTo(ix + 6, iy + 8);
+      ctx.lineTo(ix + 7, iy - 4);
+      ctx.stroke();
+      // Inner lines
+      for (const ox of [-3, 0, 3]) {
+        ctx.beginPath();
+        ctx.moveTo(ix + ox, iy - 2);
+        ctx.lineTo(ix + ox, iy + 6);
+        ctx.stroke();
+      }
+    }
+
+    btnY += b.btnH + gap;
+  }
+
+  ctx.fillStyle = '#555';
+  ctx.font      = '14px "Courier New", monospace';
+  ctx.fillText('ESC — Back', cx, btnY + 20);
+
+  // Confirmation popup
+  if (confirmDeleteVisible) {
+    const pw = 420, ph = 180, px = cx - pw / 2, py = CANVAS_H / 2 - ph / 2;
+
+    // Scrim
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Box
+    ctx.shadowColor = '#f44';
+    ctx.shadowBlur  = 18;
+    ctx.fillStyle   = 'rgba(25,5,5,0.97)';
+    ctx.strokeStyle = '#f44';
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, 14);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Message
+    ctx.font      = 'bold 18px "Courier New", monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText('Erase this save file?', cx, py + 44);
+    ctx.font      = '13px "Courier New", monospace';
+    ctx.fillStyle = '#888';
+    ctx.fillText('This cannot be undone.', cx, py + 68);
+
+    // Buttons
+    const bw = 150, bh = 44, bgap = 20;
+    const yesX = cx - bw - bgap / 2, noX = cx + bgap / 2, bby = py + ph - bh - 22;
+
+    // Yes button
+    playModeButtonRects.push({ x: yesX, y: bby, w: bw, h: bh, key: 'confirm_delete' });
+    ctx.shadowColor = '#f44'; ctx.shadowBlur = 8;
+    ctx.fillStyle   = 'rgba(80,0,0,0.9)';
+    ctx.strokeStyle = '#f44';
+    ctx.lineWidth   = 2;
+    ctx.beginPath(); ctx.roundRect(yesX, bby, bw, bh, 8); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur  = 0;
+    ctx.fillStyle   = '#fff';
+    ctx.font        = 'bold 15px "Courier New", monospace';
+    ctx.fillText('Yes, Erase', yesX + bw / 2, bby + bh / 2);
+
+    // No button
+    playModeButtonRects.push({ x: noX, y: bby, w: bw, h: bh, key: 'cancel_delete' });
+    ctx.fillStyle   = 'rgba(0,30,70,0.9)';
+    ctx.strokeStyle = '#4af';
+    ctx.lineWidth   = 2;
+    ctx.beginPath(); ctx.roundRect(noX, bby, bw, bh, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle   = '#fff';
+    ctx.fillText('Cancel', noX + bw / 2, bby + bh / 2);
+  }
 
   ctx.restore();
 }
@@ -1671,7 +1912,7 @@ function renderControls() {
 
   // ── Objective blurb ──
   ctx.font = '13px "Courier New", monospace';
-  ctx.fillStyle = '#557';
+  ctx.fillStyle = '#999';
   ctx.textAlign = 'center';
   ctx.fillText('Destroy asteroids to score points. Large ones split into smaller ones.', CANVAS_W / 2, CANVAS_H - 120);
   ctx.fillText('Power-ups spawn randomly — fly over one to collect it instantly.', CANVAS_W / 2, CANVAS_H - 100);
@@ -1955,30 +2196,59 @@ function renderBossWarning() {
 
 function renderPaused() {
   ctx.save();
-  ctx.textAlign = 'center';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
 
   // Frosted overlay
   ctx.fillStyle = 'rgba(0,0,20,0.65)';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   // Title
-  ctx.font = 'bold 56px "Courier New", monospace';
-  ctx.fillStyle = '#fff';
+  ctx.font        = 'bold 56px "Courier New", monospace';
+  ctx.fillStyle   = '#fff';
   ctx.shadowColor = '#88f';
-  ctx.shadowBlur = 24;
-  ctx.fillText('PAUSED', CANVAS_W / 2, CANVAS_H / 2 - 60);
-  ctx.shadowBlur = 0;
+  ctx.shadowBlur  = 24;
+  ctx.fillText('PAUSED', CANVAS_W / 2, CANVAS_H / 2 - 110);
+  ctx.shadowBlur  = 0;
 
-  // Options
-  ctx.font = '22px "Courier New", monospace';
-  ctx.fillStyle = '#adf';
-  ctx.fillText('ESC — Resume', CANVAS_W / 2, CANVAS_H / 2 + 10);
+  // Buttons
+  pauseButtonRects.length = 0;
+  const btnW = 300, gap = 14, cx = CANVAS_W / 2;
+  const buttons = [
+    { key: 'resume',  label: 'Resume',    hint: 'ESC', color: '#4f8', bg: 'rgba(0,60,25,0.85)',  btnH: 54 },
+    { key: 'restart', label: 'Restart',   hint: 'R',   color: '#f44', bg: 'rgba(70,0,0,0.85)',   btnH: 48 },
+    { key: 'menu',    label: 'Main Menu', hint: 'M',   color: '#4af', bg: 'rgba(0,40,90,0.85)',  btnH: 48 },
+  ];
 
-  ctx.fillStyle = '#faa';
-  ctx.fillText('R — Restart', CANVAS_W / 2, CANVAS_H / 2 + 50);
+  let btnY = CANVAS_H / 2 - 50;
+  for (const b of buttons) {
+    const bx  = cx - btnW / 2;
+    const bcy = btnY + b.btnH / 2;
+    pauseButtonRects.push({ x: bx, y: btnY, w: btnW, h: b.btnH, key: b.key });
 
-  ctx.fillStyle = '#fa8';
-  ctx.fillText('M — Main Menu', CANVAS_W / 2, CANVAS_H / 2 + 90);
+    if (b.key === 'resume') { ctx.shadowColor = b.color; ctx.shadowBlur = 10; }
+    ctx.fillStyle   = b.bg;
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.roundRect(bx, btnY, btnW, b.btnH, 10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#fff';
+    ctx.font      = `bold ${b.key === 'resume' ? 18 : 15}px "Courier New", monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(b.label, cx, bcy);
+
+    ctx.fillStyle = b.color;
+    ctx.font      = '12px "Courier New", monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(b.hint, bx + btnW - 14, bcy);
+    ctx.textAlign = 'center';
+
+    btnY += b.btnH + gap;
+  }
 
   ctx.restore();
 }
