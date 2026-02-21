@@ -75,6 +75,8 @@ const CHANGELOG = [
   { v: 'v1.29.0', title: 'Changelog Newest First',    desc: 'Changelog now displays the most recent version at the top.' },
   { v: 'v1.30.0', title: 'Power-Up Bar Overlap Fix',  desc: 'Fixed the countdown timer overlapping the power-up label. Label and timer are now stacked on separate lines.' },
   { v: 'v1.31.0', title: 'Boss Fight',                desc: 'At 10,000 points a boss spawns with a health bar, AI movement, bullet attacks, and charge attacks. Difficulty scales the boss stats and name: Easy = Spaceship Eater 450, Medium = Galaxy Warden, Hard = Omega Devourer.' },
+  { v: 'v1.32.0', title: 'Boss Defeat Crash Fix',    desc: 'Fixed a crash where defeating the boss caused the game to freeze. A null reference in the bullet loop was stopping the game loop.' },
+  { v: 'v1.33.0', title: 'Button-Only Navigation',   desc: 'Removed SPACE key shortcut from Game Over and Level Complete screens. Buttons must now be clicked to continue.' },
 ];
 
 // Power-up definitions
@@ -1067,11 +1069,6 @@ function update(dt) {
   }
 
   if (gameState === 'GAME_OVER') {
-    if (keys['Space']) {
-      keys['Space'] = false;
-      gameState = 'PLAYING';
-      loadGame();
-    }
     if (keys['KeyM']) {
       keys['KeyM'] = false;
       gameState = 'MENU';
@@ -1080,10 +1077,6 @@ function update(dt) {
   }
 
   if (gameState === 'LEVEL_COMPLETE') {
-    if (keys['Space']) {
-      keys['Space'] = false;
-      loadLevel(currentLevel + 1);
-    }
     if (keys['KeyM']) {
       keys['KeyM'] = false;
       gameState = 'MENU';
@@ -1217,6 +1210,7 @@ function update(dt) {
           playBossDefeat();
           boss = null;
           gameState = 'LEVEL_COMPLETE';
+          break;
         }
       }
     }
@@ -1442,7 +1436,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  ctx.fillText('v1.31.0', CANVAS_W - 10, CANVAS_H - 8);
+  ctx.fillText('v1.33.0', CANVAS_W - 10, CANVAS_H - 8);
 
   ctx.restore();
 }
@@ -1848,7 +1842,7 @@ function renderLevelComplete() {
   levelCompleteButtonRects.length = 0;
   const btnW = 300, gap = 16, cx = CANVAS_W / 2;
   const buttons = [
-    { key: 'continue', label: `Continue to Level ${currentLevel + 1}`, hint: 'SPACE', color: '#4f8', bg: 'rgba(0,60,25,0.85)', btnH: 58 },
+    { key: 'continue', label: `Continue to Level ${currentLevel + 1}`, hint: '',      color: '#4f8', bg: 'rgba(0,60,25,0.85)', btnH: 58 },
     { key: 'menu',     label: 'Main Menu',                              hint: 'M',     color: '#4af', bg: 'rgba(0,30,70,0.75)', btnH: 48 },
   ];
 
@@ -2020,7 +2014,7 @@ function renderGameOver() {
   const btnW = 300, gap = 16;
   const cx = CANVAS_W / 2;
   const buttons = [
-    { key: 'play', label: 'Play Again', hint: 'SPACE', color: '#4af', bg: 'rgba(0,40,90,0.75)',  btnH: 58 },
+    { key: 'play', label: 'Play Again', hint: '',      color: '#4af', bg: 'rgba(0,40,90,0.75)',  btnH: 58 },
     { key: 'menu', label: 'Main Menu',  hint: 'M',     color: '#4af', bg: 'rgba(0,30,70,0.65)',  btnH: 48 },
   ];
 
