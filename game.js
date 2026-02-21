@@ -83,6 +83,7 @@ const CHANGELOG = [
   { v: 'v1.37.0', title: 'Delete Save Confirmation', desc: 'Clicking the trash button now shows a confirmation popup before erasing the save file.' },
   { v: 'v1.38.0', title: 'Pause Menu Buttons',       desc: 'Replaced pause menu keyboard hints with clickable Resume, Restart, and Main Menu buttons.' },
   { v: 'v1.39.0', title: 'Pause Button Colors',      desc: 'Pause menu buttons are now green (Resume), red (Restart), and blue (Main Menu).' },
+  { v: 'v1.40.0', title: 'Changelog NEW Badge',      desc: 'The newest entry in the changelog now shows a green NEW badge next to its title.' },
 ];
 
 // Power-up definitions
@@ -1498,7 +1499,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  ctx.fillText('v1.39.0', CANVAS_W - 10, CANVAS_H - 8);
+  ctx.fillText('v1.40.0', CANVAS_W - 10, CANVAS_H - 8);
 
   ctx.restore();
 }
@@ -1997,6 +1998,28 @@ function renderChangelog() {
     ctx.font      = 'bold 14px "Courier New", monospace';
     ctx.fillStyle = '#fff';
     ctx.fillText(entry.title, padX + 72, ey + 10);
+
+    // "NEW" badge on the newest entry
+    if (i === 0) {
+      const titleW  = ctx.measureText(entry.title).width;
+      const bx      = padX + 72 + titleW + 10;
+      const by      = ey + 8;
+      const bw      = 36, bh = 16;
+      ctx.fillStyle   = '#4f8';
+      ctx.shadowColor = '#0f4';
+      ctx.shadowBlur  = 6;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 4);
+      ctx.fill();
+      ctx.shadowBlur  = 0;
+      ctx.font        = 'bold 10px "Courier New", monospace';
+      ctx.fillStyle   = '#000';
+      ctx.textAlign   = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('NEW', bx + bw / 2, by + bh / 2);
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'top';
+    }
 
     // Description
     ctx.font      = '12px "Courier New", monospace';
