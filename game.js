@@ -74,7 +74,7 @@ const CHANGELOG = [
   { v: 'v1.28.0', title: 'Changelog',                 desc: 'Added Changelog screen with a scrollable list of every improvement made to the game.' },
   { v: 'v1.29.0', title: 'Changelog Newest First',    desc: 'Changelog now displays the most recent version at the top.' },
   { v: 'v1.30.0', title: 'Power-Up Bar Overlap Fix',  desc: 'Fixed the countdown timer overlapping the power-up label. Label and timer are now stacked on separate lines.' },
-  { v: 'v1.31.0', title: 'Boss Fight',                desc: 'At 10,000 points a boss spawns with a health bar, AI movement, bullet attacks, and charge attacks. Difficulty scales the boss stats and name: Easy = Spaceship Eater 450, Medium = Nebula Warden, Hard = Omega Devourer.' },
+  { v: 'v1.31.0', title: 'Boss Fight',                desc: 'At 10,000 points a boss spawns with a health bar, AI movement, bullet attacks, and charge attacks. Difficulty scales the boss stats and name: Easy = Spaceship Eater 450, Medium = Galaxy Warden, Hard = Omega Devourer.' },
 ];
 
 // Power-up definitions
@@ -517,7 +517,7 @@ class BossBullet {
 // ─── Boss ─────────────────────────────────────────────────────────────────────
 const BOSS_DEFS = {
   easy:   { name: 'Spaceship Eater 450', maxHp: 30,  speed: 110, shootInterval: 2.8, bulletSpeed: 260, bulletCount: 1, chargeInterval: 14, color: '#c44' },
-  medium: { name: 'Nebula Warden',       maxHp: 65,  speed: 170, shootInterval: 1.8, bulletSpeed: 360, bulletCount: 2, chargeInterval: 9,  color: '#a4f' },
+  medium: { name: 'Galaxy Warden',       maxHp: 65,  speed: 170, shootInterval: 1.8, bulletSpeed: 360, bulletCount: 2, chargeInterval: 9,  color: '#a4f' },
   hard:   { name: 'Omega Devourer',      maxHp: 120, speed: 240, shootInterval: 0.9, bulletSpeed: 500, bulletCount: 3, chargeInterval: 5,  color: '#f44' },
 };
 
