@@ -93,6 +93,8 @@ const CHANGELOG = [
   { v: 'v1.47.0', title: 'Unique Boss Designs',      desc: 'Medium (Galaxy Warden) now uses the Heavy Cruiser hull with 2 cannons. Hard (Omega Devourer) uses the Star hull with 3 cannons. Every boss across all difficulties now has a completely unique shape and cannon configuration.' },
   { v: 'v1.48.0', title: 'Medium Boss Names',        desc: 'Each level in medium mode now has a unique boss name: Starcrusher, Voidstorm, Ironclad, Nightfall, Warbringer, Skybreaker, Darkstar, Dreadcore, Stormlord.' },
   { v: 'v1.49.0', title: 'Medium Boss Visuals',      desc: 'Every medium boss now has a unique color, hull shape, and cannon count. No two bosses in medium mode share the same design.' },
+  { v: 'v1.50.0', title: 'Play Options Back Button', desc: 'Play Options screen now has a clickable Back button in addition to the ESC shortcut.' },
+  { v: 'v1.51.0', title: 'Back Button Arrow',        desc: 'The Back button on the Play Options screen now shows a ← arrow.' },
 ];
 
 // Power-up definitions
@@ -313,6 +315,8 @@ canvas.addEventListener('click', e => {
           confirmDeleteVisible = false;
         } else if (btn.key === 'cancel_delete') {
           confirmDeleteVisible = false;
+        } else if (btn.key === 'back') {
+          gameState = 'MENU';
         }
       }
     }
@@ -1571,7 +1575,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.49.0';
+  const verText = 'v1.51.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1707,9 +1711,24 @@ function renderPlayMode() {
     btnY += b.btnH + gap;
   }
 
-  ctx.fillStyle = '#555';
-  ctx.font      = '14px "Courier New", monospace';
-  ctx.fillText('ESC — Back', cx, btnY + 20);
+  // Back button
+  const backW = 180, backH = 44;
+  const backX = cx - backW / 2, backY = btnY + 16;
+  playModeButtonRects.push({ x: backX, y: backY, w: backW, h: backH, key: 'back' });
+  ctx.shadowColor = '#48f';
+  ctx.shadowBlur  = 8;
+  ctx.fillStyle   = 'rgba(10,20,60,0.85)';
+  ctx.strokeStyle = '#48f';
+  ctx.lineWidth   = 2;
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  ctx.roundRect(backX, backY, backW, backH, 10);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur  = 0;
+  ctx.fillStyle   = '#fff';
+  ctx.font        = 'bold 16px "Courier New", monospace';
+  ctx.fillText('← BACK', cx, backY + backH / 2);
 
   // Confirmation popup
   if (confirmDeleteVisible) {
