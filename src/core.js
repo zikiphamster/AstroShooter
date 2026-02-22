@@ -631,7 +631,7 @@ function renderPlayMode() {
     {
       key: 'load',
       label: 'LOAD GAME',
-      sub: hasSave ? `Level ${save.level}  ·  ${DIFFICULTIES[save.diff].label}` : 'No save found',
+      sub: hasSave ? `Level ${save.level}  ·  ${DIFFICULTIES[save.diff].label}  ·  ${save.lives} lives` : 'No save found',
       color: hasSave ? '#4f8' : '#446',
       bg:    hasSave ? 'rgba(0,50,25,0.85)' : 'rgba(10,10,20,0.6)',
       btnH: 68,
