@@ -110,6 +110,21 @@ function playBossDefeat() {
   });
 }
 
+function playCollectCoin() {
+  if (audioCtx.state !== 'running') return;
+  const osc  = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.08);
+  gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.12);
+}
+
 // ─── Input ────────────────────────────────────────────────────────────────────
 const keys = {};
 window.addEventListener('keydown', e => {
@@ -124,6 +139,7 @@ window.addEventListener('keydown', e => {
     else if (gameState === 'PLAY_MODE')  { confirmDeleteVisible = false; gameState = 'MENU'; }
     else if (gameState === 'CONTROLS')   gameState = 'MENU';
     else if (gameState === 'CHANGELOG')  gameState = 'MENU';
+    else if (gameState === 'SHOP')       { shopScrollY = 0; gameState = 'MENU'; }
   }
 
   keys[e.code] = true;
@@ -136,6 +152,9 @@ window.addEventListener('wheel', e => {
   if (gameState === 'CHANGELOG') {
     changelogScrollY = Math.max(0, changelogScrollY + e.deltaY);
   }
+  if (gameState === 'SHOP') {
+    shopScrollY = Math.max(0, shopScrollY + e.deltaY);
+  }
 }, { passive: true });
 
 canvas.addEventListener('click', e => {
@@ -146,7 +165,8 @@ canvas.addEventListener('click', e => {
   if (gameState === 'MENU') {
     for (const btn of menuButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-        if (btn.key === 'play')     gameState = 'PLAY_MODE';
+        if (btn.key === 'play')      gameState = 'PLAY_MODE';
+        if (btn.key === 'shop')      gameState = 'SHOP';
         if (btn.key === 'controls')  gameState = 'CONTROLS';
         if (btn.key === 'changelog') { gameState = 'CHANGELOG'; changelogScrollY = 0; }
       }
@@ -156,6 +176,49 @@ canvas.addEventListener('click', e => {
       const r = controlsBackRect;
       if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
         gameState = 'MENU';
+      }
+    }
+  } else if (gameState === 'SHOP') {
+    const smy = my + shopScrollY;  // adjust for scroll offset
+    for (const btn of shopButtonRects) {
+      if (mx >= btn.x && mx <= btn.x + btn.w && smy >= btn.y && smy <= btn.y + btn.h) {
+        if (btn.key.startsWith('color_')) {
+          const i = +btn.key.split('_')[1];
+          if (unlockedColors.includes(i)) {
+            playerColor = SHIP_COLORS[i];
+            saveShop();
+          } else if (spaceCoins >= COLOR_COSTS[i]) {
+            spaceCoins -= COLOR_COSTS[i];
+            unlockedColors.push(i);
+            playerColor = SHIP_COLORS[i];
+            saveShop();
+          }
+        } else if (btn.key.startsWith('variant_')) {
+          const i = +btn.key.split('_')[1];
+          if (unlockedHulls.includes(i)) {
+            playerVariant = i;
+            saveShop();
+          } else if (spaceCoins >= HULL_DEFS[i].cost) {
+            spaceCoins -= HULL_DEFS[i].cost;
+            unlockedHulls.push(i);
+            playerVariant = i;
+            saveShop();
+          }
+        } else if (btn.key.startsWith('engine_')) {
+          const i = +btn.key.split('_')[1];
+          if (unlockedEngines.includes(i)) {
+            playerEngine = i;
+            saveShop();
+          } else if (spaceCoins >= ENGINE_DEFS[i].cost) {
+            spaceCoins -= ENGINE_DEFS[i].cost;
+            unlockedEngines.push(i);
+            playerEngine = i;
+            saveShop();
+          }
+        } else if (btn.key === 'back') {
+          shopScrollY = 0;
+          gameState = 'MENU';
+        }
       }
     }
   } else if (gameState === 'CHANGELOG') {

@@ -45,4 +45,4 @@ There are no DOM elements for UI — everything is drawn on canvas. Clickable bu
 - MINOR bump (e.g. `1.51.0 → 1.52.0`) for new features or significant changes
 - PATCH bump (e.g. `1.51.0 → 1.51.1`) for small tweaks, label changes, cosmetic fixes
 
-When bumping the version, add a new entry to the `CHANGELOG` array in `src/config.js` (newest entries go at the top of the array — `CHANGELOG` is displayed reversed).
+When bumping the version, add a new entry to the **END** of the `CHANGELOG` array in `src/config.js`. `renderChangelog()` reverses the array, so the last entry appears at the top (newest first). Also update the `verText` string inside `renderMenu()` in `src/core.js`.

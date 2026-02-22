@@ -4,6 +4,209 @@
 
 // ─── Player ───────────────────────────────────────────────────────────────────
 
+function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
+  // Thruster flame
+  const flameLen = 14 + Math.sin(thrusterAnim ?? 0) * 6;
+  const gradient = ctx.createLinearGradient(x, y, x - flameLen, y + h / 2);
+  gradient.addColorStop(0, 'rgba(0,180,255,0.9)');
+  gradient.addColorStop(0.4, 'rgba(255,120,0,0.7)');
+  gradient.addColorStop(1, 'rgba(255,60,0,0)');
+  ctx.beginPath();
+  ctx.moveTo(x + 4, y + h * 0.35);
+  ctx.lineTo(x - flameLen, y + h / 2);
+  ctx.lineTo(x + 4, y + h * 0.65);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  // Hull shape
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (variant === 1) {        // Wedge — wide flat rear
+    ctx.moveTo(x + w,       y + h / 2);
+    ctx.lineTo(x + w * 0.7, y);
+    ctx.lineTo(x,           y + h * 0.1);
+    ctx.lineTo(x,           y + h * 0.9);
+    ctx.lineTo(x + w * 0.7, y + h);
+  } else if (variant === 2) { // Dart — swept wings, narrow body
+    ctx.moveTo(x + w,       y + h / 2);
+    ctx.lineTo(x + w * 0.3, y);
+    ctx.lineTo(x + w * 0.5, y + h * 0.35);
+    ctx.lineTo(x,           y + h * 0.4);
+    ctx.lineTo(x,           y + h * 0.6);
+    ctx.lineTo(x + w * 0.5, y + h * 0.65);
+    ctx.lineTo(x + w * 0.3, y + h);
+  } else if (variant === 3) { // Cruiser — boxy, chunky wings
+    ctx.moveTo(x + w,       y + h / 2);
+    ctx.lineTo(x + w * 0.6, y + h * 0.15);
+    ctx.lineTo(x + w * 0.2, y + h * 0.15);
+    ctx.lineTo(x,           y);
+    ctx.lineTo(x,           y + h);
+    ctx.lineTo(x + w * 0.2, y + h * 0.85);
+    ctx.lineTo(x + w * 0.6, y + h * 0.85);
+  } else if (variant === 4) { // Delta — pure triangle
+    ctx.moveTo(x + w,       y + h / 2);
+    ctx.lineTo(x,           y);
+    ctx.lineTo(x,           y + h);
+  } else if (variant === 5) { // Razor — ultra-thin swept
+    ctx.moveTo(x + w,       y + h / 2);
+    ctx.lineTo(x + w * 0.4, y + h * 0.2);
+    ctx.lineTo(x,           y + h * 0.35);
+    ctx.lineTo(x,           y + h * 0.65);
+    ctx.lineTo(x + w * 0.4, y + h * 0.8);
+  } else if (variant === 6) { // Stealth — flat B-2 style
+    ctx.moveTo(x + w,       y + h / 2);
+    ctx.lineTo(x + w * 0.8, y + h * 0.1);
+    ctx.lineTo(x + w * 0.5, y + h * 0.15);
+    ctx.lineTo(x,           y + h * 0.3);
+    ctx.lineTo(x,           y + h * 0.7);
+    ctx.lineTo(x + w * 0.5, y + h * 0.85);
+    ctx.lineTo(x + w * 0.8, y + h * 0.9);
+  } else if (variant === 7) { // Bomber — wide boxy full-height
+    ctx.moveTo(x + w,       y + h / 2);
+    ctx.lineTo(x + w * 0.7, y);
+    ctx.lineTo(x + w * 0.1, y);
+    ctx.lineTo(x,           y + h * 0.3);
+    ctx.lineTo(x,           y + h * 0.7);
+    ctx.lineTo(x + w * 0.1, y + h);
+    ctx.lineTo(x + w * 0.7, y + h);
+  } else if (variant === 8) { // Scout — compact rounded
+    ctx.moveTo(x + w,       y + h / 2);
+    ctx.lineTo(x + w * 0.5, y + h * 0.05);
+    ctx.lineTo(x + w * 0.1, y + h * 0.2);
+    ctx.lineTo(x,           y + h * 0.5);
+    ctx.lineTo(x + w * 0.1, y + h * 0.8);
+    ctx.lineTo(x + w * 0.5, y + h * 0.95);
+  } else if (variant === 9) { // Interceptor — twin-boom flanking fins
+    ctx.moveTo(x + w,       y + h / 2);
+    ctx.lineTo(x + w * 0.4, y + h * 0.3);
+    ctx.lineTo(x + w * 0.6, y + h * 0.1);
+    ctx.lineTo(x,           y + h * 0.25);
+    ctx.lineTo(x,           y + h * 0.75);
+    ctx.lineTo(x + w * 0.6, y + h * 0.9);
+    ctx.lineTo(x + w * 0.4, y + h * 0.7);
+  } else if (variant === 10) { // Hawk — forward-swept wings
+    ctx.moveTo(x + w,        y + h / 2);
+    ctx.lineTo(x + w * 0.3,  y);
+    ctx.lineTo(x + w * 0.5,  y + h * 0.3);
+    ctx.lineTo(x,            y + h * 0.45);
+    ctx.lineTo(x,            y + h * 0.55);
+    ctx.lineTo(x + w * 0.5,  y + h * 0.7);
+    ctx.lineTo(x + w * 0.3,  y + h);
+  } else if (variant === 11) { // X-Fighter — notched wing tips
+    ctx.moveTo(x + w,        y + h / 2);
+    ctx.lineTo(x + w * 0.5,  y);
+    ctx.lineTo(x + w * 0.4,  y + h * 0.25);
+    ctx.lineTo(x,            y + h * 0.1);
+    ctx.lineTo(x,            y + h * 0.4);
+    ctx.lineTo(x + w * 0.35, y + h / 2);
+    ctx.lineTo(x,            y + h * 0.6);
+    ctx.lineTo(x,            y + h * 0.9);
+    ctx.lineTo(x + w * 0.4,  y + h * 0.75);
+    ctx.lineTo(x + w * 0.5,  y + h);
+  } else if (variant === 12) { // Mantis — rear spikes
+    ctx.moveTo(x + w,        y + h / 2);
+    ctx.lineTo(x + w * 0.6,  y + h * 0.2);
+    ctx.lineTo(x + w * 0.3,  y + h * 0.2);
+    ctx.lineTo(x + w * 0.3,  y);
+    ctx.lineTo(x,            y + h * 0.35);
+    ctx.lineTo(x,            y + h * 0.65);
+    ctx.lineTo(x + w * 0.3,  y + h);
+    ctx.lineTo(x + w * 0.3,  y + h * 0.8);
+    ctx.lineTo(x + w * 0.6,  y + h * 0.8);
+  } else if (variant === 13) { // Phantom — notched upper hull
+    ctx.moveTo(x + w,        y + h / 2);
+    ctx.lineTo(x + w * 0.6,  y);
+    ctx.lineTo(x + w * 0.45, y + h * 0.25);
+    ctx.lineTo(x + w * 0.25, y + h * 0.15);
+    ctx.lineTo(x,            y + h * 0.3);
+    ctx.lineTo(x,            y + h * 0.7);
+    ctx.lineTo(x + w * 0.6,  y + h);
+  } else if (variant === 14) { // Titan — maximum blockiness
+    ctx.moveTo(x + w,        y + h / 2);
+    ctx.lineTo(x + w * 0.75, y + h * 0.05);
+    ctx.lineTo(x + w * 0.1,  y + h * 0.05);
+    ctx.lineTo(x,            y + h * 0.2);
+    ctx.lineTo(x,            y + h * 0.8);
+    ctx.lineTo(x + w * 0.1,  y + h * 0.95);
+    ctx.lineTo(x + w * 0.75, y + h * 0.95);
+  } else if (variant === 15) { // Viper — S-curve profile
+    ctx.moveTo(x + w,        y + h / 2);
+    ctx.lineTo(x + w * 0.6,  y + h * 0.05);
+    ctx.lineTo(x + w * 0.4,  y + h * 0.25);
+    ctx.lineTo(x,            y + h * 0.15);
+    ctx.lineTo(x,            y + h * 0.55);
+    ctx.lineTo(x + w * 0.35, y + h * 0.6);
+    ctx.lineTo(x + w * 0.35, y + h * 0.9);
+    ctx.lineTo(x + w * 0.7,  y + h * 0.95);
+  } else if (variant === 16) { // Raptor — spine ridge + swept wings
+    ctx.moveTo(x + w,        y + h / 2);
+    ctx.lineTo(x + w * 0.7,  y + h * 0.25);
+    ctx.lineTo(x + w * 0.5,  y + h * 0.3);
+    ctx.lineTo(x + w * 0.2,  y);
+    ctx.lineTo(x,            y + h * 0.2);
+    ctx.lineTo(x + w * 0.3,  y + h / 2);
+    ctx.lineTo(x,            y + h * 0.8);
+    ctx.lineTo(x + w * 0.2,  y + h);
+    ctx.lineTo(x + w * 0.5,  y + h * 0.7);
+    ctx.lineTo(x + w * 0.7,  y + h * 0.75);
+  } else if (variant === 17) { // Javelin — ultra-long needle
+    ctx.moveTo(x + w,        y + h / 2);
+    ctx.lineTo(x + w * 0.15, y + h * 0.3);
+    ctx.lineTo(x,            y + h * 0.4);
+    ctx.lineTo(x,            y + h * 0.6);
+    ctx.lineTo(x + w * 0.15, y + h * 0.7);
+  } else if (variant === 18) { // Cobra — hooded flared rear
+    ctx.moveTo(x + w,        y + h / 2);
+    ctx.lineTo(x + w * 0.65, y + h * 0.1);
+    ctx.lineTo(x + w * 0.4,  y + h * 0.2);
+    ctx.lineTo(x + w * 0.2,  y);
+    ctx.lineTo(x,            y + h * 0.1);
+    ctx.lineTo(x + w * 0.1,  y + h * 0.5);
+    ctx.lineTo(x,            y + h * 0.9);
+    ctx.lineTo(x + w * 0.2,  y + h);
+    ctx.lineTo(x + w * 0.4,  y + h * 0.8);
+    ctx.lineTo(x + w * 0.65, y + h * 0.9);
+  } else if (variant === 19) { // Omega — starburst rear + long nose
+    ctx.moveTo(x + w,        y + h / 2);
+    ctx.lineTo(x + w * 0.55, y + h * 0.1);
+    ctx.lineTo(x + w * 0.4,  y);
+    ctx.lineTo(x + w * 0.35, y + h * 0.2);
+    ctx.lineTo(x + w * 0.15, y + h * 0.05);
+    ctx.lineTo(x + w * 0.2,  y + h * 0.3);
+    ctx.lineTo(x,            y + h * 0.25);
+    ctx.lineTo(x + w * 0.1,  y + h / 2);
+    ctx.lineTo(x,            y + h * 0.75);
+    ctx.lineTo(x + w * 0.2,  y + h * 0.7);
+    ctx.lineTo(x + w * 0.15, y + h * 0.95);
+    ctx.lineTo(x + w * 0.35, y + h * 0.8);
+    ctx.lineTo(x + w * 0.4,  y + h);
+    ctx.lineTo(x + w * 0.55, y + h * 0.9);
+  } else {                      // variant 0 — Arrowhead (default)
+    ctx.moveTo(x + w,       y + h / 2);
+    ctx.lineTo(x,           y);
+    ctx.lineTo(x + w * 0.2, y + h / 2);
+    ctx.lineTo(x,           y + h);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit — frosted glass
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(x + w * 0.55, y + h / 2, w * 0.18, h * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Wing accent stripe
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.3, y + h * 0.3);
+  ctx.lineTo(x + w * 0.7, y + h * 0.5);
+  ctx.lineTo(x + w * 0.3, y + h * 0.7);
+  ctx.stroke();
+}
+
 class Player {
   constructor() {
     this.w = 48;
@@ -19,8 +222,10 @@ class Player {
   get cy() { return this.y + this.h / 2; }
 
   update(dt) {
-    // Movement (speed boost doubles speed)
-    const spd = activeEffects && activeEffects.speedboost > 0 ? PLAYER_SPEED * 1.6 : PLAYER_SPEED;
+    // Movement (speed boost doubles speed; hull+engine stats scale base speed)
+    const stats = getShipStats();
+    const baseSpd = PLAYER_SPEED * stats.speedMult;
+    const spd = activeEffects && activeEffects.speedboost > 0 ? baseSpd * 1.6 : baseSpd;
     let vx = 0, vy = 0;
     if (isDown('ArrowUp',    'KeyW')) vy = -spd;
     if (isDown('ArrowDown',  'KeyS')) vy =  spd;
@@ -40,49 +245,8 @@ class Player {
   }
 
   draw() {
-    const x = this.x, y = this.y, w = this.w, h = this.h;
-
-    // Flash when invincible
     if (this.invincible > 0 && Math.floor(this.invincible * 10) % 2 === 0) return;
-
-    // Thruster flame
-    const flameLen = 14 + Math.sin(this.thrusterAnim) * 6;
-    const gradient = ctx.createLinearGradient(x, y, x - flameLen, y + h / 2);
-    gradient.addColorStop(0, 'rgba(0,180,255,0.9)');
-    gradient.addColorStop(0.4, 'rgba(255,120,0,0.7)');
-    gradient.addColorStop(1, 'rgba(255,60,0,0)');
-    ctx.beginPath();
-    ctx.moveTo(x + 4, y + h * 0.35);
-    ctx.lineTo(x - flameLen, y + h / 2);
-    ctx.lineTo(x + 4, y + h * 0.65);
-    ctx.closePath();
-    ctx.fillStyle = gradient;
-    ctx.fill();
-
-    // Ship body
-    ctx.fillStyle = '#4af';
-    ctx.beginPath();
-    ctx.moveTo(x + w,       y + h / 2);      // nose
-    ctx.lineTo(x,           y);               // top-left
-    ctx.lineTo(x + w * 0.2, y + h / 2);      // inner top
-    ctx.lineTo(x,           y + h);           // bottom-left
-    ctx.closePath();
-    ctx.fill();
-
-    // Cockpit
-    ctx.fillStyle = '#9ef';
-    ctx.beginPath();
-    ctx.ellipse(x + w * 0.55, y + h / 2, w * 0.18, h * 0.22, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Wing accent
-    ctx.strokeStyle = '#2cf';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(x + w * 0.3, y + h * 0.3);
-    ctx.lineTo(x + w * 0.7, y + h * 0.5);
-    ctx.lineTo(x + w * 0.3, y + h * 0.7);
-    ctx.stroke();
+    drawPlayerShip(this.x, this.y, this.w, this.h, playerColor, playerVariant, this.thrusterAnim);
   }
 
   tryShoot(bullets) {
@@ -90,20 +254,23 @@ class Player {
     if (!isDown('Space')) return;
     const bx = this.x + this.w;
     const by = this.y + this.h / 2 - 2;
-    bullets.push(new Bullet(bx, by));
+    const sStats = getShipStats();
+    const bSpd   = BULLET_SPEED * sStats.bulletMult;
+    const baseCd = SHOOT_COOLDOWN * sStats.cooldownMult;
+    bullets.push(new Bullet(bx, by, bSpd));
     if (activeEffects && activeEffects.tripleshot > 0) {
-      bullets.push(new Bullet(bx, by, BULLET_SPEED * 0.92, -90));
-      bullets.push(new Bullet(bx, by, BULLET_SPEED * 0.92,  90));
+      bullets.push(new Bullet(bx, by, bSpd * 0.92, -90));
+      bullets.push(new Bullet(bx, by, bSpd * 0.92,  90));
     }
     this.shootCooldown = (activeEffects && activeEffects.rapidfire > 0)
-      ? SHOOT_COOLDOWN * 0.30
-      : SHOOT_COOLDOWN;
+      ? baseCd * 0.30
+      : baseCd;
     playShoot();
   }
 
   hit() {
     if (this.invincible > 0) return false;
-    this.invincible = INVINCIBLE_TIME;
+    this.invincible = INVINCIBLE_TIME * getShipStats().invincMult;
     return true;
   }
 }
@@ -540,6 +707,39 @@ class Particle {
     ctx.fillStyle = this.color;
     ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
     ctx.globalAlpha = 1;
+  }
+}
+
+// ─── CoinPickup ───────────────────────────────────────────────────────────────
+class CoinPickup {
+  constructor(x, y) {
+    this.x      = x;
+    this.y      = y;
+    this.r      = 9;
+    this.anim   = Math.random() * Math.PI * 2;
+    this.active = true;
+  }
+
+  update(dt) { this.anim += dt * 2.5; }
+
+  draw() {
+    const pulse = Math.sin(this.anim) * 2;
+    ctx.save();
+    ctx.shadowColor = '#fd0';
+    ctx.shadowBlur  = 12 + pulse;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r + pulse, 0, Math.PI * 2);
+    ctx.fillStyle   = 'rgba(40,30,0,0.85)';
+    ctx.fill();
+    ctx.strokeStyle = '#fd0';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, (this.r + pulse) * 0.55, 0, Math.PI * 2);
+    ctx.fillStyle = '#fd0';
+    ctx.fill();
+    ctx.restore();
   }
 }
 

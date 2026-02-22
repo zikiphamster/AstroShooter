@@ -47,7 +47,84 @@ let controlsBackRect = null;
 let changelogScrollY  = 0;
 let changelogBackRect = null;
 
+// ─── Customization ────────────────────────────────────────────────────────────
+let playerColor    = '#4af';
+let playerVariant  = 0;
+let spaceCoins     = 0;
+let unlockedColors = [0];   // indices into SHIP_COLORS that are unlocked
+let unlockedHulls  = [0];   // hull variant indices that are unlocked
+
+const SHIP_COLORS = ['#4af', '#4f8', '#f80', '#f44', '#f4f', '#ff4', '#fff', '#a8f'];
+const COLOR_COSTS = [0, 50, 75, 75, 100, 100, 150, 150];
+
+const HULL_DEFS = [
+  { name: 'Arrowhead',   cost: 0   },  // 0 — default, free
+  { name: 'Wedge',       cost: 25  },  // 1
+  { name: 'Dart',        cost: 50  },  // 2
+  { name: 'Cruiser',     cost: 75  },  // 3
+  { name: 'Delta',       cost: 100 },  // 4
+  { name: 'Razor',       cost: 125 },  // 5
+  { name: 'Stealth',     cost: 150 },  // 6
+  { name: 'Bomber',      cost: 175 },  // 7
+  { name: 'Scout',       cost: 200 },  // 8
+  { name: 'Interceptor', cost: 225 },  // 9
+  { name: 'Hawk',        cost: 250 },  // 10
+  { name: 'X-Fighter',   cost: 275 },  // 11
+  { name: 'Mantis',      cost: 300 },  // 12
+  { name: 'Phantom',     cost: 325 },  // 13
+  { name: 'Titan',       cost: 350 },  // 14
+  { name: 'Viper',       cost: 375 },  // 15
+  { name: 'Raptor',      cost: 400 },  // 16
+  { name: 'Javelin',     cost: 425 },  // 17
+  { name: 'Cobra',       cost: 450 },  // 18
+  { name: 'Omega',       cost: 500 },  // 19
+];
+
+// Coins spawned per batch by difficulty
+const COIN_BATCH = { easy: 3, medium: 5, hard: 8 };
+
+// ─── Hull Attributes ──────────────────────────────────────────────────────────
+// One entry per hull (0–19). Values 1–5: higher = better.
+const HULL_STATS = [
+  { spd:3, rate:3, def:3, pow:3 },  // 0  Arrowhead  (balanced)
+  { spd:4, rate:3, def:2, pow:3 },  // 1  Wedge
+  { spd:5, rate:4, def:1, pow:2 },  // 2  Dart       (speed)
+  { spd:2, rate:3, def:5, pow:3 },  // 3  Cruiser    (tank)
+  { spd:4, rate:2, def:3, pow:4 },  // 4  Delta
+  { spd:5, rate:4, def:1, pow:3 },  // 5  Razor
+  { spd:4, rate:5, def:2, pow:2 },  // 6  Stealth    (rate)
+  { spd:2, rate:2, def:4, pow:5 },  // 7  Bomber     (power tank)
+  { spd:5, rate:3, def:2, pow:3 },  // 8  Scout
+  { spd:5, rate:4, def:2, pow:4 },  // 9  Interceptor
+  { spd:4, rate:5, def:3, pow:3 },  // 10 Hawk
+  { spd:3, rate:4, def:4, pow:4 },  // 11 X-Fighter
+  { spd:3, rate:5, def:3, pow:4 },  // 12 Mantis
+  { spd:4, rate:3, def:5, pow:3 },  // 13 Phantom
+  { spd:2, rate:2, def:5, pow:5 },  // 14 Titan      (max tank/power)
+  { spd:5, rate:3, def:3, pow:4 },  // 15 Viper
+  { spd:4, rate:4, def:4, pow:4 },  // 16 Raptor     (all-rounder)
+  { spd:5, rate:5, def:2, pow:3 },  // 17 Javelin    (max speed/rate)
+  { spd:3, rate:4, def:4, pow:5 },  // 18 Cobra
+  { spd:4, rate:4, def:5, pow:5 },  // 19 Omega      (premium)
+];
+
+// ─── Engines ──────────────────────────────────────────────────────────────────
+// Stat deltas range −2 to +2. Combined with hull stats → gameplay multipliers.
+const ENGINE_DEFS = [
+  { name: 'Standard',    cost:   0, spd: 0, rate: 0, def: 0, pow: 0 },  // 0 free/default
+  { name: 'Afterburner', cost:  50, spd:+2, rate: 0, def:-1, pow: 0 },  // 1
+  { name: 'Pulse Drive', cost:  75, spd: 0, rate:+2, def: 0, pow: 0 },  // 2
+  { name: 'Bulwark',     cost: 100, spd:-1, rate: 0, def:+2, pow: 0 },  // 3
+  { name: 'Ion Core',    cost: 150, spd:+1, rate: 0, def: 0, pow:+2 },  // 4
+  { name: 'Quantum',     cost: 250, spd:+1, rate:+1, def:+1, pow:+1 },  // 5
+];
+
+let playerEngine    = 0;
+let unlockedEngines = [0];
+
 // ─── Changelog ────────────────────────────────────────────────────────────────
+// NOTE: Add NEW entries at the END of this array. renderChangelog() reverses it
+//       so the last entry appears at the top (newest first).
 const CHANGELOG = [
   { v: 'v1.1.0',  title: 'Initial Release',           desc: 'Space shooter with asteroids, bullets, lives, score, and parallax star background.' },
   { v: 'v1.2.0',  title: 'Fullscreen',                desc: 'Game now fills the entire browser window and dynamically adapts to resize.' },
@@ -100,6 +177,10 @@ const CHANGELOG = [
   { v: 'v1.49.0', title: 'Medium Boss Visuals',      desc: 'Every medium boss now has a unique color, hull shape, and cannon count. No two bosses in medium mode share the same design.' },
   { v: 'v1.50.0', title: 'Play Options Back Button', desc: 'Play Options screen now has a clickable Back button in addition to the ESC shortcut.' },
   { v: 'v1.51.0', title: 'Back Button Arrow',        desc: 'The Back button on the Play Options screen now shows a ← arrow.' },
+  { v: 'v1.52.0', title: 'Ship Customization',       desc: 'New Customize screen from the main menu. Choose from 8 hull colors and 4 ship shapes (Arrowhead, Wedge, Dart, Cruiser). Your choice is saved between sessions.' },
+  { v: 'v1.53.0', title: 'SpaceCoins & Unlocks',    desc: 'Coins spawn on the map during gameplay — fly over them to collect. Spend SpaceCoins to unlock 19 hull shapes and 7 colors in the Customize screen. Higher difficulty spawns more coins per batch.' },
+  { v: 'v1.53.1', title: 'Customize Renamed to Shop', desc: 'The Customize button and screen have been renamed to Shop.' },
+  { v: 'v1.54.0', title: 'Hull Attributes & Engines', desc: 'Every hull now has Speed, Fire Rate, Defense, and Bullet Power ratings shown as stat bars in the Shop. Buy one of 6 engines (Standard through Quantum) to boost or trade off stats. Combined hull + engine values scale real gameplay: movement speed, fire rate, invincibility time, and bullet speed.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

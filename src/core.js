@@ -3,19 +3,22 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Game State ───────────────────────────────────────────────────────────────
-let gameState;   // 'MENU' | 'PLAY_MODE' | 'PLAYING' | 'PAUSED' | 'GAME_OVER' | 'LEVEL_COMPLETE'
+let gameState;   // 'MENU' | 'PLAY_MODE' | 'SHOP' | 'DIFFICULTY' | 'PLAYING' | 'PAUSED' | 'GAME_OVER' | 'LEVEL_COMPLETE' | 'CONTROLS' | 'CHANGELOG'
 let player, bullets, asteroids, particles;
 let score, lives;
 let spawnTimer, spawnInterval;
 let difficultyTimer, astSpeedMult;
 let gameTime;
 let powerups, collectedPowerups, powerupTimer;
+let coinPickups, coinSpawnTimer;
 let activeEffects;  // { rapidfire, tripleshot, speedboost } — seconds remaining
 let boss, bossBullets, bossSpawned, bossDefeated, bossWarningTimer;
 let currentLevel, nextBossScore;
 const levelCompleteButtonRects = [];
 const playModeButtonRects = [];
 const pauseButtonRects = [];
+const shopButtonRects = [];
+let shopScrollY = 0;
 let confirmDeleteVisible = false;
 
 function loadGame() {
@@ -28,6 +31,8 @@ function loadGame() {
   collectedPowerups = [];
   activeEffects = { rapidfire: 0, tripleshot: 0, speedboost: 0 };
   powerupTimer    = rand(15, 30);
+  coinPickups     = [];
+  coinSpawnTimer  = rand(10, 30);
   score      = 0;
   lives      = d.lives;
   spawnTimer = 0;
@@ -58,6 +63,8 @@ function loadLevel(level) {
   bossBullets   = [];
   activeEffects = { rapidfire: 0, tripleshot: 0, speedboost: 0 };
   powerupTimer  = rand(15, 30);
+  coinPickups   = [];
+  coinSpawnTimer = rand(10, 30);
   spawnTimer    = 0;
   difficultyTimer = 0;
   gameTime      = 0;
@@ -78,6 +85,34 @@ function saveGame() {
     score: score,
     lives: lives,
   }));
+}
+
+function saveShop() {
+  localStorage.setItem('astroCustomize', JSON.stringify({
+    color: playerColor, variant: playerVariant,
+    coins: spaceCoins,
+    unlockedColors, unlockedHulls,
+    engine: playerEngine, unlockedEngines,
+  }));
+}
+
+// ─── Ship Stats ───────────────────────────────────────────────────────────────
+// Combines hull base stats + active engine deltas → gameplay multipliers.
+function getShipStats() {
+  const h = HULL_STATS[playerVariant] ?? HULL_STATS[0];
+  const e = ENGINE_DEFS[playerEngine]  ?? ENGINE_DEFS[0];
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const spd  = clamp(h.spd  + e.spd,  1, 7);
+  const rate = clamp(h.rate + e.rate, 1, 7);
+  const def  = clamp(h.def  + e.def,  1, 7);
+  const pow  = clamp(h.pow  + e.pow,  1, 7);
+  const t = v => (v - 1) / 6;  // normalize 1–7 → 0–1
+  return {
+    speedMult:    0.75 + t(spd)  * 0.75,  // 0.75×–1.50×  on PLAYER_SPEED
+    cooldownMult: 1.35 - t(rate) * 0.70,  // 1.35×–0.65×  on SHOOT_COOLDOWN (lower = faster)
+    invincMult:   0.60 + t(def)  * 1.40,  // 0.60×–2.00×  on INVINCIBLE_TIME
+    bulletMult:   0.80 + t(pow)  * 0.60,  // 0.80×–1.40×  on BULLET_SPEED
+  };
 }
 
 function spawnAsteroid(tier) {
@@ -195,6 +230,10 @@ function update(dt) {
     if (keys['Escape']) { keys['Escape'] = false; gameState = 'MENU'; }
     if (keys['ArrowUp'])   changelogScrollY = Math.max(0, changelogScrollY - 120);
     if (keys['ArrowDown']) changelogScrollY += 120;
+    return;
+  }
+
+  if (gameState === 'SHOP') {
     return;
   }
 
@@ -431,6 +470,32 @@ function update(dt) {
     }
   }
   powerups = powerups.filter(pu => pu.active);
+
+  // ── Coin spawner ─────────────────────────────────────────────────────────
+  coinSpawnTimer -= dt;
+  if (coinSpawnTimer <= 0) {
+    const count = COIN_BATCH[currentDiff] ?? 3;
+    for (let i = 0; i < count; i++) {
+      coinPickups.push(new CoinPickup(
+        rand(CANVAS_W * 0.15, CANVAS_W * 0.85),
+        rand(60, CANVAS_H - 60)
+      ));
+    }
+    coinSpawnTimer = rand(10, 30);
+  }
+
+  // ── Coin collection ──────────────────────────────────────────────────────
+  for (const c of coinPickups) c.update(dt);
+  for (const c of coinPickups) {
+    if (!c.active) continue;
+    if (dist(player.cx, player.cy, c.x, c.y) < c.r + 16) {
+      c.active = false;
+      spaceCoins++;
+      saveShop();
+      playCollectCoin();
+    }
+  }
+  coinPickups = coinPickups.filter(c => c.active);
 }
 
 // ─── Render ───────────────────────────────────────────────────────────────────
@@ -461,6 +526,11 @@ function render() {
     return;
   }
 
+  if (gameState === 'SHOP') {
+    renderShop();
+    return;
+  }
+
   if (gameState === 'CHANGELOG') {
     renderChangelog();
     return;
@@ -482,6 +552,7 @@ function render() {
   player.draw();
   for (const p of particles) p.draw();
   for (const pu of powerups)  pu.draw();
+  for (const c  of coinPickups) c.draw();
   for (const bb of bossBullets) bb.draw();
   if (boss && boss.active) boss.draw();
 
@@ -542,8 +613,9 @@ function renderMenu() {
   const cx = CANVAS_W / 2;
 
   const buttons = [
-    { key: 'play',     label: 'PLAY',       hint: 'SPACE', color: '#4af', bg: 'rgba(0,40,90,0.75)', btnH: 58 },
-    { key: 'controls', label: 'HOW TO PLAY', hint: 'C',    color: '#4af', bg: 'rgba(0,30,70,0.65)', btnH: 48 },
+    { key: 'play',      label: 'PLAY',        color: '#4af', bg: 'rgba(0,40,90,0.75)',  btnH: 58 },
+    { key: 'shop',      label: 'SHOP',         color: '#a8f', bg: 'rgba(30,0,60,0.65)',  btnH: 48 },
+    { key: 'controls',  label: 'HOW TO PLAY', color: '#4af', bg: 'rgba(0,30,70,0.65)',  btnH: 48 },
   ];
 
   let btnY = CANVAS_H / 2 - 40;
@@ -573,13 +645,6 @@ function renderMenu() {
     ctx.font = `bold ${b.key === 'play' ? 22 : 16}px "Courier New", monospace`;
     ctx.fillText(b.label, cx, bcy);
 
-    // Key hint (right-aligned inside button)
-    ctx.fillStyle = b.color;
-    ctx.font = '12px "Courier New", monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText(b.hint, bx + btnW - 14, bcy);
-    ctx.textAlign = 'center';
-
     btnY += b.btnH + gap;
   }
 
@@ -587,7 +652,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.51.0';
+  const verText = 'v1.54.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -604,6 +669,361 @@ function renderMenu() {
   ctx.stroke();
 
   ctx.restore();
+}
+
+function renderShop() {
+  ctx.save();
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.fillStyle = 'rgba(0,0,20,0.92)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  ctx.font        = 'bold 42px "Courier New", monospace';
+  ctx.fillStyle   = '#fff';
+  ctx.shadowColor = '#a8f';
+  ctx.shadowBlur  = 18;
+  ctx.fillText('SHOP', CANVAS_W / 2, 70);
+  ctx.shadowBlur  = 0;
+
+  shopButtonRects.length = 0;
+  const cx = CANVAS_W / 2;
+
+  // ── SpaceCoins balance (top-right) ────────────────────────────────────────
+  const coinBoxW = 120, coinBoxH = 34, coinBoxX = CANVAS_W - coinBoxW - 16, coinBoxY = 16;
+  ctx.fillStyle   = 'rgba(30,25,0,0.85)';
+  ctx.strokeStyle = '#fd0';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(coinBoxX, coinBoxY, coinBoxW, coinBoxH, 8);
+  ctx.fill();
+  ctx.stroke();
+  // coin icon
+  ctx.fillStyle = '#fd0';
+  ctx.beginPath();
+  ctx.arc(coinBoxX + 18, coinBoxY + coinBoxH / 2, 9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.arc(coinBoxX + 18, coinBoxY + coinBoxH / 2, 5, 0, Math.PI * 2);
+  ctx.fill();
+  // count
+  ctx.fillStyle    = '#fd0';
+  ctx.font         = 'bold 15px "Courier New", monospace';
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(spaceCoins, coinBoxX + 34, coinBoxY + coinBoxH / 2);
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+
+  // ── Scrollable content (clipped below title) ──────────────────────────────
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 95, CANVAS_W, CANVAS_H - 95);
+  ctx.clip();
+  ctx.translate(0, -shopScrollY);
+
+  // ── Ship preview ──────────────────────────────────────────────────────────
+  const previewW = 220, previewH = 110;
+  const previewX = cx - previewW / 2, previewY = 105;
+  ctx.strokeStyle = '#a8f';
+  ctx.lineWidth   = 1.5;
+  ctx.fillStyle   = 'rgba(20,0,40,0.6)';
+  ctx.beginPath();
+  ctx.roundRect(previewX, previewY, previewW, previewH, 10);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.save();
+  ctx.translate(cx, previewY + previewH / 2);
+  ctx.scale(3.2, 3.2);
+  ctx.translate(-24, -14);
+  drawPlayerShip(0, 0, 48, 28, playerColor, playerVariant, 0);
+  ctx.restore();
+
+  // ── Color swatches ────────────────────────────────────────────────────────
+  const swatchR = 18, swatchGap = 12;
+  const totalSwatchW = SHIP_COLORS.length * (swatchR * 2) + (SHIP_COLORS.length - 1) * swatchGap;
+  let swatchX = cx - totalSwatchW / 2 + swatchR;
+  const swatchY = previewY + previewH + 44;
+
+  ctx.font      = 'bold 13px "Courier New", monospace';
+  ctx.fillStyle = '#a8f';
+  ctx.fillText('COLOR', cx, swatchY - 22);
+
+  for (let i = 0; i < SHIP_COLORS.length; i++) {
+    const locked   = !unlockedColors.includes(i);
+    const selected = SHIP_COLORS[i] === playerColor && !locked;
+    shopButtonRects.push({ x: swatchX - swatchR, y: swatchY - swatchR, w: swatchR * 2, h: swatchR * 2, key: `color_${i}` });
+
+    ctx.globalAlpha = locked ? 0.35 : 1;
+    if (selected) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth   = 3;
+      ctx.beginPath();
+      ctx.arc(swatchX, swatchY, swatchR + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = SHIP_COLORS[i];
+    ctx.beginPath();
+    ctx.arc(swatchX, swatchY, swatchR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    if (locked) {
+      // Padlock icon
+      ctx.strokeStyle = '#fd0';
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.arc(swatchX, swatchY - 3, 5, Math.PI, 0);
+      ctx.stroke();
+      ctx.fillStyle = '#fd0';
+      ctx.fillRect(swatchX - 5, swatchY - 3, 10, 8);
+      // Cost below
+      ctx.font         = '9px "Courier New", monospace';
+      ctx.fillStyle    = '#fd0';
+      ctx.textBaseline = 'top';
+      ctx.fillText(COLOR_COSTS[i], swatchX, swatchY + swatchR + 2);
+      ctx.textBaseline = 'middle';
+    }
+
+    swatchX += swatchR * 2 + swatchGap;
+  }
+
+  // ── Hull grid (5 cols × 4 rows = 20) ─────────────────────────────────────
+  const cols = 5, rows = 4;
+  const thumbW = 100, thumbH = 62, thumbGapX = 10, thumbGapY = 8;
+  const totalThumbW = cols * thumbW + (cols - 1) * thumbGapX;
+  const thumbStartX = cx - totalThumbW / 2;
+  const thumbStartY = swatchY + swatchR + 52;
+
+  ctx.font      = 'bold 13px "Courier New", monospace';
+  ctx.fillStyle = '#a8f';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('HULL', cx, thumbStartY - 22);
+
+  for (let i = 0; i < HULL_DEFS.length; i++) {
+    const col      = i % cols;
+    const row      = Math.floor(i / cols);
+    const tx       = thumbStartX + col * (thumbW + thumbGapX);
+    const ty       = thumbStartY + row * (thumbH + thumbGapY);
+    const locked   = !unlockedHulls.includes(i);
+    const selected = playerVariant === i && !locked;
+
+    shopButtonRects.push({ x: tx, y: ty, w: thumbW, h: thumbH, key: `variant_${i}` });
+
+    ctx.globalAlpha = locked ? 0.4 : 1;
+    ctx.fillStyle   = selected ? 'rgba(40,0,80,0.9)' : 'rgba(10,0,20,0.7)';
+    ctx.strokeStyle = selected ? '#a8f' : (locked ? '#334' : '#446');
+    ctx.lineWidth   = selected ? 2 : 1;
+    ctx.beginPath();
+    ctx.roundRect(tx, ty, thumbW, thumbH, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    // Mini ship thumbnail
+    const mw = 32, mh = 19;
+    drawPlayerShip(
+      tx + thumbW / 2 - mw / 2,
+      ty + thumbH / 2 - mh / 2 - 8,
+      mw, mh,
+      selected ? playerColor : (locked ? '#445' : '#668'),
+      i, 0
+    );
+
+    ctx.globalAlpha  = 1;
+    ctx.font         = '9px "Courier New", monospace';
+    ctx.textBaseline = 'middle';
+
+    if (locked) {
+      // Cost badge
+      ctx.fillStyle = '#fd0';
+      ctx.fillText(`🔒 ${HULL_DEFS[i].cost}`, tx + thumbW / 2, ty + thumbH - 10);
+    } else {
+      ctx.fillStyle = selected ? '#fff' : '#778';
+      ctx.fillText(HULL_DEFS[i].name, tx + thumbW / 2, ty + thumbH - 10);
+    }
+  }
+
+  // ── Hull attributes panel ─────────────────────────────────────────────────
+  const hullGridBottom = thumbStartY + rows * (thumbH + thumbGapY);
+  const attrPanelW = 560, attrPanelH = 128;
+  const attrPanelX = cx - attrPanelW / 2;
+  const attrPanelY = hullGridBottom + 14;
+
+  ctx.fillStyle = 'rgba(10,0,25,0.85)';
+  ctx.strokeStyle = '#446';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(attrPanelX, attrPanelY, attrPanelW, attrPanelH, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  const hs = HULL_STATS[playerVariant] ?? HULL_STATS[0];
+  const es = ENGINE_DEFS[playerEngine]  ?? ENGINE_DEFS[0];
+  const clampStat = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+  ctx.font = 'bold 11px "Courier New", monospace';
+  ctx.fillStyle = '#a8f';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`ATTRIBUTES — ${HULL_DEFS[playerVariant].name.toUpperCase()}`, cx, attrPanelY + 14);
+
+  const statRows = [
+    { label: 'SPD',  base: hs.spd,  delta: es.spd  },
+    { label: 'RATE', base: hs.rate, delta: es.rate },
+    { label: 'DEF',  base: hs.def,  delta: es.def  },
+    { label: 'POW',  base: hs.pow,  delta: es.pow  },
+  ];
+
+  const segW = 16, segH = 13, segGap = 3;
+  const barX = attrPanelX + 72;
+  const barY0 = attrPanelY + 30;
+  const rowGap = 20;
+
+  ctx.font = '10px "Courier New", monospace';
+  for (let si = 0; si < statRows.length; si++) {
+    const s = statRows[si];
+    const ry = barY0 + si * rowGap;
+    const total = clampStat(s.base + s.delta, 1, 7);
+
+    ctx.fillStyle = '#88a';
+    ctx.textAlign = 'right';
+    ctx.fillText(s.label, barX - 8, ry + segH / 2);
+
+    // Draw 7 segment slots
+    for (let seg = 0; seg < 7; seg++) {
+      const sx = barX + seg * (segW + segGap);
+      if (seg < total) {
+        // Filled: green if engine bonus, purple if hull base
+        ctx.fillStyle = (s.delta > 0 && seg >= s.base) ? '#4f8' : '#a8f';
+      } else if (s.delta < 0 && seg >= total && seg < s.base) {
+        // Slots removed by negative engine delta: red
+        ctx.fillStyle = '#f44';
+      } else {
+        ctx.fillStyle = 'rgba(50,30,70,0.5)';
+      }
+      ctx.fillRect(sx, ry, segW, segH);
+    }
+
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.fillText(`(${total})`, barX + 7 * (segW + segGap) + 4, ry + segH / 2);
+  }
+
+  // Engine bonus summary line
+  const engineDeltas = [];
+  if (es.spd  !== 0) engineDeltas.push(`${es.spd  > 0 ? '+' : ''}${es.spd}SPD`);
+  if (es.rate !== 0) engineDeltas.push(`${es.rate > 0 ? '+' : ''}${es.rate}RATE`);
+  if (es.def  !== 0) engineDeltas.push(`${es.def  > 0 ? '+' : ''}${es.def}DEF`);
+  if (es.pow  !== 0) engineDeltas.push(`${es.pow  > 0 ? '+' : ''}${es.pow}POW`);
+  const deltaStr = engineDeltas.length ? `  ${engineDeltas.join('  ')}` : '  no bonus';
+  ctx.fillStyle = '#8af';
+  ctx.textAlign = 'center';
+  ctx.fillText(`Engine: ${ENGINE_DEFS[playerEngine].name}${deltaStr}`, cx, attrPanelY + attrPanelH - 11);
+
+  // ── Engine section ────────────────────────────────────────────────────────
+  const engCols = 3, engRows = 2;
+  const engW = 168, engH = 72, engGapX = 10, engGapY = 10;
+  const totalEngW = engCols * engW + (engCols - 1) * engGapX;
+  const engStartX = cx - totalEngW / 2;
+  const engSectionY = attrPanelY + attrPanelH + 40;
+
+  ctx.font = 'bold 13px "Courier New", monospace';
+  ctx.fillStyle = '#a8f';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ENGINE', cx, engSectionY - 18);
+
+  for (let i = 0; i < ENGINE_DEFS.length; i++) {
+    const col = i % engCols;
+    const row = Math.floor(i / engCols);
+    const ex  = engStartX + col * (engW + engGapX);
+    const ey  = engSectionY + row * (engH + engGapY);
+    const eng = ENGINE_DEFS[i];
+    const locked   = !unlockedEngines.includes(i);
+    const selected = playerEngine === i && !locked;
+
+    shopButtonRects.push({ x: ex, y: ey, w: engW, h: engH, key: `engine_${i}` });
+
+    ctx.globalAlpha = locked ? 0.4 : 1;
+    ctx.fillStyle   = selected ? 'rgba(0,50,20,0.9)' : 'rgba(10,10,20,0.75)';
+    ctx.strokeStyle = selected ? '#4f8' : (locked ? '#334' : '#446');
+    ctx.lineWidth   = selected ? 2 : 1;
+    ctx.beginPath();
+    ctx.roundRect(ex, ey, engW, engH, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.fillStyle = selected ? '#4f8' : (locked ? '#667' : '#bbb');
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(eng.name, ex + engW / 2, ey + 18);
+
+    if (locked) {
+      ctx.font = '10px "Courier New", monospace';
+      ctx.fillStyle = '#fd0';
+      ctx.fillText(`🔒 ${eng.cost} coins`, ex + engW / 2, ey + engH / 2 + 2);
+    } else {
+      // Stat deltas
+      const parts = [];
+      if (eng.spd  !== 0) parts.push({ txt: `${eng.spd  > 0 ? '+' : ''}${eng.spd}SPD`,  col: eng.spd  > 0 ? '#4f8' : '#f44' });
+      if (eng.rate !== 0) parts.push({ txt: `${eng.rate > 0 ? '+' : ''}${eng.rate}RATE`, col: eng.rate > 0 ? '#4f8' : '#f44' });
+      if (eng.def  !== 0) parts.push({ txt: `${eng.def  > 0 ? '+' : ''}${eng.def}DEF`,  col: eng.def  > 0 ? '#4f8' : '#f44' });
+      if (eng.pow  !== 0) parts.push({ txt: `${eng.pow  > 0 ? '+' : ''}${eng.pow}POW`,  col: eng.pow  > 0 ? '#4f8' : '#f44' });
+
+      ctx.font = '10px "Courier New", monospace';
+      if (parts.length === 0) {
+        ctx.fillStyle = '#556';
+        ctx.fillText('balanced', ex + engW / 2, ey + engH / 2 + 2);
+      } else {
+        const lineW = parts.reduce((a, p) => a + ctx.measureText(p.txt).width + 8, -8);
+        let px = ex + engW / 2 - lineW / 2;
+        ctx.textAlign = 'left';
+        for (const p of parts) {
+          ctx.fillStyle = p.col;
+          ctx.fillText(p.txt, px, ey + engH / 2 + 2);
+          px += ctx.measureText(p.txt).width + 8;
+        }
+        ctx.textAlign = 'center';
+      }
+      if (selected) {
+        ctx.fillStyle = '#4f8';
+        ctx.font = '9px "Courier New", monospace';
+        ctx.fillText('EQUIPPED', ex + engW / 2, ey + engH - 11);
+      }
+    }
+  }
+
+  // ── Back button ───────────────────────────────────────────────────────────
+  const backW = 180, backH = 44;
+  const backY = engSectionY + engRows * (engH + engGapY) + 14;
+  const backX = cx - backW / 2;
+  shopButtonRects.push({ x: backX, y: backY, w: backW, h: backH, key: 'back' });
+  ctx.shadowColor  = '#a8f';
+  ctx.shadowBlur   = 8;
+  ctx.fillStyle    = 'rgba(20,0,50,0.85)';
+  ctx.strokeStyle  = '#a8f';
+  ctx.lineWidth    = 2;
+  ctx.beginPath();
+  ctx.roundRect(backX, backY, backW, backH, 10);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur   = 0;
+  ctx.fillStyle    = '#fff';
+  ctx.font         = 'bold 16px "Courier New", monospace';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('← BACK', cx, backY + backH / 2);
+
+  // Clamp scroll to content height
+  const totalShopH = backY + backH + 20;
+  shopScrollY = Math.min(shopScrollY, Math.max(0, totalShopH - CANVAS_H + 40));
+
+  ctx.restore();  // scroll translate
+  ctx.restore();  // outer save
 }
 
 function renderPlayMode() {
@@ -1477,4 +1897,16 @@ function gameLoop(timestamp) {
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 resize();
 gameState = 'MENU';
+try {
+  const c = JSON.parse(localStorage.getItem('astroCustomize'));
+  if (c) {
+    playerColor     = c.color           ?? '#4af';
+    playerVariant   = c.variant         ?? 0;
+    spaceCoins      = c.coins           ?? 0;
+    unlockedColors  = c.unlockedColors  ?? [0];
+    unlockedHulls   = c.unlockedHulls   ?? [0];
+    playerEngine    = c.engine          ?? 0;
+    unlockedEngines = c.unlockedEngines ?? [0];
+  }
+} catch(e) {}
 requestAnimationFrame(gameLoop);
