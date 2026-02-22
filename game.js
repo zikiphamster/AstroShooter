@@ -85,6 +85,14 @@ const CHANGELOG = [
   { v: 'v1.39.0', title: 'Pause Button Colors',      desc: 'Pause menu buttons are now green (Resume), red (Restart), and blue (Main Menu).' },
   { v: 'v1.40.0', title: 'Changelog NEW Badge',      desc: 'The newest entry in the changelog now shows a green NEW badge next to its title.' },
   { v: 'v1.41.0', title: 'Title Renamed',            desc: 'Main menu title changed from "ASTEROID BLASTER" to "AstroShooter".' },
+  { v: 'v1.42.0', title: 'Play Options Renamed',     desc: 'Play mode screen title changed from "HOW DO YOU WANT TO PLAY?" to "Play Options".' },
+  { v: 'v1.43.0', title: 'Clickable Version Number', desc: 'The version number in the bottom-right of the main menu is now clickable and opens the changelog. The standalone Changelog button has been removed.' },
+  { v: 'v1.44.0', title: 'Easy Mode Boss Names',     desc: 'Each level in easy mode now has a unique boss name: Iron Fang, Void King, Night Hammer, Black Nova, Space Tyrant, War Pulse, Rift Lord, Dark Core.' },
+  { v: 'v1.45.0', title: 'Boss AI Scaling',          desc: 'Bosses now scale with level: more HP, faster movement, quicker charges, and predictive aiming. Bullet count stays fixed. Fixed a crash caused by the boss warning banner referencing an undefined name for easy mode.' },
+  { v: 'v1.46.0', title: 'Boss Visual Variants',     desc: 'Easy mode bosses now each have a unique color, hull shape (arrowhead, fang, cruiser, hammer, or star), and cannon count (1–3 barrels) that varies per level. Medium and hard keep their existing single design.' },
+  { v: 'v1.47.0', title: 'Unique Boss Designs',      desc: 'Medium (Galaxy Warden) now uses the Heavy Cruiser hull with 2 cannons. Hard (Omega Devourer) uses the Star hull with 3 cannons. Every boss across all difficulties now has a completely unique shape and cannon configuration.' },
+  { v: 'v1.48.0', title: 'Medium Boss Names',        desc: 'Each level in medium mode now has a unique boss name: Starcrusher, Voidstorm, Ironclad, Nightfall, Warbringer, Skybreaker, Darkstar, Dreadcore, Stormlord.' },
+  { v: 'v1.49.0', title: 'Medium Boss Visuals',      desc: 'Every medium boss now has a unique color, hull shape, and cannon count. No two bosses in medium mode share the same design.' },
 ];
 
 // Power-up definitions
@@ -560,37 +568,54 @@ class BossBullet {
 
 // ─── Boss ─────────────────────────────────────────────────────────────────────
 const BOSS_DEFS = {
-  easy:   { name: 'Spaceship Eater 450', maxHp: 30,  speed: 110, shootInterval: 2.8, bulletSpeed: 260, bulletCount: 1, chargeInterval: 14, color: '#c44' },
-  medium: { name: 'Galaxy Warden',       maxHp: 65,  speed: 170, shootInterval: 1.8, bulletSpeed: 360, bulletCount: 2, chargeInterval: 9,  color: '#a4f' },
-  hard:   { name: 'Omega Devourer',      maxHp: 120, speed: 240, shootInterval: 0.9, bulletSpeed: 500, bulletCount: 3, chargeInterval: 5,  color: '#f44' },
+  easy:   {
+    names:       ['Spaceship Eater 450', 'Iron Fang',  'Void King', 'Night Hammer', 'Black Nova', 'Space Tyrant', 'War Pulse', 'Rift Lord', 'Dark Core'],
+    colors:      ['#c44',               '#7cf',        '#b4f',      '#38e',          '#fa5',       '#f62',         '#3c8',      '#4ef',      '#f4b'],
+    variants:    [0,                     1,             2,           3,               4,            0,              1,           2,           3],
+    cannonCounts:[2,                     1,             3,           2,               1,            3,              2,           1,           3],
+    maxHp: 30,  speed: 110, shootInterval: 2.8, bulletSpeed: 260, bulletCount: 1, chargeInterval: 14,
+  },
+  medium: {
+    names:       ['Starcrusher', 'Voidstorm', 'Ironclad', 'Nightfall', 'Warbringer', 'Skybreaker', 'Darkstar', 'Dreadcore', 'Stormlord'],
+    colors:      ['#ff0',        '#08f',      '#aaa',     '#80f',      '#f80',       '#0ff',       '#f0a',     '#5f0',      '#f05'],
+    variants:    [0,              1,           2,          3,           4,            0,             1,          2,           3],
+    cannonCounts:[1,              3,           2,          1,           2,            3,             1,          3,           2],
+    maxHp: 65,  speed: 170, shootInterval: 1.8, bulletSpeed: 360, bulletCount: 2, chargeInterval: 9,
+  },
+  hard:   { name: 'Omega Devourer',      maxHp: 120, speed: 240, shootInterval: 0.9, bulletSpeed: 500, bulletCount: 3, chargeInterval: 5,  color: '#f44', variant: 4, cannonCount: 3 },
 };
 
 class Boss {
   constructor(level = 1) {
-    const def      = BOSS_DEFS[currentDiff];
-    const lm       = 1 + (level - 1) * 0.4; // 40% harder per level
-    this.name      = level === 1 ? def.name : `${def.name} Mk.${level}`;
-    this.color     = def.color;
-    this.w         = 192;
-    this.h         = 112;
-    this.x         = CANVAS_W + 60;
-    this.y         = CANVAS_H / 2 - this.h / 2;
-    this.maxHp     = Math.floor(def.maxHp * lm);
-    this.hp        = this.maxHp;
-    this.speed     = Math.min(def.speed * (1 + (level - 1) * 0.2), 380);
-    this.shootInterval  = Math.max(0.45, def.shootInterval / (1 + (level - 1) * 0.25));
-    this.bulletSpeed    = Math.min(def.bulletSpeed * (1 + (level - 1) * 0.15), 680);
-    this.bulletCount    = Math.min(def.bulletCount + (level - 1), 5);
-    this.chargeInterval = Math.max(3, def.chargeInterval - (level - 1) * 1.5);
-    this.homeX     = CANVAS_W - this.w - 80;
-    this.entering  = true;
-    this.shootTimer     = 2.0;
-    this.chargeTimer    = this.chargeInterval;
-    this.charging  = false;
-    this.chargeVx  = 0;
-    this.anim      = 0;
-    this.flashTimer = 0;
-    this.active    = true;
+    const def        = BOSS_DEFS[currentDiff];
+    this.aiLevel     = Math.min(1, (level - 1) / 8); // 0.0 at L1 → 1.0 at L9+
+    this.name        = def.names
+      ? (def.names[level - 1] ?? `${def.names[def.names.length - 1]} Mk.${level}`)
+      : (level === 1 ? def.name : `${def.name} Mk.${level}`);
+    this.color       = def.colors ? (def.colors[level - 1] ?? def.colors[def.colors.length - 1]) : def.color;
+    this.variant     = def.variants ? (def.variants[level - 1] ?? 0) : (def.variant ?? 0);
+    this.cannonCount = def.cannonCounts ? (def.cannonCounts[level - 1] ?? 2) : (def.cannonCount ?? 2);
+    this.w           = 192;
+    this.h           = 112;
+    this.x           = CANVAS_W + 60;
+    this.y           = CANVAS_H / 2 - this.h / 2;
+    this.maxHp       = Math.floor(def.maxHp * (1 + (level - 1) * 0.5));
+    this.hp          = this.maxHp;
+    this.speed       = Math.min(def.speed       + (level - 1) * 20,   310);
+    this.shootInterval  = Math.max(0.85, def.shootInterval - (level - 1) * 0.21);
+    this.bulletSpeed    = Math.min(def.bulletSpeed + (level - 1) * 20, 480);
+    this.bulletCount    = def.bulletCount; // fixed — no bullet scaling
+    this.chargeInterval = Math.max(4, def.chargeInterval - (level - 1) * 1.2);
+    this.homeX       = CANVAS_W - this.w - 80;
+    this.entering    = true;
+    this.shootTimer  = 2.0;
+    this.chargeTimer = this.chargeInterval;
+    this.charging    = false;
+    this.chargeVx    = 0;
+    this.anim        = 0;
+    this.flashTimer  = 0;
+    this.active      = true;
+    this._prevPlayerCY = null; // for predictive aiming
   }
   get cx() { return this.x + this.w / 2; }
   get cy() { return this.y + this.h / 2; }
@@ -607,9 +632,9 @@ class Boss {
 
     if (this.charging) {
       this.x += this.chargeVx * dt;
-      this._trackY(dt * 0.4);
+      this._trackY(dt * (0.4 + this.aiLevel * 0.3)); // tracks player better mid-charge at high levels
       if (this.chargeVx < 0 && this.x < Math.max(80, player.x - this.w - 10)) {
-        this.chargeVx = 400;
+        this.chargeVx = 400 + this.aiLevel * 150; // faster retreat at higher levels
       }
       if (this.chargeVx > 0 && this.x >= this.homeX) {
         this.x = this.homeX;
@@ -620,6 +645,7 @@ class Boss {
     }
 
     this._trackY(dt);
+    this._prevPlayerCY = player.cy;
 
     this.shootTimer -= dt;
     if (this.shootTimer <= 0) {
@@ -630,14 +656,16 @@ class Boss {
     this.chargeTimer -= dt;
     if (this.chargeTimer <= 0) {
       this.charging = true;
-      this.chargeVx = -580;
+      this.chargeVx = -(560 + this.aiLevel * 240); // 560 at L1 → 800 at L9
     }
 
     this.y = Math.max(10, Math.min(CANVAS_H - this.h - 10, this.y));
   }
 
   _trackY(dt) {
-    const targetY = player.y + player.h / 2 - this.h / 2;
+    // At higher AI levels the boss weaves sinusoidally, making it harder to hit
+    const drift   = this.aiLevel * 48 * Math.sin(this.anim * (2 + this.aiLevel * 3.5));
+    const targetY = player.y + player.h / 2 - this.h / 2 + drift;
     const dy      = targetY - this.y;
     const step    = this.speed * dt;
     this.y += Math.abs(dy) < step ? dy : Math.sign(dy) * step;
@@ -646,8 +674,15 @@ class Boss {
   _shoot(bossBullets) {
     const ox = this.x;
     const oy = this.cy;
-    const dx = player.cx - ox;
-    const dy = player.cy - oy;
+    // Predictive aiming: estimate where player will be when bullet arrives
+    const rawDX = player.cx - ox;
+    const rawDY = player.cy - oy;
+    const dist  = Math.sqrt(rawDX * rawDX + rawDY * rawDY) || 1;
+    const travelTime = dist / this.bulletSpeed;
+    const playerVY  = this._prevPlayerCY !== null ? (player.cy - this._prevPlayerCY) : 0;
+    const predictedDY = rawDY + playerVY * travelTime * this.aiLevel * 0.7;
+    const dx  = rawDX;
+    const dy  = predictedDY;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
     const nx = dx / len, ny = dy / len;
     const spreads = this.bulletCount === 1 ? [0]
@@ -697,34 +732,69 @@ class Boss {
     ctx.shadowColor = c;
     ctx.shadowBlur  = 28 + Math.sin(this.anim * 2) * 6;
 
-    // Main hull (points left)
+    // Main hull — shape determined by this.variant (0–4)
     ctx.fillStyle = this.flashTimer > 0 ? '#fff' : c;
     ctx.beginPath();
-    ctx.moveTo(x,          y + h / 2);
-    ctx.lineTo(x + w,      y);
-    ctx.lineTo(x + w * 0.75, y + h / 2);
-    ctx.lineTo(x + w,      y + h);
+    switch (this.variant) {
+      case 1: // Fang — double-pronged nose
+        ctx.moveTo(x,            y + h * 0.25);
+        ctx.lineTo(x + w * 0.35, y + h * 0.12);
+        ctx.lineTo(x + w * 0.35, y + h * 0.42);
+        ctx.lineTo(x + w,        y + h * 0.05);
+        ctx.lineTo(x + w * 0.8,  y + h * 0.5);
+        ctx.lineTo(x + w,        y + h * 0.95);
+        ctx.lineTo(x + w * 0.35, y + h * 0.58);
+        ctx.lineTo(x + w * 0.35, y + h * 0.88);
+        ctx.lineTo(x,            y + h * 0.75);
+        ctx.lineTo(x + w * 0.15, y + h * 0.5);
+        break;
+      case 2: // Heavy Cruiser — wide swept wings
+        ctx.moveTo(x + w * 0.05, y + h * 0.35);
+        ctx.lineTo(x,            y + h * 0.5);
+        ctx.lineTo(x + w * 0.05, y + h * 0.65);
+        ctx.lineTo(x + w * 0.2,  y + h * 0.9);
+        ctx.lineTo(x + w,        y + h);
+        ctx.lineTo(x + w,        y);
+        ctx.lineTo(x + w * 0.2,  y + h * 0.1);
+        break;
+      case 3: // Hammer — wide flat sides, narrow center
+        ctx.moveTo(x,            y + h * 0.2);
+        ctx.lineTo(x + w * 0.45, y);
+        ctx.lineTo(x + w,        y + h * 0.15);
+        ctx.lineTo(x + w * 0.65, y + h * 0.5);
+        ctx.lineTo(x + w,        y + h * 0.85);
+        ctx.lineTo(x + w * 0.45, y + h);
+        ctx.lineTo(x,            y + h * 0.8);
+        break;
+      case 4: // Star — jagged multi-wing
+        ctx.moveTo(x,            y + h * 0.5);
+        ctx.lineTo(x + w * 0.25, y + h * 0.12);
+        ctx.lineTo(x + w * 0.35, y + h * 0.3);
+        ctx.lineTo(x + w * 0.6,  y);
+        ctx.lineTo(x + w * 0.7,  y + h * 0.25);
+        ctx.lineTo(x + w,        y + h * 0.2);
+        ctx.lineTo(x + w * 0.85, y + h * 0.5);
+        ctx.lineTo(x + w,        y + h * 0.8);
+        ctx.lineTo(x + w * 0.7,  y + h * 0.75);
+        ctx.lineTo(x + w * 0.6,  y + h);
+        ctx.lineTo(x + w * 0.35, y + h * 0.7);
+        ctx.lineTo(x + w * 0.25, y + h * 0.88);
+        break;
+      default: // Variant 0 — classic arrowhead
+        ctx.moveTo(x,            y + h * 0.5);
+        ctx.lineTo(x + w,        y);
+        ctx.lineTo(x + w * 0.75, y + h * 0.5);
+        ctx.lineTo(x + w,        y + h);
+        break;
+    }
     ctx.closePath();
     ctx.fill();
 
-    // Dark secondary panels
+    // Dark center panel
     ctx.shadowBlur = 0;
-    ctx.fillStyle = this.flashTimer > 0 ? '#ddd' : 'rgba(0,0,0,0.45)';
+    ctx.fillStyle = this.flashTimer > 0 ? '#ddd' : 'rgba(0,0,0,0.4)';
     ctx.beginPath();
-    ctx.moveTo(x + w * 0.2, y + h * 0.38);
-    ctx.lineTo(x + w * 0.8, y + h * 0.12);
-    ctx.lineTo(x + w,       y + h * 0.08);
-    ctx.lineTo(x + w,       y + h * 0.28);
-    ctx.lineTo(x + w * 0.45, y + h * 0.38);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(x + w * 0.2, y + h * 0.62);
-    ctx.lineTo(x + w * 0.8, y + h * 0.88);
-    ctx.lineTo(x + w,       y + h * 0.92);
-    ctx.lineTo(x + w,       y + h * 0.72);
-    ctx.lineTo(x + w * 0.45, y + h * 0.62);
-    ctx.closePath();
+    ctx.rect(x + w * 0.38, y + h * 0.32, w * 0.42, h * 0.36);
     ctx.fill();
 
     // Cockpit eye
@@ -740,13 +810,16 @@ class Boss {
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Cannon barrels (left nose)
-    ctx.fillStyle = '#222';
-    ctx.fillRect(x - 16, y + h * 0.36, 18, 9);
-    ctx.fillRect(x - 16, y + h * 0.55, 18, 9);
-    ctx.fillStyle = c;
-    ctx.fillRect(x - 18, y + h * 0.37, 5, 7);
-    ctx.fillRect(x - 18, y + h * 0.56, 5, 7);
+    // Cannon barrels — count determined by this.cannonCount
+    const cannonFracs = this.cannonCount === 1 ? [0.5]
+                      : this.cannonCount === 3 ? [0.25, 0.5, 0.75]
+                      :                          [0.36, 0.64];
+    for (const fy of cannonFracs) {
+      ctx.fillStyle = '#222';
+      ctx.fillRect(x - 16, y + h * fy - 4.5, 18, 9);
+      ctx.fillStyle = c;
+      ctx.fillRect(x - 18, y + h * fy - 3.5, 5, 7);
+    }
 
     // Accent stripe
     ctx.strokeStyle = this.flashTimer > 0 ? '#fff' : 'rgba(255,255,255,0.25)';
@@ -1453,9 +1526,8 @@ function renderMenu() {
   const cx = CANVAS_W / 2;
 
   const buttons = [
-    { key: 'play',      label: 'PLAY',        hint: 'SPACE', color: '#4af', bg: 'rgba(0,40,90,0.75)', btnH: 58 },
-    { key: 'controls',  label: 'HOW TO PLAY',  hint: 'C',     color: '#4af', bg: 'rgba(0,30,70,0.65)', btnH: 48 },
-    { key: 'changelog', label: 'CHANGELOG',    hint: '',      color: '#4af', bg: 'rgba(0,30,70,0.65)', btnH: 48 },
+    { key: 'play',     label: 'PLAY',       hint: 'SPACE', color: '#4af', bg: 'rgba(0,40,90,0.75)', btnH: 58 },
+    { key: 'controls', label: 'HOW TO PLAY', hint: 'C',    color: '#4af', bg: 'rgba(0,30,70,0.65)', btnH: 48 },
   ];
 
   let btnY = CANVAS_H / 2 - 40;
@@ -1495,12 +1567,25 @@ function renderMenu() {
     btnY += b.btnH + gap;
   }
 
-  // Version
-  ctx.fillStyle    = '#778';
+  // Version (clickable — opens changelog)
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  ctx.fillText('v1.41.0', CANVAS_W - 10, CANVAS_H - 8);
+  const verText = 'v1.49.0';
+  const verW    = ctx.measureText(verText).width;
+  const verH    = 18;
+  const verX    = CANVAS_W - 10 - verW;
+  const verY    = CANVAS_H - 8 - verH;
+  menuButtonRects.push({ x: verX - 4, y: verY, w: verW + 8, h: verH + 4, key: 'changelog' });
+  ctx.fillStyle = '#99b';
+  ctx.fillText(verText, CANVAS_W - 10, CANVAS_H - 8);
+  // Underline hint
+  ctx.strokeStyle = '#556';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(verX, CANVAS_H - 8);
+  ctx.lineTo(CANVAS_W - 10, CANVAS_H - 8);
+  ctx.stroke();
 
   ctx.restore();
 }
@@ -1517,7 +1602,7 @@ function renderPlayMode() {
   ctx.fillStyle   = '#fff';
   ctx.shadowColor = '#44f';
   ctx.shadowBlur  = 18;
-  ctx.fillText('HOW DO YOU WANT TO PLAY?', CANVAS_W / 2, CANVAS_H / 2 - 100);
+  ctx.fillText('Play Options', CANVAS_W / 2, CANVAS_H / 2 - 100);
   ctx.shadowBlur  = 0;
 
   playModeButtonRects.length = 0;
@@ -2208,12 +2293,11 @@ function renderBossWarning() {
   ctx.save();
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
-  const bdef = BOSS_DEFS[currentDiff];
   ctx.font      = 'bold 28px "Courier New", monospace';
   ctx.fillStyle = '#f44';
   ctx.shadowColor = '#f00';
   ctx.shadowBlur  = 20;
-  ctx.fillText(`⚠ ${bdef.name.toUpperCase()} INCOMING ⚠`, CANVAS_W / 2, CANVAS_H / 2);
+  ctx.fillText(`⚠ ${boss ? boss.name.toUpperCase() : 'BOSS'} INCOMING ⚠`, CANVAS_W / 2, CANVAS_H / 2);
   ctx.shadowBlur  = 0;
   ctx.restore();
 }
