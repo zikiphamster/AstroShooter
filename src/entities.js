@@ -724,20 +724,20 @@ class CoinPickup {
 
   draw() {
     const pulse = Math.sin(this.anim) * 2;
+    const r     = this.r + pulse;
     ctx.save();
     ctx.shadowColor = '#fd0';
     ctx.shadowBlur  = 12 + pulse;
+    // Solid gold outer circle
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.r + pulse, 0, Math.PI * 2);
-    ctx.fillStyle   = 'rgba(40,30,0,0.85)';
-    ctx.fill();
-    ctx.strokeStyle = '#fd0';
-    ctx.lineWidth   = 2;
-    ctx.stroke();
-    ctx.shadowBlur  = 0;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, (this.r + pulse) * 0.55, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
     ctx.fillStyle = '#fd0';
+    ctx.fill();
+    // Dark inner circle to create ring/coin look
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, r * 0.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.fill();
     ctx.restore();
   }

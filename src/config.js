@@ -55,29 +55,29 @@ let unlockedColors = [0];   // indices into SHIP_COLORS that are unlocked
 let unlockedHulls  = [0];   // hull variant indices that are unlocked
 
 const SHIP_COLORS = ['#4af', '#4f8', '#f80', '#f44', '#f4f', '#ff4', '#fff', '#a8f'];
-const COLOR_COSTS = [0, 50, 75, 75, 100, 100, 150, 150];
+const COLOR_COSTS = [0, 40, 40, 40, 40, 40, 40, 40];
 
 const HULL_DEFS = [
   { name: 'Arrowhead',   cost: 0   },  // 0 — default, free
-  { name: 'Wedge',       cost: 25  },  // 1
-  { name: 'Dart',        cost: 50  },  // 2
-  { name: 'Cruiser',     cost: 75  },  // 3
-  { name: 'Delta',       cost: 100 },  // 4
-  { name: 'Razor',       cost: 125 },  // 5
-  { name: 'Stealth',     cost: 150 },  // 6
-  { name: 'Bomber',      cost: 175 },  // 7
-  { name: 'Scout',       cost: 200 },  // 8
-  { name: 'Interceptor', cost: 225 },  // 9
-  { name: 'Hawk',        cost: 250 },  // 10
-  { name: 'X-Fighter',   cost: 275 },  // 11
-  { name: 'Mantis',      cost: 300 },  // 12
-  { name: 'Phantom',     cost: 325 },  // 13
-  { name: 'Titan',       cost: 350 },  // 14
-  { name: 'Viper',       cost: 375 },  // 15
-  { name: 'Raptor',      cost: 400 },  // 16
-  { name: 'Javelin',     cost: 425 },  // 17
-  { name: 'Cobra',       cost: 450 },  // 18
-  { name: 'Omega',       cost: 500 },  // 19
+  { name: 'Wedge',       cost: 20  },  // 1
+  { name: 'Dart',        cost: 40  },  // 2
+  { name: 'Cruiser',     cost: 60  },  // 3
+  { name: 'Delta',       cost: 80  },  // 4
+  { name: 'Razor',       cost: 100 },  // 5
+  { name: 'Stealth',     cost: 120 },  // 6
+  { name: 'Bomber',      cost: 140 },  // 7
+  { name: 'Scout',       cost: 160 },  // 8
+  { name: 'Interceptor', cost: 180 },  // 9
+  { name: 'Hawk',        cost: 200 },  // 10
+  { name: 'X-Fighter',   cost: 220 },  // 11
+  { name: 'Mantis',      cost: 240 },  // 12
+  { name: 'Phantom',     cost: 260 },  // 13
+  { name: 'Titan',       cost: 280 },  // 14
+  { name: 'Viper',       cost: 300 },  // 15
+  { name: 'Raptor',      cost: 320 },  // 16
+  { name: 'Javelin',     cost: 340 },  // 17
+  { name: 'Cobra',       cost: 360 },  // 18
+  { name: 'Omega',       cost: 400 },  // 19
 ];
 
 // Coins spawned per batch by difficulty
@@ -112,11 +112,11 @@ const HULL_STATS = [
 // Stat deltas range −2 to +2. Combined with hull stats → gameplay multipliers.
 const ENGINE_DEFS = [
   { name: 'Standard',    cost:   0, spd: 0, rate: 0, def: 0, pow: 0 },  // 0 free/default
-  { name: 'Afterburner', cost:  50, spd:+2, rate: 0, def:-1, pow: 0 },  // 1
-  { name: 'Pulse Drive', cost:  75, spd: 0, rate:+2, def: 0, pow: 0 },  // 2
-  { name: 'Bulwark',     cost: 100, spd:-1, rate: 0, def:+2, pow: 0 },  // 3
-  { name: 'Ion Core',    cost: 150, spd:+1, rate: 0, def: 0, pow:+2 },  // 4
-  { name: 'Quantum',     cost: 250, spd:+1, rate:+1, def:+1, pow:+1 },  // 5
+  { name: 'Afterburner', cost:  40, spd:+2, rate: 0, def:-1, pow: 0 },  // 1
+  { name: 'Pulse Drive', cost:  60, spd: 0, rate:+2, def: 0, pow: 0 },  // 2
+  { name: 'Bulwark',     cost:  80, spd:-1, rate: 0, def:+2, pow: 0 },  // 3
+  { name: 'Ion Core',    cost: 120, spd:+1, rate: 0, def: 0, pow:+2 },  // 4
+  { name: 'Quantum',     cost: 200, spd:+1, rate:+1, def:+1, pow:+1 },  // 5
 ];
 
 let playerEngine    = 0;
@@ -181,6 +181,10 @@ const CHANGELOG = [
   { v: 'v1.53.0', title: 'SpaceCoins & Unlocks',    desc: 'Coins spawn on the map during gameplay — fly over them to collect. Spend SpaceCoins to unlock 19 hull shapes and 7 colors in the Customize screen. Higher difficulty spawns more coins per batch.' },
   { v: 'v1.53.1', title: 'Customize Renamed to Shop', desc: 'The Customize button and screen have been renamed to Shop.' },
   { v: 'v1.54.0', title: 'Hull Attributes & Engines', desc: 'Every hull now has Speed, Fire Rate, Defense, and Bullet Power ratings shown as stat bars in the Shop. Buy one of 6 engines (Standard through Quantum) to boost or trade off stats. Combined hull + engine values scale real gameplay: movement speed, fire rate, invincibility time, and bullet speed.' },
+  { v: 'v1.54.1', title: 'Shop Two-Column Layout',   desc: 'Shop screen reorganised into two columns: attributes on the left alongside ship preview and colour swatches, hull grid and engine grid on the right.' },
+  { v: 'v1.54.2', title: 'Price Reductions',         desc: 'All shop items are cheaper: hull colors reduced by ~20%, hull shapes now scale from 20 to 400 coins, and engines range from 40 to 200 coins.' },
+  { v: 'v1.54.3', title: 'Flat Color Pricing',       desc: 'All unlockable colors now cost a flat 40 coins each.' },
+  { v: 'v1.54.4', title: 'Coin HUD & Visual Polish', desc: 'In-game coins now match the shop icon style (solid gold with dark inner circle). SpaceCoins balance shown in the bottom-right corner during gameplay.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────
