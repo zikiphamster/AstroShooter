@@ -7,8 +7,8 @@ const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 
 function resize() {
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
+  canvas.width  = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
   CANVAS_W = canvas.width;
   CANVAS_H = canvas.height;
   initStars();
