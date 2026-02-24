@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Game State ───────────────────────────────────────────────────────────────
-let gameState;   // 'MENU' | 'PLAY_MODE' | 'SHOP' | 'DIFFICULTY' | 'PLAYING' | 'PAUSED' | 'GAME_OVER' | 'LEVEL_COMPLETE' | 'CONTROLS' | 'CHANGELOG'
+let gameState;   // 'MENU' | 'PLAY_MODE' | 'SOLAR_MAP' | 'SHOP' | 'DIFFICULTY' | 'PLAYING' | 'PAUSED' | 'GAME_OVER' | 'LEVEL_COMPLETE' | 'CONTROLS' | 'CHANGELOG'
 let player, bullets, asteroids, particles;
 let score, lives;
 let spawnTimer, spawnInterval;
@@ -14,10 +14,14 @@ let coinPickups, coinSpawnTimer;
 let activeEffects;  // { rapidfire, tripleshot, speedboost } — seconds remaining
 let boss, bossBullets, bossSpawned, bossDefeated, bossWarningTimer;
 let currentLevel, nextBossScore;
+let gameMode       = 'endless';  // 'endless' | 'progress'
+let selectedPlanet = null;       // index into PLANET_DEFS, or null
+let currentPlanet  = 0;          // which planet is active in progress mode
 const levelCompleteButtonRects = [];
 const playModeButtonRects = [];
 const pauseButtonRects = [];
 const shopButtonRects = [];
+const solarMapButtonRects = [];
 let shopScrollY = 0;
 let confirmDeleteVisible = false;
 
@@ -32,7 +36,7 @@ function loadGame() {
   activeEffects = { rapidfire: 0, tripleshot: 0, speedboost: 0 };
   powerupTimer    = rand(15, 30);
   coinPickups     = [];
-  coinSpawnTimer  = rand(10, 30);
+  coinSpawnTimer  = rand(10, 15);
   score      = 0;
   lives      = d.lives;
   spawnTimer = 0;
@@ -93,6 +97,7 @@ function saveShop() {
     coins: spaceCoins,
     unlockedColors, unlockedHulls,
     engine: playerEngine, unlockedEngines,
+    progressUnlocked,
   }));
 }
 
@@ -241,6 +246,10 @@ function update(dt) {
     return;
   }
 
+  if (gameState === 'SOLAR_MAP') {
+    return;
+  }
+
   if (gameState === 'DIFFICULTY') {
     const map = { Digit1: 'easy', Digit2: 'medium', Digit3: 'hard' };
     for (const [code, diff] of Object.entries(map)) {
@@ -271,6 +280,11 @@ function update(dt) {
   }
 
   if (gameState === 'PAUSED') {
+    if (IS_TOUCH && touch.pause.active) {
+      touch.pause.active = false;
+      gameState = 'PLAYING';
+      return;
+    }
     if (keys['KeyR']) {
       keys['KeyR'] = false;
       gameState = 'PLAYING';
@@ -284,6 +298,12 @@ function update(dt) {
   }
 
   // ── PLAYING ──────────────────────────────────────────────────────────────
+  if (IS_TOUCH && touch.pause.active) {
+    touch.pause.active = false;
+    gameState = 'PAUSED';
+    return;
+  }
+
   gameTime += dt;
 
   // Difficulty ramp every 15s
@@ -396,6 +416,10 @@ function update(dt) {
           playBossDefeat();
           boss = null;
           gameState = 'LEVEL_COMPLETE';
+          if (gameMode === 'progress') {
+            progressUnlocked = Math.max(progressUnlocked, currentPlanet + 1);
+            saveShop();
+          }
           saveGame();
           break;
         }
@@ -474,14 +498,14 @@ function update(dt) {
   // ── Coin spawner ─────────────────────────────────────────────────────────
   coinSpawnTimer -= dt;
   if (coinSpawnTimer <= 0) {
-    const count = COIN_BATCH[currentDiff] ?? 3;
+    const count = Math.floor(rand(2, 5));
     for (let i = 0; i < count; i++) {
       coinPickups.push(new CoinPickup(
         rand(CANVAS_W * 0.15, CANVAS_W * 0.85),
         rand(60, CANVAS_H - 60)
       ));
     }
-    coinSpawnTimer = rand(10, 30);
+    coinSpawnTimer = rand(10, 15);
   }
 
   // ── Coin collection ──────────────────────────────────────────────────────
@@ -513,6 +537,11 @@ function render() {
 
   if (gameState === 'PLAY_MODE') {
     renderPlayMode();
+    return;
+  }
+
+  if (gameState === 'SOLAR_MAP') {
+    renderSolarMap();
     return;
   }
 
@@ -560,6 +589,7 @@ function render() {
   renderBossHealthBar();
   renderBossWarning();
   renderPowerupBar();
+  if (IS_TOUCH) renderTouchControls();
   if (gameState === 'PAUSED') renderPaused();
 }
 
@@ -671,7 +701,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.54.4';
+  const verText = 'v1.56.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1069,182 +1099,133 @@ function renderPlayMode() {
   ctx.fillStyle   = '#fff';
   ctx.shadowColor = '#44f';
   ctx.shadowBlur  = 18;
-  ctx.fillText('Play Options', CANVAS_W / 2, CANVAS_H / 2 - 100);
+  ctx.fillText('Play Options', CANVAS_W / 2, CANVAS_H / 2 - 130);
   ctx.shadowBlur  = 0;
 
   playModeButtonRects.length = 0;
-  const btnW = 360, cx = CANVAS_W / 2, gap = 20;
-  const save = (() => { try { return JSON.parse(localStorage.getItem('astroSave')); } catch(e) { return null; } })();
+  const btnW = 380, cx = CANVAS_W / 2, btnH = 88, gap = 20;
+  const save    = (() => { try { return JSON.parse(localStorage.getItem('astroSave')); } catch(e) { return null; } })();
   const hasSave = save && save.level && save.diff;
+  let   btnY    = CANVAS_H / 2 - 80;
 
-  const buttons = [
-    { key: 'new',  label: 'NEW GAME', sub: null, color: '#4af', bg: 'rgba(0,40,90,0.85)', btnH: 68, enabled: true },
-    {
-      key: 'load',
-      label: 'LOAD GAME',
-      sub: hasSave ? `Level ${save.level}  ·  ${DIFFICULTIES[save.diff].label}  ·  ${save.lives} lives` : 'No save found',
-      color: hasSave ? '#4f8' : '#446',
-      bg:    hasSave ? 'rgba(0,50,25,0.85)' : 'rgba(10,10,20,0.6)',
-      btnH: 68,
-      enabled: hasSave,
-    },
-  ];
+  // ── ENDLESS MODE button ──────────────────────────────────────────────────
+  // Pre-calculate chip/trash positions and push their rects FIRST so they
+  // take priority over the larger endless button rect in the click loop.
+  const chipW = 160, chipH = 26, chipX = cx + btnW / 2 - chipW - 10, chipY = btnY + 60;
+  const trashSize = 26, trashX = chipX - trashSize - 6;
+  if (hasSave) {
+    playModeButtonRects.push({ x: chipX,  y: chipY, w: chipW,     h: chipH,     key: 'load'   });
+    playModeButtonRects.push({ x: trashX, y: chipY, w: trashSize, h: trashSize, key: 'delete' });
+  }
+  playModeButtonRects.push({ x: cx - btnW / 2, y: btnY, w: btnW, h: btnH, key: 'endless' });
 
-  const trashSize = 44, trashGap = 12;
-  let btnY = CANVAS_H / 2 - 30;
-  for (const b of buttons) {
-    const bx  = cx - btnW / 2;
-    const bcy = btnY + b.btnH / 2;
-    if (b.enabled) playModeButtonRects.push({ x: bx, y: btnY, w: btnW, h: b.btnH, key: b.key });
+  // Draw endless button
+  ctx.shadowColor = '#4af'; ctx.shadowBlur = 10;
+  ctx.fillStyle   = 'rgba(0,40,90,0.85)';
+  ctx.strokeStyle = '#4af';
+  ctx.lineWidth   = 2;
+  ctx.beginPath(); ctx.roundRect(cx - btnW / 2, btnY, btnW, btnH, 12); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur  = 0;
+  ctx.fillStyle   = '#fff';
+  ctx.font        = 'bold 22px "Courier New", monospace';
+  ctx.fillText('ENDLESS MODE', cx, btnY + 28);
+  ctx.font        = '13px "Courier New", monospace';
+  ctx.fillStyle   = '#4af';
+  ctx.fillText('No end. Survive as long as you can.', cx, btnY + 44);
 
-    if (b.enabled) { ctx.shadowColor = b.color; ctx.shadowBlur = 10; }
-    ctx.fillStyle   = b.bg;
-    ctx.strokeStyle = b.color;
-    ctx.lineWidth   = b.enabled ? 2 : 1;
-    ctx.globalAlpha = b.enabled ? 1 : 0.4;
-    ctx.beginPath();
-    ctx.roundRect(bx, btnY, btnW, b.btnH, 10);
-    ctx.fill();
-    ctx.stroke();
+  // Draw load chip + trash
+  if (hasSave) {
+    ctx.fillStyle   = 'rgba(0,60,30,0.9)';
+    ctx.strokeStyle = '#4f8';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.roundRect(chipX, chipY, chipW, chipH, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle   = '#4f8';
+    ctx.font        = 'bold 11px "Courier New", monospace';
+    ctx.fillText(`▶ LOAD  Lv${save.level} · ${save.lives}♥`, chipX + chipW / 2, chipY + chipH / 2);
+
+    ctx.shadowColor = '#f44'; ctx.shadowBlur = 6;
+    ctx.fillStyle   = 'rgba(80,0,0,0.85)';
+    ctx.strokeStyle = '#f44';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.roundRect(trashX, chipY, trashSize, trashSize, 6); ctx.fill(); ctx.stroke();
     ctx.shadowBlur  = 0;
-
-    ctx.fillStyle = '#fff';
-    ctx.font      = `bold 20px "Courier New", monospace`;
-    ctx.fillText(b.label, cx, b.sub ? bcy - 10 : bcy);
-
-    if (b.sub) {
-      ctx.font      = '13px "Courier New", monospace';
-      ctx.fillStyle = b.color;
-      ctx.fillText(b.sub, cx, bcy + 12);
-    }
-
-    ctx.globalAlpha = 1;
-
-    // Trash button — only beside the load row when a save exists
-    if (b.key === 'load' && hasSave) {
-      const tx = bx + btnW + trashGap;
-      const ty = btnY + (b.btnH - trashSize) / 2;
-      playModeButtonRects.push({ x: tx, y: ty, w: trashSize, h: trashSize, key: 'delete' });
-
-      ctx.shadowColor = '#f44';
-      ctx.shadowBlur  = 8;
-      ctx.fillStyle   = 'rgba(80,0,0,0.85)';
-      ctx.strokeStyle = '#f44';
-      ctx.lineWidth   = 2;
-      ctx.beginPath();
-      ctx.roundRect(tx, ty, trashSize, trashSize, 10);
-      ctx.fill();
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Draw trash can icon
-      const ix = tx + trashSize / 2, iy = ty + trashSize / 2;
-      ctx.strokeStyle = '#f88';
-      ctx.lineWidth   = 1.5;
-      ctx.lineCap     = 'round';
-
-      // Lid
-      ctx.beginPath();
-      ctx.moveTo(ix - 9, iy - 6);
-      ctx.lineTo(ix + 9, iy - 6);
-      ctx.stroke();
-      // Handle on lid
-      ctx.beginPath();
-      ctx.moveTo(ix - 4, iy - 6);
-      ctx.lineTo(ix - 4, iy - 9);
-      ctx.lineTo(ix + 4, iy - 9);
-      ctx.lineTo(ix + 4, iy - 6);
-      ctx.stroke();
-      // Body
-      ctx.beginPath();
-      ctx.moveTo(ix - 7, iy - 4);
-      ctx.lineTo(ix - 6, iy + 8);
-      ctx.lineTo(ix + 6, iy + 8);
-      ctx.lineTo(ix + 7, iy - 4);
-      ctx.stroke();
-      // Inner lines
-      for (const ox of [-3, 0, 3]) {
-        ctx.beginPath();
-        ctx.moveTo(ix + ox, iy - 2);
-        ctx.lineTo(ix + ox, iy + 6);
-        ctx.stroke();
-      }
-    }
-
-    btnY += b.btnH + gap;
+    const ix = trashX + trashSize / 2, iy = chipY + trashSize / 2;
+    ctx.strokeStyle = '#f88'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(ix - 6, iy - 3); ctx.lineTo(ix + 6, iy - 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ix - 2.5, iy - 3); ctx.lineTo(ix - 2.5, iy - 6); ctx.lineTo(ix + 2.5, iy - 6); ctx.lineTo(ix + 2.5, iy - 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ix - 5, iy - 1); ctx.lineTo(ix - 4, iy + 6); ctx.lineTo(ix + 4, iy + 6); ctx.lineTo(ix + 5, iy - 1); ctx.stroke();
+    for (const ox of [-2, 0, 2]) { ctx.beginPath(); ctx.moveTo(ix + ox, iy + 1); ctx.lineTo(ix + ox, iy + 5); ctx.stroke(); }
   }
 
-  // Back button
+  btnY += btnH + gap;
+
+  // ── PROGRESS MODE button ─────────────────────────────────────────────────
+  playModeButtonRects.push({ x: cx - btnW / 2, y: btnY, w: btnW, h: btnH, key: 'progress' });
+  ctx.shadowColor = '#a8f'; ctx.shadowBlur = 10;
+  ctx.fillStyle   = 'rgba(25,0,60,0.85)';
+  ctx.strokeStyle = '#a8f';
+  ctx.lineWidth   = 2;
+  ctx.beginPath(); ctx.roundRect(cx - btnW / 2, btnY, btnW, btnH, 12); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur  = 0;
+  ctx.fillStyle   = '#fff';
+  ctx.font        = 'bold 22px "Courier New", monospace';
+  ctx.fillText('PROGRESS MODE', cx, btnY + 28);
+  ctx.font        = '13px "Courier New", monospace';
+  ctx.fillStyle   = '#a8f';
+  ctx.fillText('9 planets. Fixed challenges. Sequential unlock.', cx, btnY + 52);
+  ctx.font        = '11px "Courier New", monospace';
+  ctx.fillStyle   = '#886ccc';
+  ctx.fillText(`${progressUnlocked + 1} / 9 planets reached`, cx, btnY + 70);
+
+  btnY += btnH + gap;
+
+  // ── Back button ──────────────────────────────────────────────────────────
   const backW = 180, backH = 44;
   const backX = cx - backW / 2, backY = btnY + 16;
   playModeButtonRects.push({ x: backX, y: backY, w: backW, h: backH, key: 'back' });
-  ctx.shadowColor = '#48f';
-  ctx.shadowBlur  = 8;
+  ctx.shadowColor = '#48f'; ctx.shadowBlur = 8;
   ctx.fillStyle   = 'rgba(10,20,60,0.85)';
   ctx.strokeStyle = '#48f';
   ctx.lineWidth   = 2;
-  ctx.globalAlpha = 1;
-  ctx.beginPath();
-  ctx.roundRect(backX, backY, backW, backH, 10);
-  ctx.fill();
-  ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(backX, backY, backW, backH, 10); ctx.fill(); ctx.stroke();
   ctx.shadowBlur  = 0;
   ctx.fillStyle   = '#fff';
   ctx.font        = 'bold 16px "Courier New", monospace';
   ctx.fillText('← BACK', cx, backY + backH / 2);
 
-  // Confirmation popup
+  // ── Confirmation popup ───────────────────────────────────────────────────
   if (confirmDeleteVisible) {
     const pw = 420, ph = 180, px = cx - pw / 2, py = CANVAS_H / 2 - ph / 2;
 
-    // Scrim
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    // Box
-    ctx.shadowColor = '#f44';
-    ctx.shadowBlur  = 18;
+    ctx.shadowColor = '#f44'; ctx.shadowBlur = 18;
     ctx.fillStyle   = 'rgba(25,5,5,0.97)';
-    ctx.strokeStyle = '#f44';
-    ctx.lineWidth   = 2;
-    ctx.beginPath();
-    ctx.roundRect(px, py, pw, ph, 14);
-    ctx.fill();
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#f44'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 14); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur  = 0;
 
-    // Message
-    ctx.font      = 'bold 18px "Courier New", monospace';
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
+    ctx.font = 'bold 18px "Courier New", monospace'; ctx.fillStyle = '#fff';
     ctx.fillText('Erase this save file?', cx, py + 44);
-    ctx.font      = '13px "Courier New", monospace';
-    ctx.fillStyle = '#888';
+    ctx.font = '13px "Courier New", monospace'; ctx.fillStyle = '#888';
     ctx.fillText('This cannot be undone.', cx, py + 68);
 
-    // Buttons
     const bw = 150, bh = 44, bgap = 20;
     const yesX = cx - bw - bgap / 2, noX = cx + bgap / 2, bby = py + ph - bh - 22;
 
-    // Yes button
     playModeButtonRects.push({ x: yesX, y: bby, w: bw, h: bh, key: 'confirm_delete' });
     ctx.shadowColor = '#f44'; ctx.shadowBlur = 8;
-    ctx.fillStyle   = 'rgba(80,0,0,0.9)';
-    ctx.strokeStyle = '#f44';
-    ctx.lineWidth   = 2;
+    ctx.fillStyle = 'rgba(80,0,0,0.9)'; ctx.strokeStyle = '#f44'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.roundRect(yesX, bby, bw, bh, 8); ctx.fill(); ctx.stroke();
-    ctx.shadowBlur  = 0;
-    ctx.fillStyle   = '#fff';
-    ctx.font        = 'bold 15px "Courier New", monospace';
+    ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+    ctx.font = 'bold 15px "Courier New", monospace';
     ctx.fillText('Yes, Erase', yesX + bw / 2, bby + bh / 2);
 
-    // No button
     playModeButtonRects.push({ x: noX, y: bby, w: bw, h: bh, key: 'cancel_delete' });
-    ctx.fillStyle   = 'rgba(0,30,70,0.9)';
-    ctx.strokeStyle = '#4af';
-    ctx.lineWidth   = 2;
+    ctx.fillStyle = 'rgba(0,30,70,0.9)'; ctx.strokeStyle = '#4af'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.roundRect(noX, bby, bw, bh, 8); ctx.fill(); ctx.stroke();
-    ctx.fillStyle   = '#fff';
+    ctx.fillStyle = '#fff';
     ctx.fillText('Cancel', noX + bw / 2, bby + bh / 2);
   }
 
@@ -1343,6 +1324,195 @@ function renderDifficulty() {
   ctx.restore();
 }
 
+function renderSolarMap() {
+  ctx.save();
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Background
+  ctx.fillStyle = '#05050f';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  renderStars();
+
+  // Title
+  ctx.font        = 'bold 28px "Courier New", monospace';
+  ctx.fillStyle   = '#fff';
+  ctx.shadowColor = '#a8f';
+  ctx.shadowBlur  = 14;
+  ctx.fillText('SOLAR SYSTEM', CANVAS_W / 2, 40);
+  ctx.shadowBlur  = 0;
+
+  solarMapButtonRects.length = 0;
+
+  const mapLeft  = 160;
+  const mapRight = CANVAS_W - 160;
+  const step     = (mapRight - mapLeft) / (PLANET_DEFS.length - 1);
+  const cy       = CANVAS_H * 0.58;
+
+  // Orbit line
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth   = 1.5;
+  ctx.setLineDash([6, 8]);
+  ctx.beginPath();
+  ctx.moveTo(mapLeft, cy);
+  ctx.lineTo(mapRight, cy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw planets
+  for (let i = 0; i < PLANET_DEFS.length; i++) {
+    const p   = PLANET_DEFS[i];
+    const px  = mapLeft + i * step;
+    const locked = i > progressUnlocked;
+
+    ctx.globalAlpha = locked ? 0.28 : 1;
+
+    // Sun glow
+    if (i === 0 && !locked) {
+      ctx.shadowColor = p.glowColor;
+      ctx.shadowBlur  = 28;
+    }
+
+    // Saturn rings (back half)
+    if (p.rings) {
+      ctx.save();
+      ctx.globalAlpha = locked ? 0.28 : 0.55;
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth   = 5;
+      ctx.beginPath();
+      ctx.ellipse(px, cy, p.size * 1.8, p.size * 0.45, 0, Math.PI, 2 * Math.PI);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Planet circle
+    ctx.beginPath();
+    ctx.arc(px, cy, p.size, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Selected highlight
+    if (selectedPlanet === i && !locked) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth   = 3;
+      ctx.beginPath();
+      ctx.arc(px, cy, p.size + 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Saturn rings (front half)
+    if (p.rings) {
+      ctx.save();
+      ctx.globalAlpha = locked ? 0.28 : 0.85;
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth   = 5;
+      ctx.beginPath();
+      ctx.ellipse(px, cy, p.size * 1.8, p.size * 0.45, 0, 0, Math.PI);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Lock icon
+    if (locked) {
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.arc(px, cy - p.size - 12, 5, Math.PI, 0);
+      ctx.stroke();
+      ctx.fillStyle = '#888';
+      ctx.fillRect(px - 5, cy - p.size - 12, 10, 8);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.globalAlpha = locked ? 0.28 : 1;
+
+    // Name label
+    ctx.font      = `bold 11px "Courier New", monospace`;
+    ctx.fillStyle = locked ? '#555' : p.color;
+    ctx.fillText(p.name, px, cy + p.size + 16);
+
+    ctx.globalAlpha = 1;
+
+    // Click rect (circle bounding box, slightly enlarged)
+    solarMapButtonRects.push({ x: px - p.size - 8, y: cy - p.size - 8, w: (p.size + 8) * 2, h: (p.size + 8) * 2, key: `planet_${i}`, cx: px, cy, r: p.size + 8 });
+  }
+
+  // Info panel
+  if (selectedPlanet !== null) {
+    const p      = PLANET_DEFS[selectedPlanet];
+    const locked = selectedPlanet > progressUnlocked;
+    const pw = Math.min(420, CANVAS_W - 40), ph = 170;
+    const ppx = CANVAS_W / 2 - pw / 2, ppy = 68;
+
+    ctx.shadowColor = p.color; ctx.shadowBlur = 16;
+    ctx.fillStyle   = 'rgba(5,5,20,0.96)';
+    ctx.strokeStyle = p.color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(ppx, ppy, pw, ph, 14); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur  = 0;
+
+    // Close button
+    const closeSize = 26, closeX = ppx + pw - closeSize - 8, closeY = ppy + 8;
+    solarMapButtonRects.push({ x: closeX, y: closeY, w: closeSize, h: closeSize, key: 'close_panel', cx: 0, cy: 0, r: 0 });
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.beginPath(); ctx.roundRect(closeX, closeY, closeSize, closeSize, 6); ctx.fill();
+    ctx.fillStyle = '#888'; ctx.font = '16px "Courier New", monospace';
+    ctx.fillText('✕', closeX + closeSize / 2, closeY + closeSize / 2);
+
+    // Planet name
+    ctx.font      = `bold 22px "Courier New", monospace`;
+    ctx.fillStyle = p.color;
+    ctx.fillText(p.name.toUpperCase(), CANVAS_W / 2, ppy + 28);
+
+    // Description
+    ctx.font      = '13px "Courier New", monospace';
+    ctx.fillStyle = '#ccc';
+    ctx.fillText(p.desc, CANVAS_W / 2, ppy + 54);
+
+    // Difficulty pips (1 per planet index + 1)
+    const pipCount = selectedPlanet + 1, pipTotal = 9;
+    const pipW = 18, pipH = 8, pipGap = 4;
+    const pipRowW = pipTotal * pipW + (pipTotal - 1) * pipGap;
+    let pipX = CANVAS_W / 2 - pipRowW / 2;
+    ctx.font = '11px "Courier New", monospace'; ctx.fillStyle = '#666';
+    ctx.textAlign = 'left';
+    ctx.fillText('DIFFICULTY', pipX, ppy + 78);
+    ctx.textAlign = 'center';
+    for (let k = 0; k < pipTotal; k++) {
+      ctx.fillStyle = k < pipCount ? p.color : 'rgba(255,255,255,0.12)';
+      ctx.beginPath(); ctx.roundRect(pipX, ppy + 90, pipW, pipH, 3); ctx.fill();
+      pipX += pipW + pipGap;
+    }
+
+    // Launch / locked indicator
+    if (locked) {
+      ctx.font = 'bold 14px "Courier New", monospace'; ctx.fillStyle = '#555';
+      ctx.fillText('🔒 LOCKED', CANVAS_W / 2, ppy + 140);
+    } else {
+      const lw = 140, lh = 36, lx = CANVAS_W / 2 - lw / 2, ly = ppy + ph - lh - 10;
+      solarMapButtonRects.push({ x: lx, y: ly, w: lw, h: lh, key: 'launch', cx: 0, cy: 0, r: 0 });
+      ctx.shadowColor = p.color; ctx.shadowBlur = 10;
+      ctx.fillStyle   = 'rgba(0,0,0,0.7)'; ctx.strokeStyle = p.color; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(lx, ly, lw, lh, 8); ctx.fill(); ctx.stroke();
+      ctx.shadowBlur  = 0;
+      ctx.fillStyle   = '#fff'; ctx.font = 'bold 15px "Courier New", monospace';
+      ctx.fillText('LAUNCH ▶', CANVAS_W / 2, ly + lh / 2);
+    }
+  }
+
+  // Back button
+  const backW = 160, backH = 40, backX = CANVAS_W / 2 - backW / 2, backY = CANVAS_H - 58;
+  solarMapButtonRects.push({ x: backX, y: backY, w: backW, h: backH, key: 'map_back', cx: 0, cy: 0, r: 0 });
+  ctx.shadowColor = '#48f'; ctx.shadowBlur = 6;
+  ctx.fillStyle = 'rgba(10,20,60,0.85)'; ctx.strokeStyle = '#48f'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(backX, backY, backW, backH, 10); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = 'bold 15px "Courier New", monospace';
+  ctx.fillText('← BACK', CANVAS_W / 2, backY + backH / 2);
+
+  ctx.restore();
+}
+
 function renderPowerupBar() {
   if (!collectedPowerups || collectedPowerups.length === 0) return;
   ctx.save();
@@ -1351,7 +1521,9 @@ function renderPowerupBar() {
 
   const itemW = 108, itemH = 36, gap = 5;
   const barX  = 10;
-  const barY  = CANVAS_H - itemH - 10;
+  const barY  = IS_TOUCH
+    ? CANVAS_H - itemH - touchLayout.joystickBaseR * 2 - 48
+    : CANVAS_H - itemH - 10;
 
   for (let i = 0; i < collectedPowerups.length; i++) {
     const cp        = collectedPowerups[i];
@@ -1711,6 +1883,78 @@ function renderLevelComplete() {
   ctx.restore();
 }
 
+function renderTouchControls() {
+  const tl = touchLayout;
+  ctx.save();
+
+  // ── Pause button (top-right) ──────────────────────────────────────────────
+  ctx.globalAlpha = 0.65;
+  ctx.fillStyle   = 'rgba(0,0,40,0.75)';
+  ctx.strokeStyle = '#88f';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.roundRect(tl.pauseBtnX, tl.pauseBtnY, tl.pauseBtnW, tl.pauseBtnH, 8);
+  ctx.fill();
+  ctx.stroke();
+  ctx.globalAlpha  = 1;
+  ctx.fillStyle    = '#fff';
+  ctx.font         = 'bold 14px "Courier New", monospace';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('II', tl.pauseBtnX + tl.pauseBtnW / 2, tl.pauseBtnY + tl.pauseBtnH / 2);
+
+  // ── Joystick ──────────────────────────────────────────────────────────────
+  const jbx = touch.joystick.active ? touch.joystick.baseX : tl.joystickCenterX;
+  const jby = touch.joystick.active ? touch.joystick.baseY : tl.joystickCenterY;
+
+  // Base ring
+  ctx.globalAlpha = 0.45;
+  ctx.beginPath();
+  ctx.arc(jbx, jby, tl.joystickBaseR, 0, Math.PI * 2);
+  ctx.fillStyle   = 'rgba(0,20,60,0.55)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(100,180,255,0.6)';
+  ctx.lineWidth   = 2.5;
+  ctx.stroke();
+
+  // Inner guide ring
+  ctx.beginPath();
+  ctx.arc(jbx, jby, tl.joystickMaxDist, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(100,180,255,0.25)';
+  ctx.lineWidth   = 1;
+  ctx.stroke();
+
+  // Thumb
+  const thumbX = jbx + touch.joystick.dx * tl.joystickMaxDist;
+  const thumbY = jby + touch.joystick.dy * tl.joystickMaxDist;
+  ctx.globalAlpha = touch.joystick.active ? 0.85 : 0.50;
+  ctx.beginPath();
+  ctx.arc(thumbX, thumbY, tl.joystickThumbR, 0, Math.PI * 2);
+  ctx.fillStyle   = 'rgba(80,160,255,0.5)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(150,210,255,0.9)';
+  ctx.lineWidth   = 2.5;
+  ctx.stroke();
+
+  // ── Fire button (bottom-right) ────────────────────────────────────────────
+  ctx.globalAlpha = touch.fire.active ? 0.90 : 0.60;
+  ctx.beginPath();
+  ctx.arc(tl.fireBtnX, tl.fireBtnY, tl.fireBtnR, 0, Math.PI * 2);
+  ctx.fillStyle   = touch.fire.active ? 'rgba(255,80,0,0.65)' : 'rgba(60,0,0,0.55)';
+  ctx.fill();
+  ctx.strokeStyle = touch.fire.active ? '#ff8040' : '#f84';
+  ctx.lineWidth   = 3;
+  ctx.stroke();
+  ctx.globalAlpha  = 1;
+  ctx.fillStyle    = '#fff';
+  ctx.font         = 'bold 14px "Courier New", monospace';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('FIRE', tl.fireBtnX, tl.fireBtnY);
+
+  ctx.restore();
+}
+
 function renderBossHealthBar() {
   if (!boss || !boss.active) return;
   ctx.save();
@@ -1938,6 +2182,7 @@ try {
     unlockedHulls   = c.unlockedHulls   ?? [0];
     playerEngine    = c.engine          ?? 0;
     unlockedEngines = c.unlockedEngines ?? [0];
+    progressUnlocked = c.progressUnlocked ?? 0;
   }
 } catch(e) {}
 requestAnimationFrame(gameLoop);

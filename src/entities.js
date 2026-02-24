@@ -232,8 +232,15 @@ class Player {
     if (isDown('ArrowLeft',  'KeyA')) vx = -spd;
     if (isDown('ArrowRight', 'KeyD')) vx =  spd;
 
-    // Normalize diagonal
+    // Normalize diagonal (keyboard only)
     if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
+
+    // Touch joystick — only when no keyboard key is held
+    if (IS_TOUCH && touch.joystick.active && vx === 0 && vy === 0) {
+      vx = touch.joystick.dx * spd;
+      vy = touch.joystick.dy * spd;
+      // dx/dy are already normalized to a circle — no further diagonal reduction needed
+    }
 
     this.x = Math.max(0, Math.min(CANVAS_W - this.w, this.x + vx * dt));
     this.y = Math.max(0, Math.min(CANVAS_H - this.h, this.y + vy * dt));
@@ -251,7 +258,7 @@ class Player {
 
   tryShoot(bullets) {
     if (this.shootCooldown > 0) return;
-    if (!isDown('Space')) return;
+    if (!isDown('Space') && !(IS_TOUCH && touch.fire.active)) return;
     const bx = this.x + this.w;
     const by = this.y + this.h / 2 - 2;
     const sStats = getShipStats();

@@ -5,6 +5,7 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 let CANVAS_W = window.innerWidth;
 let CANVAS_H = window.innerHeight;
+const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 const PLAYER_SPEED = 280;   // px/s
 const BULLET_SPEED = 620;   // px/s
 const SHOOT_COOLDOWN = 0.18; // seconds between shots
@@ -122,6 +123,40 @@ const ENGINE_DEFS = [
 let playerEngine    = 0;
 let unlockedEngines = [0];
 
+// ─── Progress Mode — Solar System ─────────────────────────────────────────────
+// 9 bodies: Sun + 8 planets. Difficulty scales from easy (Sun) to brutal (Neptune).
+const PLANET_DEFS = [
+  { name: 'Sun',     color: '#ff8000', glowColor: '#ff4', size: 44, rings: false,
+    desc: 'The blazing heart of the solar system. A warm welcome.',
+    lives: 5, spawnMult: 2.0,  speedMult: 0.65, largeChance: 0.30, medChance: 0.45 },
+  { name: 'Mercury', color: '#a0a0a0', glowColor: null,   size: 11, rings: false,
+    desc: 'Cratered and airless. Rocks fly fast here.',
+    lives: 5, spawnMult: 1.7,  speedMult: 0.80, largeChance: 0.40, medChance: 0.40 },
+  { name: 'Venus',   color: '#e8c87a', glowColor: null,   size: 19, rings: false,
+    desc: 'Toxic clouds and crushing pressure. Things get real.',
+    lives: 4, spawnMult: 1.4,  speedMult: 0.95, largeChance: 0.50, medChance: 0.35 },
+  { name: 'Earth',   color: '#4af',    glowColor: null,   size: 21, rings: false,
+    desc: 'Home. Do not let it fall.',
+    lives: 3, spawnMult: 1.1,  speedMult: 1.10, largeChance: 0.60, medChance: 0.30 },
+  { name: 'Mars',    color: '#c1440e', glowColor: null,   size: 16, rings: false,
+    desc: 'The red planet is angry. Barrages incoming.',
+    lives: 3, spawnMult: 0.85, speedMult: 1.25, largeChance: 0.65, medChance: 0.28 },
+  { name: 'Jupiter', color: '#c8883a', glowColor: null,   size: 36, rings: false,
+    desc: 'Massive gravity pulls more rocks into your path.',
+    lives: 3, spawnMult: 0.85, speedMult: 1.25, largeChance: 0.68, medChance: 0.25 },
+  { name: 'Saturn',  color: '#e4d191', glowColor: null,   size: 28, rings: true,
+    desc: 'Ring debris scattered everywhere. Stay sharp.',
+    lives: 3, spawnMult: 0.75, speedMult: 1.35, largeChance: 0.70, medChance: 0.23 },
+  { name: 'Uranus',  color: '#7de8e8', glowColor: null,   size: 23, rings: false,
+    desc: 'Ice giant on its side. Strange orbits, fast rocks.',
+    lives: 2, spawnMult: 0.65, speedMult: 1.45, largeChance: 0.72, medChance: 0.22 },
+  { name: 'Neptune', color: '#5060e0', glowColor: null,   size: 22, rings: false,
+    desc: 'The edge of the solar system. Cold, fast, relentless.',
+    lives: 2, spawnMult: 0.55, speedMult: 1.55, largeChance: 0.74, medChance: 0.20 },
+];
+
+let progressUnlocked = 0;   // index of furthest unlocked planet (0 = Sun only)
+
 // ─── Changelog ────────────────────────────────────────────────────────────────
 // NOTE: Add NEW entries at the END of this array. renderChangelog() reverses it
 //       so the last entry appears at the top (newest first).
@@ -185,6 +220,13 @@ const CHANGELOG = [
   { v: 'v1.54.2', title: 'Price Reductions',         desc: 'All shop items are cheaper: hull colors reduced by ~20%, hull shapes now scale from 20 to 400 coins, and engines range from 40 to 200 coins.' },
   { v: 'v1.54.3', title: 'Flat Color Pricing',       desc: 'All unlockable colors now cost a flat 40 coins each.' },
   { v: 'v1.54.4', title: 'Coin HUD & Visual Polish', desc: 'In-game coins now match the shop icon style (solid gold with dark inner circle). SpaceCoins balance shown in the bottom-right corner during gameplay.' },
+  { v: 'v1.54.5', title: 'Coin Spawn Tuning',        desc: 'Coins now spawn in batches of 2–4 every 10–15 seconds regardless of difficulty.' },
+  { v: 'v1.55.0', title: 'Progress Mode',            desc: 'New Progress Mode: fight through the solar system from Sun to Neptune. Each of the 9 planets has a fixed, escalating difficulty. Planets unlock sequentially — beat one to reveal the next. Click any unlocked planet on the solar map to read its description and launch. Progress is saved between sessions.' },
+  { v: 'v1.55.1', title: 'Planet Difficulty Tuning', desc: 'Outer planets (Jupiter through Neptune) are now significantly less punishing. Neptune now sits between Medium and Hard difficulty rather than beyond Hard.' },
+  { v: 'v1.55.2', title: 'Play Mode Bug Fixes',      desc: 'Fixed Progress Mode being unclickable (SOLAR_MAP state was falling through into game update logic). Fixed load/delete chip overlapping the Endless Mode sub-text.' },
+  { v: 'v1.55.3', title: 'Button Overlap Fix',       desc: 'Fixed the delete/load buttons triggering the Endless Mode button simultaneously. Smaller buttons now take priority and clicks stop at the first match.' },
+  { v: 'v1.55.4', title: 'Solar Map Margin Fix',    desc: 'Increased horizontal margins on the solar system map so Sun and Neptune labels no longer clip near the screen edges.' },
+  { v: 'v1.56.0', title: 'Touchscreen Support',    desc: 'Full touchscreen support added. Tap any button or menu to navigate. During gameplay a floating virtual joystick (bottom-left) controls movement and a large FIRE button (bottom-right) fires continuously while held. Swipe up/down in the Shop and Changelog. A PAUSE button appears top-right during play. Keyboard and mouse controls are unchanged.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────
