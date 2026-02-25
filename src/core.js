@@ -23,7 +23,6 @@ const pauseButtonRects = [];
 const shopButtonRects = [];
 const solarMapButtonRects = [];
 let shopScrollY = 0;
-let confirmDeleteVisible = false;
 
 function loadGame() {
   const d    = DIFFICULTIES[currentDiff];
@@ -80,15 +79,6 @@ function loadLevel(level) {
   bossDefeated  = false;
   bossWarningTimer = 0;
   gameState     = 'PLAYING';
-}
-
-function saveGame() {
-  localStorage.setItem('astroSave', JSON.stringify({
-    level: currentLevel + 1,
-    diff:  currentDiff,
-    score: score,
-    lives: lives,
-  }));
 }
 
 function saveShop() {
@@ -420,7 +410,6 @@ function update(dt) {
             progressUnlocked = Math.max(progressUnlocked, currentPlanet + 1);
             saveShop();
           }
-          saveGame();
           break;
         }
       }
@@ -701,7 +690,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.56.0';
+  const verText = 'v1.56.2';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1104,22 +1093,11 @@ function renderPlayMode() {
 
   playModeButtonRects.length = 0;
   const btnW = 380, cx = CANVAS_W / 2, btnH = 88, gap = 20;
-  const save    = (() => { try { return JSON.parse(localStorage.getItem('astroSave')); } catch(e) { return null; } })();
-  const hasSave = save && save.level && save.diff;
-  let   btnY    = CANVAS_H / 2 - 80;
+  let   btnY = CANVAS_H / 2 - 80;
 
   // ── ENDLESS MODE button ──────────────────────────────────────────────────
-  // Pre-calculate chip/trash positions and push their rects FIRST so they
-  // take priority over the larger endless button rect in the click loop.
-  const chipW = 160, chipH = 26, chipX = cx + btnW / 2 - chipW - 10, chipY = btnY + 60;
-  const trashSize = 26, trashX = chipX - trashSize - 6;
-  if (hasSave) {
-    playModeButtonRects.push({ x: chipX,  y: chipY, w: chipW,     h: chipH,     key: 'load'   });
-    playModeButtonRects.push({ x: trashX, y: chipY, w: trashSize, h: trashSize, key: 'delete' });
-  }
   playModeButtonRects.push({ x: cx - btnW / 2, y: btnY, w: btnW, h: btnH, key: 'endless' });
 
-  // Draw endless button
   ctx.shadowColor = '#4af'; ctx.shadowBlur = 10;
   ctx.fillStyle   = 'rgba(0,40,90,0.85)';
   ctx.strokeStyle = '#4af';
@@ -1131,31 +1109,7 @@ function renderPlayMode() {
   ctx.fillText('ENDLESS MODE', cx, btnY + 28);
   ctx.font        = '13px "Courier New", monospace';
   ctx.fillStyle   = '#4af';
-  ctx.fillText('No end. Survive as long as you can.', cx, btnY + 44);
-
-  // Draw load chip + trash
-  if (hasSave) {
-    ctx.fillStyle   = 'rgba(0,60,30,0.9)';
-    ctx.strokeStyle = '#4f8';
-    ctx.lineWidth   = 1.5;
-    ctx.beginPath(); ctx.roundRect(chipX, chipY, chipW, chipH, 6); ctx.fill(); ctx.stroke();
-    ctx.fillStyle   = '#4f8';
-    ctx.font        = 'bold 11px "Courier New", monospace';
-    ctx.fillText(`▶ LOAD  Lv${save.level} · ${save.lives}♥`, chipX + chipW / 2, chipY + chipH / 2);
-
-    ctx.shadowColor = '#f44'; ctx.shadowBlur = 6;
-    ctx.fillStyle   = 'rgba(80,0,0,0.85)';
-    ctx.strokeStyle = '#f44';
-    ctx.lineWidth   = 1.5;
-    ctx.beginPath(); ctx.roundRect(trashX, chipY, trashSize, trashSize, 6); ctx.fill(); ctx.stroke();
-    ctx.shadowBlur  = 0;
-    const ix = trashX + trashSize / 2, iy = chipY + trashSize / 2;
-    ctx.strokeStyle = '#f88'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(ix - 6, iy - 3); ctx.lineTo(ix + 6, iy - 3); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ix - 2.5, iy - 3); ctx.lineTo(ix - 2.5, iy - 6); ctx.lineTo(ix + 2.5, iy - 6); ctx.lineTo(ix + 2.5, iy - 3); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ix - 5, iy - 1); ctx.lineTo(ix - 4, iy + 6); ctx.lineTo(ix + 4, iy + 6); ctx.lineTo(ix + 5, iy - 1); ctx.stroke();
-    for (const ox of [-2, 0, 2]) { ctx.beginPath(); ctx.moveTo(ix + ox, iy + 1); ctx.lineTo(ix + ox, iy + 5); ctx.stroke(); }
-  }
+  ctx.fillText('No end. Survive as long as you can.', cx, btnY + 52);
 
   btnY += btnH + gap;
 
@@ -1192,42 +1146,6 @@ function renderPlayMode() {
   ctx.fillStyle   = '#fff';
   ctx.font        = 'bold 16px "Courier New", monospace';
   ctx.fillText('← BACK', cx, backY + backH / 2);
-
-  // ── Confirmation popup ───────────────────────────────────────────────────
-  if (confirmDeleteVisible) {
-    const pw = 420, ph = 180, px = cx - pw / 2, py = CANVAS_H / 2 - ph / 2;
-
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-
-    ctx.shadowColor = '#f44'; ctx.shadowBlur = 18;
-    ctx.fillStyle   = 'rgba(25,5,5,0.97)';
-    ctx.strokeStyle = '#f44'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 14); ctx.fill(); ctx.stroke();
-    ctx.shadowBlur  = 0;
-
-    ctx.font = 'bold 18px "Courier New", monospace'; ctx.fillStyle = '#fff';
-    ctx.fillText('Erase this save file?', cx, py + 44);
-    ctx.font = '13px "Courier New", monospace'; ctx.fillStyle = '#888';
-    ctx.fillText('This cannot be undone.', cx, py + 68);
-
-    const bw = 150, bh = 44, bgap = 20;
-    const yesX = cx - bw - bgap / 2, noX = cx + bgap / 2, bby = py + ph - bh - 22;
-
-    playModeButtonRects.push({ x: yesX, y: bby, w: bw, h: bh, key: 'confirm_delete' });
-    ctx.shadowColor = '#f44'; ctx.shadowBlur = 8;
-    ctx.fillStyle = 'rgba(80,0,0,0.9)'; ctx.strokeStyle = '#f44'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(yesX, bby, bw, bh, 8); ctx.fill(); ctx.stroke();
-    ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
-    ctx.font = 'bold 15px "Courier New", monospace';
-    ctx.fillText('Yes, Erase', yesX + bw / 2, bby + bh / 2);
-
-    playModeButtonRects.push({ x: noX, y: bby, w: bw, h: bh, key: 'cancel_delete' });
-    ctx.fillStyle = 'rgba(0,30,70,0.9)'; ctx.strokeStyle = '#4af'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(noX, bby, bw, bh, 8); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.fillText('Cancel', noX + bw / 2, bby + bh / 2);
-  }
 
   ctx.restore();
 }

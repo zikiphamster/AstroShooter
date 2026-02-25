@@ -227,6 +227,8 @@ const CHANGELOG = [
   { v: 'v1.55.3', title: 'Button Overlap Fix',       desc: 'Fixed the delete/load buttons triggering the Endless Mode button simultaneously. Smaller buttons now take priority and clicks stop at the first match.' },
   { v: 'v1.55.4', title: 'Solar Map Margin Fix',    desc: 'Increased horizontal margins on the solar system map so Sun and Neptune labels no longer clip near the screen edges.' },
   { v: 'v1.56.0', title: 'Touchscreen Support',    desc: 'Full touchscreen support added. Tap any button or menu to navigate. During gameplay a floating virtual joystick (bottom-left) controls movement and a large FIRE button (bottom-right) fires continuously while held. Swipe up/down in the Shop and Changelog. A PAUSE button appears top-right during play. Keyboard and mouse controls are unchanged.' },
+  { v: 'v1.56.1', title: 'Remove Endless Saves',  desc: 'Endless Mode no longer saves progress between sessions. Each run starts fresh. Progress Mode continues to save planet unlocks as before.' },
+  { v: 'v1.56.2', title: 'Progress Mode Boss Fix', desc: 'Fixed a crash where the boss would freeze the game in Progress Mode. The boss now correctly draws from easy/medium/hard templates based on planet index (Sun–Venus = easy, Earth–Jupiter = medium, Saturn–Neptune = hard).' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

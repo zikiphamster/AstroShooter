@@ -364,7 +364,10 @@ const BOSS_DEFS = {
 
 class Boss {
   constructor(level = 1) {
-    const def        = BOSS_DEFS[currentDiff];
+    const bossKey    = currentDiff === 'progress'
+      ? (currentPlanet < 3 ? 'easy' : currentPlanet < 6 ? 'medium' : 'hard')
+      : currentDiff;
+    const def        = BOSS_DEFS[bossKey];
     this.aiLevel     = Math.min(1, (level - 1) / 8); // 0.0 at L1 → 1.0 at L9+
     this.name        = def.names
       ? (def.names[level - 1] ?? `${def.names[def.names.length - 1]} Mk.${level}`)

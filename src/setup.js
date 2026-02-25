@@ -137,7 +137,7 @@ window.addEventListener('keydown', e => {
     if (gameState === 'PLAYING')         gameState = 'PAUSED';
     else if (gameState === 'PAUSED')     gameState = 'PLAYING';
     else if (gameState === 'DIFFICULTY') gameState = 'MENU';
-    else if (gameState === 'PLAY_MODE')  { confirmDeleteVisible = false; gameState = 'MENU'; }
+    else if (gameState === 'PLAY_MODE')  { gameState = 'MENU'; }
     else if (gameState === 'SOLAR_MAP')  { selectedPlanet = null; gameState = 'PLAY_MODE'; }
     else if (gameState === 'CONTROLS')   gameState = 'MENU';
     else if (gameState === 'CHANGELOG')  gameState = 'MENU';
@@ -260,24 +260,6 @@ function handleCanvasClick(mx, my) {
         } else if (btn.key === 'progress') {
           gameMode  = 'progress';
           gameState = 'SOLAR_MAP';
-        } else if (btn.key === 'load') {
-          try {
-            const save = JSON.parse(localStorage.getItem('astroSave'));
-            if (save) {
-              gameMode    = 'endless';
-              currentDiff = save.diff;
-              score       = save.score;
-              lives       = save.lives;
-              loadLevel(save.level);
-            }
-          } catch(e) {}
-        } else if (btn.key === 'delete') {
-          confirmDeleteVisible = true;
-        } else if (btn.key === 'confirm_delete') {
-          localStorage.removeItem('astroSave');
-          confirmDeleteVisible = false;
-        } else if (btn.key === 'cancel_delete') {
-          confirmDeleteVisible = false;
         } else if (btn.key === 'back') {
           gameState = 'MENU';
         }
@@ -306,6 +288,7 @@ function handleCanvasClick(mx, my) {
         currentPlanet  = selectedPlanet;
         currentDiff    = 'progress';
         selectedPlanet = null;
+        gameState      = 'PLAYING';
         loadGame();
       } else if (btn.key.startsWith('planet_')) {
         const i = +btn.key.split('_')[1];
