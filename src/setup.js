@@ -162,6 +162,20 @@ window.addEventListener('wheel', e => {
 function handleCanvasClick(mx, my) {
   if (btnAnim.active) return; // block clicks during animation
 
+  // Tutorial overlay intercepts all clicks while active
+  if (tutorialActive) {
+    if (tutorialNextRect &&
+        mx >= tutorialNextRect.x && mx <= tutorialNextRect.x + tutorialNextRect.w &&
+        my >= tutorialNextRect.y && my <= tutorialNextRect.y + tutorialNextRect.h) {
+      advanceTutorial();
+    } else if (tutorialSkipRect &&
+        mx >= tutorialSkipRect.x && mx <= tutorialSkipRect.x + tutorialSkipRect.w &&
+        my >= tutorialSkipRect.y && my <= tutorialSkipRect.y + tutorialSkipRect.h) {
+      completeTutorial();
+    }
+    return; // swallow all other clicks while tutorial is open
+  }
+
   if (gameState === 'MENU') {
     for (const btn of menuButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
@@ -283,7 +297,13 @@ function handleCanvasClick(mx, my) {
         if (btn.key === 'endless')
           startBtnAnim(btn, '#4af', () => { gameMode = 'endless'; gameState = 'DIFFICULTY'; });
         else if (btn.key === 'progress')
-          startBtnAnim(btn, '#a8f', () => { gameMode = 'progress'; gameState = 'SOLAR_MAP'; });
+          startBtnAnim(btn, '#a8f', () => {
+            gameMode = 'progress';
+            gameState = 'SOLAR_MAP';
+            let seen = false;
+            try { seen = !!localStorage.getItem('progressTutorialSeen'); } catch(_) {}
+            if (!seen) { tutorialActive = true; tutorialStep = 0; }
+          });
         else if (btn.key === 'back')
           startBtnAnim(btn, '#4af', () => { gameState = 'MENU'; });
         break;
@@ -336,6 +356,20 @@ canvas.addEventListener('click', e => {
 
 function isDown(...codes) {
   return codes.some(c => keys[c]);
+}
+
+// ─── Progress Mode Tutorial ───────────────────────────────────────────────────
+function advanceTutorial() {
+  tutorialStep++;
+  if (tutorialStep >= TUTORIAL_SLIDES.length) {
+    completeTutorial();
+  }
+}
+
+function completeTutorial() {
+  tutorialActive = false;
+  tutorialStep   = 0;
+  try { localStorage.setItem('progressTutorialSeen', '1'); } catch(_) {}
 }
 
 // Start the universal button click animation; callback fires when animation ends

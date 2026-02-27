@@ -253,6 +253,17 @@ function update(dt) {
   }
 
   if (gameState === 'SOLAR_MAP') {
+    // Tutorial keyboard: Space/Enter = next slide, Escape = skip
+    if (tutorialActive) {
+      if (keys['Space'] || keys['Enter']) {
+        keys['Space'] = false; keys['Enter'] = false;
+        advanceTutorial();
+      } else if (keys['Escape']) {
+        keys['Escape'] = false;
+        completeTutorial();
+      }
+      return;
+    }
     if (solarMapLaunchTimer > 0) {
       solarMapLaunchTimer -= dt;
       if (solarMapLaunchTimer <= 0) {
@@ -559,7 +570,7 @@ function render() {
 
   if (gameState === 'MENU')           { renderMenu(); }
   else if (gameState === 'PLAY_MODE') { renderPlayMode(); }
-  else if (gameState === 'SOLAR_MAP') { renderSolarMap(); }
+  else if (gameState === 'SOLAR_MAP') { renderSolarMap(); if (tutorialActive) renderTutorialOverlay(); }
   else if (gameState === 'DIFFICULTY'){ renderDifficulty(); }
   else if (gameState === 'CONTROLS')  { renderControls(); }
   else if (gameState === 'SHOP')      { renderShop(); }
@@ -1196,7 +1207,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.58.2';
+  const verText = 'v1.59.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1744,6 +1755,141 @@ function renderDifficulty() {
   ctx.font = '14px "Courier New", monospace';
   ctx.fillText('Press 1, 2, 3  or  click a button', CANVAS_W / 2, CANVAS_H / 2 + 80);
   ctx.fillText('ESC — Back', CANVAS_W / 2, CANVAS_H / 2 + 104);
+
+  ctx.restore();
+}
+
+function renderTutorialOverlay() {
+  const slide = TUTORIAL_SLIDES[tutorialStep];
+  if (!slide) return;
+
+  // Semi-transparent backdrop
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,6,0.78)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // Card dimensions
+  const cardW = Math.min(520, CANVAS_W - 48);
+  const cardH = 300;
+  const cardX = (CANVAS_W - cardW) / 2;
+  const cardY = (CANVAS_H - cardH) / 2;
+  const r     = 14;
+
+  // Card background + border
+  ctx.beginPath();
+  ctx.moveTo(cardX + r, cardY);
+  ctx.lineTo(cardX + cardW - r, cardY);
+  ctx.quadraticCurveTo(cardX + cardW, cardY, cardX + cardW, cardY + r);
+  ctx.lineTo(cardX + cardW, cardY + cardH - r);
+  ctx.quadraticCurveTo(cardX + cardW, cardY + cardH, cardX + cardW - r, cardY + cardH);
+  ctx.lineTo(cardX + r, cardY + cardH);
+  ctx.quadraticCurveTo(cardX, cardY + cardH, cardX, cardY + cardH - r);
+  ctx.lineTo(cardX, cardY + r);
+  ctx.quadraticCurveTo(cardX, cardY, cardX + r, cardY);
+  ctx.closePath();
+  ctx.fillStyle = '#080820';
+  ctx.fill();
+  ctx.strokeStyle = slide.color;
+  ctx.lineWidth   = 2;
+  ctx.stroke();
+
+  // Title bar
+  ctx.fillStyle = slide.color + '22';
+  ctx.fillRect(cardX + 1, cardY + 1, cardW - 2, 52);
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle    = slide.color;
+  ctx.font         = 'bold 20px monospace';
+  ctx.fillText(slide.title, CANVAS_W / 2, cardY + 27);
+
+  // Body lines
+  ctx.fillStyle = '#ccd';
+  ctx.font      = '15px monospace';
+  const lineH   = 26;
+  const bodyTop = cardY + 76;
+  for (let i = 0; i < slide.body.length; i++) {
+    ctx.fillText(slide.body[i], CANVAS_W / 2, bodyTop + i * lineH);
+  }
+
+  // Progress dots
+  const dotY   = cardY + cardH - 54;
+  const dotR   = 5;
+  const dotGap = 18;
+  const dotsW  = (TUTORIAL_SLIDES.length - 1) * dotGap;
+  const dotX0  = CANVAS_W / 2 - dotsW / 2;
+  for (let i = 0; i < TUTORIAL_SLIDES.length; i++) {
+    ctx.beginPath();
+    ctx.arc(dotX0 + i * dotGap, dotY, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = i === tutorialStep ? slide.color : '#445';
+    ctx.fill();
+  }
+
+  // Buttons
+  const btnY  = cardY + cardH - 28;
+  const isLast = tutorialStep === TUTORIAL_SLIDES.length - 1;
+
+  // Skip button (left) — hidden on last slide
+  if (!isLast) {
+    const sw = 80, sh = 32;
+    const sx = cardX + 20;
+    const sy = btnY - sh / 2;
+    tutorialSkipRect = { x: sx, y: sy, w: sw, h: sh };
+    ctx.fillStyle   = '#223';
+    ctx.strokeStyle = '#446';
+    ctx.lineWidth   = 1;
+    const sr = 6;
+    ctx.beginPath();
+    ctx.moveTo(sx + sr, sy); ctx.lineTo(sx + sw - sr, sy);
+    ctx.quadraticCurveTo(sx + sw, sy, sx + sw, sy + sr);
+    ctx.lineTo(sx + sw, sy + sh - sr);
+    ctx.quadraticCurveTo(sx + sw, sy + sh, sx + sw - sr, sy + sh);
+    ctx.lineTo(sx + sr, sy + sh);
+    ctx.quadraticCurveTo(sx, sy + sh, sx, sy + sh - sr);
+    ctx.lineTo(sx, sy + sr);
+    ctx.quadraticCurveTo(sx, sy, sx + sr, sy);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle    = '#778';
+    ctx.font         = '13px monospace';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SKIP', sx + sw / 2, sy + sh / 2);
+  } else {
+    tutorialSkipRect = null;
+  }
+
+  // Next / Done button (right)
+  const nw = 110, nh = 36;
+  const nx = cardX + cardW - nw - 20;
+  const ny = btnY - nh / 2;
+  tutorialNextRect = { x: nx, y: ny, w: nw, h: nh };
+  ctx.fillStyle   = slide.color + '33';
+  ctx.strokeStyle = slide.color;
+  ctx.lineWidth   = 2;
+  const nr = 7;
+  ctx.beginPath();
+  ctx.moveTo(nx + nr, ny); ctx.lineTo(nx + nw - nr, ny);
+  ctx.quadraticCurveTo(nx + nw, ny, nx + nw, ny + nr);
+  ctx.lineTo(nx + nw, ny + nh - nr);
+  ctx.quadraticCurveTo(nx + nw, ny + nh, nx + nw - nr, ny + nh);
+  ctx.lineTo(nx + nr, ny + nh);
+  ctx.quadraticCurveTo(nx, ny + nh, nx, ny + nh - nr);
+  ctx.lineTo(nx, ny + nr);
+  ctx.quadraticCurveTo(nx, ny, nx + nr, ny);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle    = slide.color;
+  ctx.font         = 'bold 15px monospace';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(isLast ? "LET'S GO!" : 'NEXT  ›', nx + nw / 2, ny + nh / 2);
+
+  // Keyboard hint
+  ctx.fillStyle = '#445';
+  ctx.font      = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(isLast ? 'SPACE / ENTER to start' : 'SPACE / ENTER = next  •  ESC = skip',
+    CANVAS_W / 2, cardY + cardH + 16);
 
   ctx.restore();
 }
