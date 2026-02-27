@@ -60,7 +60,7 @@ let tutorialNextRect = null;
 let tutorialSkipRect = null;
 const TUTORIAL_SLIDES = [
   {
-    title: 'PROGRESS MODE',
+    icon: '🚀', title: 'PROGRESS MODE',
     color: '#a8f',
     body: [
       'Journey through all 9 planets of the Solar System,',
@@ -69,7 +69,7 @@ const TUTORIAL_SLIDES = [
     ],
   },
   {
-    title: 'THE SOLAR MAP',
+    icon: '🪐', title: 'THE SOLAR MAP',
     color: '#4af',
     body: [
       'Click any unlocked planet to view its details,',
@@ -78,7 +78,7 @@ const TUTORIAL_SLIDES = [
     ],
   },
   {
-    title: 'PLANET HAZARDS',
+    icon: '⚡', title: 'PLANET HAZARDS',
     color: '#f84',
     body: [
       'Every planet spawns a unique hazard — solar flares,',
@@ -87,7 +87,7 @@ const TUTORIAL_SLIDES = [
     ],
   },
   {
-    title: 'BOSS BATTLES',
+    icon: '💀', title: 'BOSS BATTLES',
     color: '#f55',
     body: [
       'Each planet ends with a powerful boss fight.',
@@ -96,8 +96,8 @@ const TUTORIAL_SLIDES = [
     ],
   },
   {
-    title: 'COINS & SHOP',
-    color: '#fd0',
+    icon: '💰', title: 'COINS & SHOP',
+    color: '#fc0',
     body: [
       'Collect gold coins during gameplay. Visit the Shop',
       'from the main menu to unlock hull shapes, colors,',
@@ -305,6 +305,7 @@ const CHANGELOG = [
   { v: 'v1.58.1', title: 'How to Play Expanded',        desc: 'The How to Play screen now includes descriptions of Endless Mode, Progress Mode, and the Coins & Shop system alongside the existing controls and power-up reference.' },
   { v: 'v1.58.2', title: 'How to Play Text Size',       desc: 'Game mode titles (Endless Mode, Progress Mode, Coins & Shop) in the How to Play screen are now larger and easier to read.' },
   { v: 'v1.59.0', title: 'Progress Mode Tutorial',      desc: 'A 5-slide tutorial overlay appears the first time you enter Progress Mode. It covers the Solar Map, planet hazards, boss battles, and the coins/shop system. Use NEXT or SPACE to advance, SKIP or ESC to dismiss. Never shown again after the first visit.' },
+  { v: 'v1.59.1', title: 'Tutorial & Progress Polish',  desc: 'Tutorial overlay redesigned with a gradient card, per-slide emoji icon, colored accent stripe, glow effects, and cleaner button styles. The Next/Done button now always uses white text so it is readable on any slide color. The Progress Mode button now correctly shows planets completed (0–9) instead of planets unlocked.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

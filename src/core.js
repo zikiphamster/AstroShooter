@@ -1207,7 +1207,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.59.0';
+  const verText = 'v1.59.1';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1646,7 +1646,7 @@ function renderPlayMode() {
   ctx.fillText('9 planets. Fixed challenges. Sequential unlock.', cx, btnY + 52);
   ctx.font        = '11px "Courier New", monospace';
   ctx.fillStyle   = '#886ccc';
-  ctx.fillText(`${progressUnlocked + 1} / 9 planets reached`, cx, btnY + 70);
+  ctx.fillText(`${progressUnlocked} / 9 planets complete`, cx, btnY + 70);
 
   btnY += btnH + gap;
 
@@ -1760,136 +1760,162 @@ function renderDifficulty() {
 }
 
 function renderTutorialOverlay() {
-  const slide = TUTORIAL_SLIDES[tutorialStep];
+  const slide  = TUTORIAL_SLIDES[tutorialStep];
   if (!slide) return;
+  const isLast = tutorialStep === TUTORIAL_SLIDES.length - 1;
+  const cx     = CANVAS_W / 2;
 
-  // Semi-transparent backdrop
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,6,0.78)';
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-
-  // Card dimensions
-  const cardW = Math.min(520, CANVAS_W - 48);
-  const cardH = 300;
-  const cardX = (CANVAS_W - cardW) / 2;
-  const cardY = (CANVAS_H - cardH) / 2;
-  const r     = 14;
-
-  // Card background + border
-  ctx.beginPath();
-  ctx.moveTo(cardX + r, cardY);
-  ctx.lineTo(cardX + cardW - r, cardY);
-  ctx.quadraticCurveTo(cardX + cardW, cardY, cardX + cardW, cardY + r);
-  ctx.lineTo(cardX + cardW, cardY + cardH - r);
-  ctx.quadraticCurveTo(cardX + cardW, cardY + cardH, cardX + cardW - r, cardY + cardH);
-  ctx.lineTo(cardX + r, cardY + cardH);
-  ctx.quadraticCurveTo(cardX, cardY + cardH, cardX, cardY + cardH - r);
-  ctx.lineTo(cardX, cardY + r);
-  ctx.quadraticCurveTo(cardX, cardY, cardX + r, cardY);
-  ctx.closePath();
-  ctx.fillStyle = '#080820';
-  ctx.fill();
-  ctx.strokeStyle = slide.color;
-  ctx.lineWidth   = 2;
-  ctx.stroke();
-
-  // Title bar
-  ctx.fillStyle = slide.color + '22';
-  ctx.fillRect(cardX + 1, cardY + 1, cardW - 2, 52);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle    = slide.color;
-  ctx.font         = 'bold 20px monospace';
-  ctx.fillText(slide.title, CANVAS_W / 2, cardY + 27);
 
-  // Body lines
-  ctx.fillStyle = '#ccd';
-  ctx.font      = '15px monospace';
+  // ── Backdrop ───────────────────────────────────────────────────────────────
+  ctx.fillStyle = 'rgba(0,0,10,0.84)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // ── Card ───────────────────────────────────────────────────────────────────
+  const cardW = Math.min(560, CANVAS_W - 48);
+  const cardH = 346;
+  const cardX = cx - cardW / 2;
+  const cardY = (CANVAS_H - cardH) / 2;
+
+  // Colored glow behind card
+  ctx.shadowColor = slide.color;
+  ctx.shadowBlur  = 40;
+  ctx.fillStyle   = '#0a0a1e';
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, 18);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Card gradient fill
+  const cardGrad = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardH);
+  cardGrad.addColorStop(0, '#111132');
+  cardGrad.addColorStop(1, '#060616');
+  ctx.fillStyle = cardGrad;
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, 18);
+  ctx.fill();
+
+  // Subtle border
+  ctx.strokeStyle = slide.color + '50';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, 18);
+  ctx.stroke();
+
+  // Glowing accent stripe at top
+  ctx.shadowColor = slide.color;
+  ctx.shadowBlur  = 14;
+  ctx.fillStyle   = slide.color;
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, 5, [18, 18, 0, 0]);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── Icon ───────────────────────────────────────────────────────────────────
+  ctx.font = '38px monospace';
+  ctx.fillText(slide.icon, cx, cardY + 54);
+
+  // ── Title ──────────────────────────────────────────────────────────────────
+  ctx.shadowColor = slide.color;
+  ctx.shadowBlur  = 16;
+  ctx.fillStyle   = '#ffffff';
+  ctx.font        = 'bold 20px "Courier New", monospace';
+  ctx.fillText(slide.title, cx, cardY + 98);
+  ctx.shadowBlur  = 0;
+
+  // Colored accent divider
+  ctx.strokeStyle = slide.color + '44';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(cardX + 50, cardY + 116);
+  ctx.lineTo(cardX + cardW - 50, cardY + 116);
+  ctx.stroke();
+
+  // ── Body text ──────────────────────────────────────────────────────────────
+  ctx.fillStyle = '#aab8d8';
+  ctx.font      = '14px "Courier New", monospace';
   const lineH   = 26;
-  const bodyTop = cardY + 76;
+  const bodyTop = cardY + 140;
   for (let i = 0; i < slide.body.length; i++) {
-    ctx.fillText(slide.body[i], CANVAS_W / 2, bodyTop + i * lineH);
+    ctx.fillText(slide.body[i], cx, bodyTop + i * lineH, cardW - 48);
   }
 
-  // Progress dots
-  const dotY   = cardY + cardH - 54;
-  const dotR   = 5;
-  const dotGap = 18;
-  const dotsW  = (TUTORIAL_SLIDES.length - 1) * dotGap;
-  const dotX0  = CANVAS_W / 2 - dotsW / 2;
+  // ── Progress dots ──────────────────────────────────────────────────────────
+  const dotY  = cardY + cardH - 66;
+  const dotGap = 22;
+  const dotX0  = cx - ((TUTORIAL_SLIDES.length - 1) * dotGap) / 2;
   for (let i = 0; i < TUTORIAL_SLIDES.length; i++) {
+    const active = i === tutorialStep;
     ctx.beginPath();
-    ctx.arc(dotX0 + i * dotGap, dotY, dotR, 0, Math.PI * 2);
-    ctx.fillStyle = i === tutorialStep ? slide.color : '#445';
+    ctx.arc(dotX0 + i * dotGap, dotY, active ? 6 : 4, 0, Math.PI * 2);
+    if (active) {
+      ctx.shadowColor = slide.color;
+      ctx.shadowBlur  = 8;
+      ctx.fillStyle   = slide.color;
+    } else {
+      ctx.fillStyle   = '#252545';
+      ctx.shadowBlur  = 0;
+    }
     ctx.fill();
+    ctx.shadowBlur = 0;
   }
 
-  // Buttons
-  const btnY  = cardY + cardH - 28;
-  const isLast = tutorialStep === TUTORIAL_SLIDES.length - 1;
+  // ── Buttons ────────────────────────────────────────────────────────────────
+  const btnRowCY = cardY + cardH - 28;
 
-  // Skip button (left) — hidden on last slide
+  // Skip — subtle ghost button (left), hidden on last slide
   if (!isLast) {
-    const sw = 80, sh = 32;
-    const sx = cardX + 20;
-    const sy = btnY - sh / 2;
+    const sw = 72, sh = 28;
+    const sx = cardX + 24, sy = btnRowCY - sh / 2;
     tutorialSkipRect = { x: sx, y: sy, w: sw, h: sh };
-    ctx.fillStyle   = '#223';
-    ctx.strokeStyle = '#446';
+    ctx.fillStyle   = 'rgba(255,255,255,0.04)';
+    ctx.strokeStyle = '#2c2c50';
     ctx.lineWidth   = 1;
-    const sr = 6;
     ctx.beginPath();
-    ctx.moveTo(sx + sr, sy); ctx.lineTo(sx + sw - sr, sy);
-    ctx.quadraticCurveTo(sx + sw, sy, sx + sw, sy + sr);
-    ctx.lineTo(sx + sw, sy + sh - sr);
-    ctx.quadraticCurveTo(sx + sw, sy + sh, sx + sw - sr, sy + sh);
-    ctx.lineTo(sx + sr, sy + sh);
-    ctx.quadraticCurveTo(sx, sy + sh, sx, sy + sh - sr);
-    ctx.lineTo(sx, sy + sr);
-    ctx.quadraticCurveTo(sx, sy, sx + sr, sy);
-    ctx.closePath();
-    ctx.fill(); ctx.stroke();
-    ctx.fillStyle    = '#778';
-    ctx.font         = '13px monospace';
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('SKIP', sx + sw / 2, sy + sh / 2);
+    ctx.roundRect(sx, sy, sw, sh, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#50507a';
+    ctx.font      = '12px "Courier New", monospace';
+    ctx.fillText('SKIP', sx + sw / 2, btnRowCY);
   } else {
     tutorialSkipRect = null;
   }
 
-  // Next / Done button (right)
-  const nw = 110, nh = 36;
-  const nx = cardX + cardW - nw - 20;
-  const ny = btnY - nh / 2;
+  // Next / LET'S GO — solid colored fill, white text always
+  const nw = isLast ? 136 : 122;
+  const nh = 38;
+  const nx = cardX + cardW - nw - 24;
+  const ny = btnRowCY - nh / 2;
   tutorialNextRect = { x: nx, y: ny, w: nw, h: nh };
-  ctx.fillStyle   = slide.color + '33';
-  ctx.strokeStyle = slide.color;
-  ctx.lineWidth   = 2;
-  const nr = 7;
-  ctx.beginPath();
-  ctx.moveTo(nx + nr, ny); ctx.lineTo(nx + nw - nr, ny);
-  ctx.quadraticCurveTo(nx + nw, ny, nx + nw, ny + nr);
-  ctx.lineTo(nx + nw, ny + nh - nr);
-  ctx.quadraticCurveTo(nx + nw, ny + nh, nx + nw - nr, ny + nh);
-  ctx.lineTo(nx + nr, ny + nh);
-  ctx.quadraticCurveTo(nx, ny + nh, nx, ny + nh - nr);
-  ctx.lineTo(nx, ny + nr);
-  ctx.quadraticCurveTo(nx, ny, nx + nr, ny);
-  ctx.closePath();
-  ctx.fill(); ctx.stroke();
-  ctx.fillStyle    = slide.color;
-  ctx.font         = 'bold 15px monospace';
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(isLast ? "LET'S GO!" : 'NEXT  ›', nx + nw / 2, ny + nh / 2);
 
-  // Keyboard hint
-  ctx.fillStyle = '#445';
-  ctx.font      = '11px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(isLast ? 'SPACE / ENTER to start' : 'SPACE / ENTER = next  •  ESC = skip',
-    CANVAS_W / 2, cardY + cardH + 16);
+  ctx.shadowColor = slide.color;
+  ctx.shadowBlur  = 14;
+  ctx.fillStyle   = slide.color;
+  ctx.beginPath();
+  ctx.roundRect(nx, ny, nw, nh, 8);
+  ctx.fill();
+  ctx.shadowBlur  = 0;
+
+  // 30% dark overlay ensures white text readable on any hue
+  ctx.fillStyle = 'rgba(0,0,0,0.30)';
+  ctx.beginPath();
+  ctx.roundRect(nx, ny, nw, nh, 8);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font      = 'bold 14px "Courier New", monospace';
+  ctx.fillText(isLast ? "LET'S GO!" : 'NEXT  ›', nx + nw / 2, btnRowCY);
+
+  // ── Keyboard hint ──────────────────────────────────────────────────────────
+  ctx.fillStyle = '#2a2a4a';
+  ctx.font      = '11px "Courier New", monospace';
+  ctx.fillText(
+    isLast ? 'SPACE / ENTER to begin' : 'SPACE / ENTER = next  •  ESC = skip',
+    cx, cardY + cardH + 18
+  );
 
   ctx.restore();
 }
