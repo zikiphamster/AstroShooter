@@ -41,10 +41,12 @@ const DIFFICULTIES = {
 };
 
 let currentDiff = 'medium';
-const diffButtonRects = [];
-const menuButtonRects = [];
+const diffButtonRects    = [];
+const menuButtonRects    = [];
 const gameOverButtonRects = [];
+const settingsButtonRects = [];
 let controlsBackRect    = null;
+let soundMuted          = false;
 let solarMapLaunchTimer = 0;   // countdown before entering PLAYING after launch
 // Universal button click animation — one active at a time
 const btnAnim = { active: false, cx: 0, cy: 0, w: 0, h: 0, r: 0, color: '#fff', timer: 0, dur: 0.32, onComplete: null };
@@ -306,6 +308,8 @@ const CHANGELOG = [
   { v: 'v1.58.2', title: 'How to Play Text Size',       desc: 'Game mode titles (Endless Mode, Progress Mode, Coins & Shop) in the How to Play screen are now larger and easier to read.' },
   { v: 'v1.59.0', title: 'Progress Mode Tutorial',      desc: 'A 5-slide tutorial overlay appears the first time you enter Progress Mode. It covers the Solar Map, planet hazards, boss battles, and the coins/shop system. Use NEXT or SPACE to advance, SKIP or ESC to dismiss. Never shown again after the first visit.' },
   { v: 'v1.59.1', title: 'Tutorial & Progress Polish',  desc: 'Tutorial overlay redesigned with a gradient card, per-slide emoji icon, colored accent stripe, glow effects, and cleaner button styles. The Next/Done button now always uses white text so it is readable on any slide color. The Progress Mode button now correctly shows planets completed (0–9) instead of planets unlocked.' },
+  { v: 'v1.60.0', title: 'Settings Screen',             desc: 'New Settings button on the main menu. The Settings screen lets you toggle sound on/off (saved between sessions) and replay the Progress Mode tutorial (which brings you directly to the Solar Map).' },
+  { v: 'v1.60.1', title: 'Settings Freeze Fix',         desc: 'Fixed a freeze when opening the Settings screen. The game update loop was missing an early return for the SETTINGS state, causing it to fall through into gameplay logic with uninitialized objects.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

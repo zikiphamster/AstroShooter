@@ -20,7 +20,7 @@ window.addEventListener('resize', resize);
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playExplosion(tier) {
-  if (audioCtx.state !== 'running') return;
+  if (audioCtx.state !== 'running' || soundMuted) return;
   const duration = [0.5,  0.28, 0.13][tier];
   const cutoff   = [220,  480, 1100][tier];
   const volume   = [2.4, 1.7, 1.1][tier];
@@ -48,7 +48,7 @@ function playExplosion(tier) {
 }
 
 function playShoot() {
-  if (audioCtx.state !== 'running') return;
+  if (audioCtx.state !== 'running' || soundMuted) return;
   const osc  = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = 'square';
@@ -63,7 +63,7 @@ function playShoot() {
 }
 
 function playPlayerHit() {
-  if (audioCtx.state !== 'running') return;
+  if (audioCtx.state !== 'running' || soundMuted) return;
   const osc  = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = 'sawtooth';
@@ -77,7 +77,7 @@ function playPlayerHit() {
   osc.stop(audioCtx.currentTime + 0.35);
 }
 function playBossShoot() {
-  if (audioCtx.state !== 'running') return;
+  if (audioCtx.state !== 'running' || soundMuted) return;
   const osc  = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = 'square';
@@ -91,7 +91,7 @@ function playBossShoot() {
   osc.stop(audioCtx.currentTime + 0.18);
 }
 function playBossHit() {
-  if (audioCtx.state !== 'running') return;
+  if (audioCtx.state !== 'running' || soundMuted) return;
   const osc  = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = 'sawtooth';
@@ -105,14 +105,14 @@ function playBossHit() {
   osc.stop(audioCtx.currentTime + 0.1);
 }
 function playBossDefeat() {
-  if (audioCtx.state !== 'running') return;
+  if (audioCtx.state !== 'running' || soundMuted) return;
   [0, 120, 260].forEach(delayMs => {
     setTimeout(() => playExplosion(0), delayMs);
   });
 }
 
 function playCollectCoin() {
-  if (audioCtx.state !== 'running') return;
+  if (audioCtx.state !== 'running' || soundMuted) return;
   const osc  = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = 'sine';
@@ -142,6 +142,7 @@ window.addEventListener('keydown', e => {
     else if (gameState === 'CONTROLS')   gameState = 'MENU';
     else if (gameState === 'CHANGELOG')  gameState = 'MENU';
     else if (gameState === 'SHOP')       { shopScrollY = 0; gameState = 'MENU'; }
+    else if (gameState === 'SETTINGS')   gameState = 'MENU';
   }
 
   keys[e.code] = true;
@@ -187,6 +188,8 @@ function handleCanvasClick(mx, my) {
           startBtnAnim(btn, c, () => { gameState = 'SHOP'; });
         else if (btn.key === 'controls')
           startBtnAnim(btn, c, () => { gameState = 'CONTROLS'; });
+        else if (btn.key === 'settings')
+          startBtnAnim(btn, c, () => { gameState = 'SETTINGS'; });
         else if (btn.key === 'changelog')
           startBtnAnim(btn, c, () => { gameState = 'CHANGELOG'; changelogScrollY = 0; });
       }
@@ -197,6 +200,23 @@ function handleCanvasClick(mx, my) {
       const r = controlsBackRect;
       if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h)
         startBtnAnim(r, '#4af', () => { gameState = 'MENU'; });
+    }
+
+  } else if (gameState === 'SETTINGS') {
+    for (const btn of settingsButtonRects) {
+      if (!(mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h)) continue;
+      if (btn.key === 'sound')
+        startBtnAnim(btn, soundMuted ? '#4f8' : '#f44', () => { soundMuted = !soundMuted; saveShop(); });
+      else if (btn.key === 'replay_tutorial')
+        startBtnAnim(btn, '#a8f', () => {
+          gameMode      = 'progress';
+          gameState     = 'SOLAR_MAP';
+          tutorialActive = true;
+          tutorialStep  = 0;
+        });
+      else if (btn.key === 'back')
+        startBtnAnim(btn, '#4af', () => { gameState = 'MENU'; });
+      break;
     }
 
   } else if (gameState === 'SHOP') {

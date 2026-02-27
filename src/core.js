@@ -90,7 +90,7 @@ function saveShop() {
     coins: spaceCoins,
     unlockedColors, unlockedHulls,
     engine: playerEngine, unlockedEngines,
-    progressUnlocked,
+    progressUnlocked, soundMuted,
   }));
 }
 
@@ -245,6 +245,10 @@ function update(dt) {
   }
 
   if (gameState === 'SHOP') {
+    return;
+  }
+
+  if (gameState === 'SETTINGS') {
     return;
   }
 
@@ -573,6 +577,7 @@ function render() {
   else if (gameState === 'SOLAR_MAP') { renderSolarMap(); if (tutorialActive) renderTutorialOverlay(); }
   else if (gameState === 'DIFFICULTY'){ renderDifficulty(); }
   else if (gameState === 'CONTROLS')  { renderControls(); }
+  else if (gameState === 'SETTINGS')  { renderSettings(); }
   else if (gameState === 'SHOP')      { renderShop(); }
   else if (gameState === 'CHANGELOG') { renderChangelog(); }
   else if (gameState === 'GAME_OVER') { renderGameOver(); }
@@ -1171,6 +1176,7 @@ function renderMenu() {
     { key: 'play',      label: 'PLAY',        color: '#4af', bg: 'rgba(0,40,90,0.75)',  btnH: 58 },
     { key: 'shop',      label: 'SHOP',         color: '#a8f', bg: 'rgba(30,0,60,0.65)',  btnH: 48 },
     { key: 'controls',  label: 'HOW TO PLAY', color: '#4af', bg: 'rgba(0,30,70,0.65)',  btnH: 48 },
+    { key: 'settings',  label: 'SETTINGS',    color: '#8af', bg: 'rgba(10,20,60,0.65)', btnH: 48 },
   ];
 
   let btnY = CANVAS_H / 2 - 40;
@@ -1207,7 +1213,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.59.1';
+  const verText = 'v1.60.1';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -2385,6 +2391,97 @@ function renderPowerupBar() {
   ctx.restore();
 }
 
+function renderSettings() {
+  ctx.save();
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.fillStyle = 'rgba(0,0,20,0.92)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  const cx = CANVAS_W / 2;
+
+  // Title
+  ctx.font        = 'bold 38px "Courier New", monospace';
+  ctx.fillStyle   = '#fff';
+  ctx.shadowColor = '#8af';
+  ctx.shadowBlur  = 18;
+  ctx.fillText('SETTINGS', cx, CANVAS_H / 2 - 170);
+  ctx.shadowBlur  = 0;
+
+  settingsButtonRects.length = 0;
+  const btnW = 380, gap = 20;
+  let btnY = CANVAS_H / 2 - 110;
+
+  // ── Sound toggle ────────────────────────────────────────────────────────────
+  const sndLabel = soundMuted ? '🔇  SOUND  OFF' : '🔊  SOUND  ON';
+  const sndColor = soundMuted ? '#f44' : '#4f8';
+  const sndBg    = soundMuted ? 'rgba(60,0,0,0.65)' : 'rgba(0,50,20,0.65)';
+  settingsButtonRects.push({ x: cx - btnW / 2, y: btnY, w: btnW, h: 54, key: 'sound' });
+  ctx.fillStyle   = sndBg;
+  ctx.strokeStyle = sndColor;
+  ctx.lineWidth   = 2;
+  ctx.shadowColor = sndColor;
+  ctx.shadowBlur  = 10;
+  ctx.beginPath();
+  ctx.roundRect(cx - btnW / 2, btnY, btnW, 54, 10);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur  = 0;
+  ctx.fillStyle   = sndColor;
+  ctx.font        = 'bold 19px "Courier New", monospace';
+  ctx.fillText(sndLabel, cx, btnY + 27);
+  btnY += 54 + gap;
+
+  // ── Section header: Tutorials ───────────────────────────────────────────────
+  ctx.fillStyle    = '#556';
+  ctx.font         = '12px "Courier New", monospace';
+  ctx.textAlign    = 'left';
+  ctx.fillText('TUTORIALS', cx - btnW / 2, btnY + 2);
+  ctx.strokeStyle  = '#223';
+  ctx.lineWidth    = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - btnW / 2 + 86, btnY + 2);
+  ctx.lineTo(cx + btnW / 2, btnY + 2);
+  ctx.stroke();
+  ctx.textAlign    = 'center';
+  btnY += 18;
+
+  // ── Replay Progress Tutorial button ────────────────────────────────────────
+  settingsButtonRects.push({ x: cx - btnW / 2, y: btnY, w: btnW, h: 54, key: 'replay_tutorial' });
+  ctx.fillStyle   = 'rgba(30,0,70,0.65)';
+  ctx.strokeStyle = '#a8f';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.roundRect(cx - btnW / 2, btnY, btnW, 54, 10);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font      = 'bold 16px "Courier New", monospace';
+  ctx.fillText('REPLAY PROGRESS TUTORIAL', cx, btnY + 20);
+  ctx.fillStyle = '#a8f';
+  ctx.font      = '12px "Courier New", monospace';
+  ctx.fillText('Teleports you to the Solar Map', cx, btnY + 38);
+  btnY += 54 + gap + 12;
+
+  // ── Back button ─────────────────────────────────────────────────────────────
+  const backW = 180, backH = 44;
+  const backX = cx - backW / 2;
+  settingsButtonRects.push({ x: backX, y: btnY, w: backW, h: backH, key: 'back' });
+  ctx.fillStyle   = 'rgba(10,20,60,0.85)';
+  ctx.strokeStyle = '#48f';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.roundRect(backX, btnY, backW, backH, 10);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font      = 'bold 16px "Courier New", monospace';
+  ctx.fillText('← BACK', cx, btnY + backH / 2);
+
+  ctx.restore();
+}
+
 function renderControls() {
   ctx.save();
   ctx.textAlign    = 'center';
@@ -3129,6 +3226,7 @@ try {
     playerEngine    = c.engine          ?? 0;
     unlockedEngines = c.unlockedEngines ?? [0];
     progressUnlocked = c.progressUnlocked ?? 0;
+    soundMuted       = c.soundMuted       ?? false;
   }
 } catch(e) {}
 requestAnimationFrame(gameLoop);
