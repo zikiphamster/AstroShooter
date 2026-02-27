@@ -52,6 +52,59 @@ const btnAnim = { active: false, cx: 0, cy: 0, w: 0, h: 0, r: 0, color: '#fff', 
 let planetObstacles    = [];
 let planetObstacleTimer = 0;
 const planetDebuffs    = { iceslow: 0 };   // seconds remaining per debuff
+
+// ─── Progress Mode Tutorial ───────────────────────────────────────────────────
+let tutorialActive   = false;
+let tutorialStep     = 0;
+let tutorialNextRect = null;
+let tutorialSkipRect = null;
+const TUTORIAL_SLIDES = [
+  {
+    title: 'PROGRESS MODE',
+    color: '#a8f',
+    body: [
+      'Journey through all 9 planets of the Solar System,',
+      'starting from the Sun and working your way out to Neptune.',
+      'Defeat each planet\'s boss to unlock the next world.',
+    ],
+  },
+  {
+    title: 'THE SOLAR MAP',
+    color: '#4af',
+    body: [
+      'Click any unlocked planet to view its details,',
+      'then press LAUNCH to begin. Locked planets must',
+      'be cleared in order from left to right.',
+    ],
+  },
+  {
+    title: 'PLANET HAZARDS',
+    color: '#f84',
+    body: [
+      'Every planet spawns a unique hazard — solar flares,',
+      'toxic clouds, ice shards, gravity wells, and more.',
+      'Stay alert: the environment will try to stop you!',
+    ],
+  },
+  {
+    title: 'BOSS BATTLES',
+    color: '#f55',
+    body: [
+      'Each planet ends with a powerful boss fight.',
+      'Destroying the boss grants bonus lives and unlocks',
+      'the next planet on the Solar Map.',
+    ],
+  },
+  {
+    title: 'COINS & SHOP',
+    color: '#fd0',
+    body: [
+      'Collect gold coins during gameplay. Visit the Shop',
+      'from the main menu to unlock hull shapes, colors,',
+      'and engines that improve your stats.',
+    ],
+  },
+];
 let changelogScrollY       = 0;
 let changelogBackRect      = null;
 let changelogShowMoreRects = [];
@@ -251,6 +304,7 @@ const CHANGELOG = [
   { v: 'v1.58.0', title: 'Planet Obstacles',             desc: 'Each planet in Progress Mode now spawns a unique themed hazard. Sun: solar flare beams. Mercury: radiation zones (1 heart/6s). Venus: toxic clouds (1 heart/5s). Earth: satellite debris. Mars: dust devils that push you. Jupiter: gravity wells that pull you. Saturn: ring shards. Uranus: ice shards that slow you to half speed for 5s. Neptune: wind gusts that push you sideways.' },
   { v: 'v1.58.1', title: 'How to Play Expanded',        desc: 'The How to Play screen now includes descriptions of Endless Mode, Progress Mode, and the Coins & Shop system alongside the existing controls and power-up reference.' },
   { v: 'v1.58.2', title: 'How to Play Text Size',       desc: 'Game mode titles (Endless Mode, Progress Mode, Coins & Shop) in the How to Play screen are now larger and easier to read.' },
+  { v: 'v1.59.0', title: 'Progress Mode Tutorial',      desc: 'A 5-slide tutorial overlay appears the first time you enter Progress Mode. It covers the Solar Map, planet hazards, boss battles, and the coins/shop system. Use NEXT or SPACE to advance, SKIP or ESC to dismiss. Never shown again after the first visit.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────
