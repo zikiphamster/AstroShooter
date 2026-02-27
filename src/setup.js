@@ -165,15 +165,10 @@ function handleCanvasClick(mx, my) {
 
   // Tutorial overlay intercepts all clicks while active
   if (tutorialActive) {
-    if (tutorialNextRect &&
-        mx >= tutorialNextRect.x && mx <= tutorialNextRect.x + tutorialNextRect.w &&
-        my >= tutorialNextRect.y && my <= tutorialNextRect.y + tutorialNextRect.h) {
-      advanceTutorial();
-    } else if (tutorialSkipRect &&
-        mx >= tutorialSkipRect.x && mx <= tutorialSkipRect.x + tutorialSkipRect.w &&
-        my >= tutorialSkipRect.y && my <= tutorialSkipRect.y + tutorialSkipRect.h) {
-      completeTutorial();
-    }
+    const hit = (r) => r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
+    if (hit(tutorialCloseRect))      completeTutorial();
+    else if (hit(tutorialNextRect))  advanceTutorial();
+    else if (hit(tutorialPrevRect))  { if (tutorialStep > 0) tutorialStep--; }
     return; // swallow all other clicks while tutorial is open
   }
 

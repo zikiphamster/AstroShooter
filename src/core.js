@@ -1213,7 +1213,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.60.1';
+  const verText = 'v1.60.3';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1868,29 +1868,42 @@ function renderTutorialOverlay() {
     ctx.shadowBlur = 0;
   }
 
+  // ── ✕ Close button (top-right corner of card) ─────────────────────────────
+  const xr = 18, xbx = cardX + cardW - xr - 10, xby = cardY + xr + 10;
+  tutorialCloseRect = { x: xbx - xr, y: xby - xr, w: xr * 2, h: xr * 2 };
+  ctx.fillStyle   = 'rgba(255,255,255,0.07)';
+  ctx.strokeStyle = '#3a3a60';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.arc(xbx, xby, xr, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#606080';
+  ctx.font      = '14px "Courier New", monospace';
+  ctx.fillText('✕', xbx, xby);
+
   // ── Buttons ────────────────────────────────────────────────────────────────
   const btnRowCY = cardY + cardH - 28;
 
-  // Skip — subtle ghost button (left), hidden on last slide
-  if (!isLast) {
-    const sw = 72, sh = 28;
+  // ← BACK — previous slide (left), hidden on first slide
+  tutorialPrevRect = null;
+  if (tutorialStep > 0) {
+    const sw = 90, sh = 32;
     const sx = cardX + 24, sy = btnRowCY - sh / 2;
-    tutorialSkipRect = { x: sx, y: sy, w: sw, h: sh };
-    ctx.fillStyle   = 'rgba(255,255,255,0.04)';
+    tutorialPrevRect = { x: sx, y: sy, w: sw, h: sh };
+    ctx.fillStyle   = 'rgba(255,255,255,0.05)';
     ctx.strokeStyle = '#2c2c50';
     ctx.lineWidth   = 1;
     ctx.beginPath();
-    ctx.roundRect(sx, sy, sw, sh, 6);
+    ctx.roundRect(sx, sy, sw, sh, 7);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#50507a';
-    ctx.font      = '12px "Courier New", monospace';
-    ctx.fillText('SKIP', sx + sw / 2, btnRowCY);
-  } else {
-    tutorialSkipRect = null;
+    ctx.font      = '13px "Courier New", monospace';
+    ctx.fillText('← BACK', sx + sw / 2, btnRowCY);
   }
 
-  // Next / LET'S GO — solid colored fill, white text always
+  // NEXT / LET'S GO — solid colored fill, white text always
   const nw = isLast ? 136 : 122;
   const nh = 38;
   const nx = cardX + cardW - nw - 24;
@@ -1905,7 +1918,6 @@ function renderTutorialOverlay() {
   ctx.fill();
   ctx.shadowBlur  = 0;
 
-  // 30% dark overlay ensures white text readable on any hue
   ctx.fillStyle = 'rgba(0,0,0,0.30)';
   ctx.beginPath();
   ctx.roundRect(nx, ny, nw, nh, 8);
@@ -1919,7 +1931,7 @@ function renderTutorialOverlay() {
   ctx.fillStyle = '#2a2a4a';
   ctx.font      = '11px "Courier New", monospace';
   ctx.fillText(
-    isLast ? 'SPACE / ENTER to begin' : 'SPACE / ENTER = next  •  ESC = skip',
+    isLast ? 'SPACE / ENTER to begin' : 'SPACE / ENTER = next  •  ESC = close',
     cx, cardY + cardH + 18
   );
 

@@ -59,7 +59,8 @@ const planetDebuffs    = { iceslow: 0 };   // seconds remaining per debuff
 let tutorialActive   = false;
 let tutorialStep     = 0;
 let tutorialNextRect = null;
-let tutorialSkipRect = null;
+let tutorialPrevRect = null;
+let tutorialCloseRect = null;
 const TUTORIAL_SLIDES = [
   {
     icon: '🚀', title: 'PROGRESS MODE',
@@ -311,6 +312,7 @@ const CHANGELOG = [
   { v: 'v1.60.0', title: 'Settings Screen',             desc: 'New Settings button on the main menu. The Settings screen lets you toggle sound on/off (saved between sessions) and replay the Progress Mode tutorial (which brings you directly to the Solar Map).' },
   { v: 'v1.60.1', title: 'Settings Freeze Fix',         desc: 'Fixed a freeze when opening the Settings screen. The game update loop was missing an early return for the SETTINGS state, causing it to fall through into gameplay logic with uninitialized objects.' },
   { v: 'v1.60.2', title: 'Tutorial Back Button',        desc: 'Added a permanent ← BACK button to the tutorial overlay. Previously the Skip button was hidden on the last slide, leaving no way to exit without clicking Next.' },
+  { v: 'v1.60.3', title: 'Tutorial Navigation Rework',  desc: 'Tutorial overlay now has a ✕ close button in the top-right corner of the card to exit at any time, and a ← BACK button at the bottom-left to return to the previous slide (hidden on the first slide).' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────
