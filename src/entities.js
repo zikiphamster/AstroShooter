@@ -225,7 +225,8 @@ class Player {
     // Movement (speed boost doubles speed; hull+engine stats scale base speed)
     const stats = getShipStats();
     const baseSpd = PLAYER_SPEED * stats.speedMult;
-    const spd = activeEffects && activeEffects.speedboost > 0 ? baseSpd * 1.6 : baseSpd;
+    const iceMult = planetDebuffs.iceslow > 0 ? 0.50 : 1;
+    const spd = (activeEffects && activeEffects.speedboost > 0 ? baseSpd * 1.6 : baseSpd) * iceMult;
     let vx = 0, vy = 0;
     if (isDown('ArrowUp',    'KeyW')) vy = -spd;
     if (isDown('ArrowDown',  'KeyS')) vy =  spd;
@@ -362,30 +363,67 @@ const BOSS_DEFS = {
   hard:   { name: 'Omega Devourer',      maxHp: 120, speed: 240, shootInterval: 0.9, bulletSpeed: 500, bulletCount: 3, chargeInterval: 5,  color: '#f44', variant: 4, cannonCount: 3 },
 };
 
+// Per-planet bosses for Progress Mode (one entry per planet, index 0–8)
+const PROGRESS_BOSS_DEFS = [
+  // 0 — Sun       (very easy intro boss)
+  { name: 'Solar Tyrant',    color: '#ffaa00', variant: 5, cannonCount: 1, maxHp:  28, speed:  90, shootInterval: 3.2,  bulletSpeed: 220, bulletCount: 1, chargeInterval: 16, special: 'corona' },
+  // 1 — Mercury
+  { name: 'Iron Revenant',   color: '#909090', variant: 6, cannonCount: 1, maxHp:  36, speed: 105, shootInterval: 2.9,  bulletSpeed: 240, bulletCount: 1, chargeInterval: 14, special: null },
+  // 2 — Venus
+  { name: 'Veiled Inferno',  color: '#ff5520', variant: 7, cannonCount: 2, maxHp:  44, speed: 118, shootInterval: 2.6,  bulletSpeed: 258, bulletCount: 1, chargeInterval: 12, special: null },
+  // 3 — Earth
+  { name: 'Living Bastion',  color: '#3dcc3d', variant: 8, cannonCount: 2, maxHp:  52, speed: 130, shootInterval: 2.3,  bulletSpeed: 275, bulletCount: 2, chargeInterval: 11, special: null },
+  // 4 — Mars
+  { name: 'Red Warlord',     color: '#cc1100', variant: 1, cannonCount: 2, maxHp:  60, speed: 142, shootInterval: 2.1,  bulletSpeed: 290, bulletCount: 2, chargeInterval: 10, special: null },
+  // 5 — Jupiter
+  { name: 'Storm Colossus',  color: '#5555cc', variant: 2, cannonCount: 2, maxHp:  69, speed: 154, shootInterval: 1.9,  bulletSpeed: 305, bulletCount: 2, chargeInterval:  9, special: null },
+  // 6 — Saturn
+  { name: 'Ringed Dominion', color: '#c8a020', variant: 3, cannonCount: 2, maxHp:  78, speed: 165, shootInterval: 1.7,  bulletSpeed: 320, bulletCount: 2, chargeInterval:  8, special: 'ring' },
+  // 7 — Uranus
+  { name: 'Ice Monarch',     color: '#00ccee', variant: 4, cannonCount: 3, maxHp:  88, speed: 176, shootInterval: 1.5,  bulletSpeed: 335, bulletCount: 2, chargeInterval:  7, special: null },
+  // 8 — Neptune  (solid challenge but not brutal — more galaxy difficulty ahead)
+  { name: 'Deep Tempest',    color: '#1050ff', variant: 9, cannonCount: 3, maxHp:  98, speed: 188, shootInterval: 1.3,  bulletSpeed: 350, bulletCount: 3, chargeInterval:  6, special: null },
+];
+
 class Boss {
   constructor(level = 1) {
-    const bossKey    = currentDiff === 'progress'
-      ? (currentPlanet < 3 ? 'easy' : currentPlanet < 6 ? 'medium' : 'hard')
-      : currentDiff;
-    const def        = BOSS_DEFS[bossKey];
-    this.aiLevel     = Math.min(1, (level - 1) / 8); // 0.0 at L1 → 1.0 at L9+
-    this.name        = def.names
-      ? (def.names[level - 1] ?? `${def.names[def.names.length - 1]} Mk.${level}`)
-      : (level === 1 ? def.name : `${def.name} Mk.${level}`);
-    this.color       = def.colors ? (def.colors[level - 1] ?? def.colors[def.colors.length - 1]) : def.color;
-    this.variant     = def.variants ? (def.variants[level - 1] ?? 0) : (def.variant ?? 0);
-    this.cannonCount = def.cannonCounts ? (def.cannonCounts[level - 1] ?? 2) : (def.cannonCount ?? 2);
+    if (currentDiff === 'progress') {
+      const def           = PROGRESS_BOSS_DEFS[currentPlanet] ?? PROGRESS_BOSS_DEFS[0];
+      this.aiLevel        = currentPlanet / 8;       // 0.0 at Sun → 1.0 at Neptune
+      this.name           = def.name;
+      this.color          = def.color;
+      this.variant        = def.variant;
+      this.cannonCount    = def.cannonCount;
+      this.maxHp          = def.maxHp;
+      this.hp             = this.maxHp;
+      this.speed          = def.speed;
+      this.shootInterval  = def.shootInterval;
+      this.bulletSpeed    = def.bulletSpeed;
+      this.bulletCount    = def.bulletCount;
+      this.chargeInterval = def.chargeInterval;
+      this.special        = def.special;
+    } else {
+      const def           = BOSS_DEFS[currentDiff];
+      this.aiLevel        = Math.min(1, (level - 1) / 8); // 0.0 at L1 → 1.0 at L9+
+      this.name           = def.names
+        ? (def.names[level - 1] ?? `${def.names[def.names.length - 1]} Mk.${level}`)
+        : (level === 1 ? def.name : `${def.name} Mk.${level}`);
+      this.color          = def.colors ? (def.colors[level - 1] ?? def.colors[def.colors.length - 1]) : def.color;
+      this.variant        = def.variants ? (def.variants[level - 1] ?? 0) : (def.variant ?? 0);
+      this.cannonCount    = def.cannonCounts ? (def.cannonCounts[level - 1] ?? 2) : (def.cannonCount ?? 2);
+      this.maxHp          = Math.floor(def.maxHp * (1 + (level - 1) * 0.5));
+      this.hp             = this.maxHp;
+      this.speed          = Math.min(def.speed + (level - 1) * 20, 310);
+      this.shootInterval  = Math.max(0.85, def.shootInterval - (level - 1) * 0.21);
+      this.bulletSpeed    = Math.min(def.bulletSpeed + (level - 1) * 20, 480);
+      this.bulletCount    = def.bulletCount; // fixed — no bullet scaling
+      this.chargeInterval = Math.max(4, def.chargeInterval - (level - 1) * 1.2);
+      this.special        = null;
+    }
     this.w           = 192;
     this.h           = 112;
     this.x           = CANVAS_W + 60;
     this.y           = CANVAS_H / 2 - this.h / 2;
-    this.maxHp       = Math.floor(def.maxHp * (1 + (level - 1) * 0.5));
-    this.hp          = this.maxHp;
-    this.speed       = Math.min(def.speed       + (level - 1) * 20,   310);
-    this.shootInterval  = Math.max(0.85, def.shootInterval - (level - 1) * 0.21);
-    this.bulletSpeed    = Math.min(def.bulletSpeed + (level - 1) * 20, 480);
-    this.bulletCount    = def.bulletCount; // fixed — no bullet scaling
-    this.chargeInterval = Math.max(4, def.chargeInterval - (level - 1) * 1.2);
     this.homeX       = CANVAS_W - this.w - 80;
     this.entering    = true;
     this.shootTimer  = 2.0;
@@ -512,7 +550,7 @@ class Boss {
     ctx.shadowColor = c;
     ctx.shadowBlur  = 28 + Math.sin(this.anim * 2) * 6;
 
-    // Main hull — shape determined by this.variant (0–4)
+    // Main hull — shape determined by this.variant (0–9)
     ctx.fillStyle = this.flashTimer > 0 ? '#fff' : c;
     ctx.beginPath();
     switch (this.variant) {
@@ -559,6 +597,101 @@ class Boss {
         ctx.lineTo(x + w * 0.6,  y + h);
         ctx.lineTo(x + w * 0.35, y + h * 0.7);
         ctx.lineTo(x + w * 0.25, y + h * 0.88);
+        break;
+      case 5: // Solar Tyrant — sun corona with radiating spikes
+        ctx.moveTo(x + w * 0.12, y + h * 0.5);
+        ctx.lineTo(x + w * 0.18, y + h * 0.22);
+        ctx.lineTo(x + w * 0.06, y + h * 0.05);
+        ctx.lineTo(x + w * 0.36, y + h * 0.12);
+        ctx.lineTo(x + w * 0.5,  y);
+        ctx.lineTo(x + w * 0.65, y + h * 0.12);
+        ctx.lineTo(x + w * 0.9,  y + h * 0.08);
+        ctx.lineTo(x + w,        y + h * 0.35);
+        ctx.lineTo(x + w,        y + h * 0.65);
+        ctx.lineTo(x + w * 0.9,  y + h * 0.92);
+        ctx.lineTo(x + w * 0.65, y + h * 0.88);
+        ctx.lineTo(x + w * 0.5,  y + h);
+        ctx.lineTo(x + w * 0.36, y + h * 0.88);
+        ctx.lineTo(x + w * 0.06, y + h * 0.95);
+        ctx.lineTo(x + w * 0.18, y + h * 0.78);
+        break;
+      case 6: // Iron Revenant — armored mechanical box with angular fins
+        ctx.moveTo(x + w * 0.05, y + h * 0.5);
+        ctx.lineTo(x,            y + h * 0.36);
+        ctx.lineTo(x + w * 0.14, y + h * 0.2);
+        ctx.lineTo(x + w * 0.14, y);
+        ctx.lineTo(x + w * 0.34, y);
+        ctx.lineTo(x + w * 0.34, y + h * 0.18);
+        ctx.lineTo(x + w,        y + h * 0.18);
+        ctx.lineTo(x + w,        y + h * 0.82);
+        ctx.lineTo(x + w * 0.34, y + h * 0.82);
+        ctx.lineTo(x + w * 0.34, y + h);
+        ctx.lineTo(x + w * 0.14, y + h);
+        ctx.lineTo(x + w * 0.14, y + h * 0.8);
+        ctx.lineTo(x,            y + h * 0.64);
+        break;
+      case 7: // Veiled Inferno — organic flame silhouette with wavy edges
+        ctx.moveTo(x + w * 0.06, y + h * 0.5);
+        ctx.lineTo(x + w * 0.14, y + h * 0.28);
+        ctx.lineTo(x + w * 0.08, y + h * 0.12);
+        ctx.lineTo(x + w * 0.28, y);
+        ctx.lineTo(x + w * 0.44, y + h * 0.1);
+        ctx.lineTo(x + w * 0.55, y);
+        ctx.lineTo(x + w * 0.7,  y + h * 0.08);
+        ctx.lineTo(x + w * 0.85, y + h * 0.18);
+        ctx.lineTo(x + w,        y + h * 0.35);
+        ctx.lineTo(x + w * 0.9,  y + h * 0.5);
+        ctx.lineTo(x + w,        y + h * 0.65);
+        ctx.lineTo(x + w * 0.85, y + h * 0.82);
+        ctx.lineTo(x + w * 0.7,  y + h * 0.92);
+        ctx.lineTo(x + w * 0.55, y + h);
+        ctx.lineTo(x + w * 0.44, y + h * 0.9);
+        ctx.lineTo(x + w * 0.28, y + h);
+        ctx.lineTo(x + w * 0.08, y + h * 0.88);
+        ctx.lineTo(x + w * 0.14, y + h * 0.72);
+        break;
+      case 8: // Living Bastion — fortress with crenellated battlements
+        ctx.moveTo(x + w * 0.05, y + h * 0.5);
+        ctx.lineTo(x,            y + h * 0.38);
+        ctx.lineTo(x + w * 0.14, y + h * 0.25);
+        ctx.lineTo(x + w * 0.14, y + h * 0.17);
+        ctx.lineTo(x + w * 0.28, y + h * 0.17);
+        ctx.lineTo(x + w * 0.28, y);
+        ctx.lineTo(x + w * 0.46, y);
+        ctx.lineTo(x + w * 0.46, y + h * 0.17);
+        ctx.lineTo(x + w * 0.6,  y + h * 0.17);
+        ctx.lineTo(x + w * 0.6,  y);
+        ctx.lineTo(x + w,        y);
+        ctx.lineTo(x + w,        y + h);
+        ctx.lineTo(x + w * 0.6,  y + h);
+        ctx.lineTo(x + w * 0.6,  y + h * 0.83);
+        ctx.lineTo(x + w * 0.46, y + h * 0.83);
+        ctx.lineTo(x + w * 0.46, y + h);
+        ctx.lineTo(x + w * 0.28, y + h);
+        ctx.lineTo(x + w * 0.28, y + h * 0.83);
+        ctx.lineTo(x + w * 0.14, y + h * 0.83);
+        ctx.lineTo(x + w * 0.14, y + h * 0.75);
+        ctx.lineTo(x,            y + h * 0.62);
+        break;
+      case 9: // Deep Tempest — oceanic form with swept current fins
+        ctx.moveTo(x + w * 0.04, y + h * 0.5);
+        ctx.lineTo(x + w * 0.12, y + h * 0.3);
+        ctx.lineTo(x + w * 0.22, y + h * 0.18);
+        ctx.lineTo(x + w * 0.2,  y);
+        ctx.lineTo(x + w * 0.38, y + h * 0.12);
+        ctx.lineTo(x + w * 0.48, y);
+        ctx.lineTo(x + w * 0.6,  y + h * 0.1);
+        ctx.lineTo(x + w * 0.75, y + h * 0.05);
+        ctx.lineTo(x + w,        y + h * 0.22);
+        ctx.lineTo(x + w * 0.88, y + h * 0.5);
+        ctx.lineTo(x + w,        y + h * 0.78);
+        ctx.lineTo(x + w * 0.75, y + h * 0.95);
+        ctx.lineTo(x + w * 0.6,  y + h * 0.9);
+        ctx.lineTo(x + w * 0.48, y + h);
+        ctx.lineTo(x + w * 0.38, y + h * 0.88);
+        ctx.lineTo(x + w * 0.2,  y + h);
+        ctx.lineTo(x + w * 0.22, y + h * 0.82);
+        ctx.lineTo(x + w * 0.12, y + h * 0.7);
         break;
       default: // Variant 0 — classic arrowhead
         ctx.moveTo(x,            y + h * 0.5);
@@ -609,6 +742,34 @@ class Boss {
     ctx.lineTo(x + w * 0.65, y + h / 2);
     ctx.lineTo(x + w * 0.28, y + h * 0.68);
     ctx.stroke();
+
+    // Special per-boss effects
+    if (this.special === 'corona') {
+      // Solar Tyrant: pulsing corona ring
+      const pulse = 0.55 + Math.abs(Math.sin(this.anim * 3)) * 0.45;
+      ctx.globalAlpha = this.flashTimer > 0 ? 0.2 : pulse * 0.45;
+      ctx.strokeStyle = '#ffcc00';
+      ctx.lineWidth   = 5;
+      ctx.shadowColor = '#ff8800';
+      ctx.shadowBlur  = 22;
+      ctx.beginPath();
+      ctx.ellipse(x + w * 0.52, y + h * 0.5, w * 0.44, h * 0.46, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur  = 0;
+    } else if (this.special === 'ring') {
+      // Ringed Dominion: Saturn-style ring
+      ctx.globalAlpha = this.flashTimer > 0 ? 0.25 : 0.65;
+      ctx.strokeStyle = '#e8c040';
+      ctx.lineWidth   = 7;
+      ctx.shadowColor = '#c8a020';
+      ctx.shadowBlur  = 14;
+      ctx.beginPath();
+      ctx.ellipse(x + w * 0.62, y + h * 0.5, w * 0.46, h * 0.13, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur  = 0;
+    }
 
     ctx.restore();
   }

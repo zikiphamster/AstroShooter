@@ -160,147 +160,170 @@ window.addEventListener('wheel', e => {
 }, { passive: true });
 
 function handleCanvasClick(mx, my) {
+  if (btnAnim.active) return; // block clicks during animation
+
   if (gameState === 'MENU') {
     for (const btn of menuButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-        if (btn.key === 'play')      gameState = 'PLAY_MODE';
-        if (btn.key === 'shop')      gameState = 'SHOP';
-        if (btn.key === 'controls')  gameState = 'CONTROLS';
-        if (btn.key === 'changelog') { gameState = 'CHANGELOG'; changelogScrollY = 0; }
+        const colors = { play: '#4f8', shop: '#fa5', controls: '#4af', changelog: '#a8f' };
+        const c = colors[btn.key] ?? '#fff';
+        if (btn.key === 'play')
+          startBtnAnim(btn, c, () => { gameState = 'PLAY_MODE'; });
+        else if (btn.key === 'shop')
+          startBtnAnim(btn, c, () => { gameState = 'SHOP'; });
+        else if (btn.key === 'controls')
+          startBtnAnim(btn, c, () => { gameState = 'CONTROLS'; });
+        else if (btn.key === 'changelog')
+          startBtnAnim(btn, c, () => { gameState = 'CHANGELOG'; changelogScrollY = 0; });
       }
     }
+
   } else if (gameState === 'CONTROLS') {
     if (controlsBackRect) {
       const r = controlsBackRect;
-      if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
-        gameState = 'MENU';
-      }
+      if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h)
+        startBtnAnim(r, '#4af', () => { gameState = 'MENU'; });
     }
+
   } else if (gameState === 'SHOP') {
-    const smy = my + shopScrollY;  // adjust for scroll offset
+    const smy = my + shopScrollY;
     for (const btn of shopButtonRects) {
-      if (mx >= btn.x && mx <= btn.x + btn.w && smy >= btn.y && smy <= btn.y + btn.h) {
-        if (btn.key.startsWith('color_')) {
-          const i = +btn.key.split('_')[1];
-          if (unlockedColors.includes(i)) {
-            playerColor = SHIP_COLORS[i];
-            saveShop();
-          } else if (spaceCoins >= COLOR_COSTS[i]) {
-            spaceCoins -= COLOR_COSTS[i];
-            unlockedColors.push(i);
-            playerColor = SHIP_COLORS[i];
-            saveShop();
-          }
-        } else if (btn.key.startsWith('variant_')) {
-          const i = +btn.key.split('_')[1];
-          if (unlockedHulls.includes(i)) {
-            playerVariant = i;
-            saveShop();
-          } else if (spaceCoins >= HULL_DEFS[i].cost) {
-            spaceCoins -= HULL_DEFS[i].cost;
-            unlockedHulls.push(i);
-            playerVariant = i;
-            saveShop();
-          }
-        } else if (btn.key.startsWith('engine_')) {
-          const i = +btn.key.split('_')[1];
-          if (unlockedEngines.includes(i)) {
-            playerEngine = i;
-            saveShop();
-          } else if (spaceCoins >= ENGINE_DEFS[i].cost) {
-            spaceCoins -= ENGINE_DEFS[i].cost;
-            unlockedEngines.push(i);
-            playerEngine = i;
-            saveShop();
-          }
-        } else if (btn.key === 'back') {
-          shopScrollY = 0;
-          gameState = 'MENU';
+      if (!(mx >= btn.x && mx <= btn.x + btn.w && smy >= btn.y && smy <= btn.y + btn.h)) continue;
+      if (btn.key.startsWith('color_')) {
+        const i = +btn.key.split('_')[1];
+        if (unlockedColors.includes(i)) {
+          startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, SHIP_COLORS[i], () => { playerColor = SHIP_COLORS[i]; saveShop(); });
+        } else if (spaceCoins >= COLOR_COSTS[i]) {
+          startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#fa0', () => { spaceCoins -= COLOR_COSTS[i]; unlockedColors.push(i); playerColor = SHIP_COLORS[i]; saveShop(); });
         }
+      } else if (btn.key.startsWith('variant_')) {
+        const i = +btn.key.split('_')[1];
+        if (unlockedHulls.includes(i)) {
+          startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#4af', () => { playerVariant = i; saveShop(); });
+        } else if (spaceCoins >= HULL_DEFS[i].cost) {
+          startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#fa0', () => { spaceCoins -= HULL_DEFS[i].cost; unlockedHulls.push(i); playerVariant = i; saveShop(); });
+        }
+      } else if (btn.key.startsWith('engine_')) {
+        const i = +btn.key.split('_')[1];
+        if (unlockedEngines.includes(i)) {
+          startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#4af', () => { playerEngine = i; saveShop(); });
+        } else if (spaceCoins >= ENGINE_DEFS[i].cost) {
+          startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#fa0', () => { spaceCoins -= ENGINE_DEFS[i].cost; unlockedEngines.push(i); playerEngine = i; saveShop(); });
+        }
+      } else if (btn.key === 'back') {
+        startBtnAnim(btn, '#4af', () => { shopScrollY = 0; gameState = 'MENU'; });
+      }
+      break;
+    }
+
+  } else if (gameState === 'CHANGELOG') {
+    if (changelogPopupEntry !== null && changelogPopupCloseRect) {
+      const r = changelogPopupCloseRect;
+      if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h)
+        startBtnAnim(r, '#4af', () => { changelogPopupEntry = null; });
+      else
+        changelogPopupEntry = null;
+      return;
+    }
+    for (const r of changelogShowMoreRects) {
+      if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
+        changelogPopupEntry = r.idx;
+        return;
       }
     }
-  } else if (gameState === 'CHANGELOG') {
     if (changelogBackRect) {
       const r = changelogBackRect;
-      if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
-        gameState = 'MENU';
-      }
+      if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h)
+        startBtnAnim(r, '#4af', () => { gameState = 'MENU'; });
     }
+
   } else if (gameState === 'PAUSED') {
     for (const btn of pauseButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-        if (btn.key === 'resume')  gameState = 'PLAYING';
-        if (btn.key === 'restart') { gameState = 'PLAYING'; loadGame(); }
-        if (btn.key === 'menu')    gameState = 'MENU';
+        const colors = { resume: '#4f8', restart: '#f44', menu: '#4af' };
+        const c = colors[btn.key] ?? '#fff';
+        if (btn.key === 'resume')
+          startBtnAnim(btn, c, () => { gameState = 'PLAYING'; });
+        else if (btn.key === 'restart')
+          startBtnAnim(btn, c, () => { gameState = 'PLAYING'; loadGame(); });
+        else if (btn.key === 'menu')
+          startBtnAnim(btn, c, () => { gameState = 'MENU'; });
+        break;
       }
     }
+
   } else if (gameState === 'GAME_OVER') {
     for (const btn of gameOverButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-        if (btn.key === 'play') { gameState = 'PLAYING'; loadGame(); }
-        if (btn.key === 'menu') { gameState = 'MENU'; }
+        if (btn.key === 'play')
+          startBtnAnim(btn, '#4f8', () => { gameState = 'PLAYING'; loadGame(); });
+        else if (btn.key === 'menu')
+          startBtnAnim(btn, '#4af', () => { gameState = 'MENU'; });
+        break;
       }
     }
+
   } else if (gameState === 'LEVEL_COMPLETE') {
     for (const btn of levelCompleteButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-        if (btn.key === 'continue') {
-          if (gameMode === 'progress') { selectedPlanet = null; gameState = 'SOLAR_MAP'; }
-          else { loadLevel(currentLevel + 1); }
-        }
-        if (btn.key === 'menu') { gameMode = 'endless'; gameState = 'MENU'; }
+        if (btn.key === 'continue')
+          startBtnAnim(btn, '#4f8', () => {
+            if (gameMode === 'progress') { selectedPlanet = null; gameState = 'SOLAR_MAP'; }
+            else { loadLevel(currentLevel + 1); }
+          });
+        else if (btn.key === 'menu')
+          startBtnAnim(btn, '#4af', () => { gameMode = 'endless'; gameState = 'MENU'; });
+        break;
       }
     }
+
   } else if (gameState === 'PLAY_MODE') {
     for (const btn of playModeButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-        if (btn.key === 'endless') {
-          gameMode  = 'endless';
-          gameState = 'DIFFICULTY';
-        } else if (btn.key === 'progress') {
-          gameMode  = 'progress';
-          gameState = 'SOLAR_MAP';
-        } else if (btn.key === 'back') {
-          gameState = 'MENU';
-        }
-        break; // stop after first matched button — prevents overlapping rects from double-firing
+        if (btn.key === 'endless')
+          startBtnAnim(btn, '#4af', () => { gameMode = 'endless'; gameState = 'DIFFICULTY'; });
+        else if (btn.key === 'progress')
+          startBtnAnim(btn, '#a8f', () => { gameMode = 'progress'; gameState = 'SOLAR_MAP'; });
+        else if (btn.key === 'back')
+          startBtnAnim(btn, '#4af', () => { gameState = 'MENU'; });
+        break;
       }
     }
+
   } else if (gameState === 'SOLAR_MAP') {
     for (const btn of solarMapButtonRects) {
-      // Circle hit test for planets, rect for UI buttons
       const hit = btn.r > 0
         ? dist(mx, my, btn.cx, btn.cy) <= btn.r
         : mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h;
       if (!hit) continue;
       if (btn.key === 'map_back') {
-        selectedPlanet = null;
-        gameState = 'PLAY_MODE';
+        startBtnAnim(btn, '#4af', () => { selectedPlanet = null; gameState = 'PLAY_MODE'; });
       } else if (btn.key === 'close_panel') {
-        selectedPlanet = null;
-      } else if (btn.key === 'launch') {
+        startBtnAnim(btn, '#f88', () => { selectedPlanet = null; });
+      } else if (btn.key === 'launch' && solarMapLaunchTimer === 0) {
         const p = PLANET_DEFS[selectedPlanet];
         DIFFICULTIES['progress'] = {
           label: p.name.toUpperCase(), color: p.color,
           lives: p.lives, spawnMult: p.spawnMult, speedMult: p.speedMult,
           largeChance: p.largeChance, medChance: p.medChance,
         };
-        currentPlanet  = selectedPlanet;
-        currentDiff    = 'progress';
-        selectedPlanet = null;
-        gameState      = 'PLAYING';
-        loadGame();
+        currentPlanet       = selectedPlanet;
+        currentDiff         = 'progress';
+        solarMapLaunchTimer = 1.6;
       } else if (btn.key.startsWith('planet_')) {
         const i = +btn.key.split('_')[1];
-        selectedPlanet = (selectedPlanet === i) ? null : i;
+        const col = btn.color ?? '#fff';
+        startBtnAnim(btn, col, () => { selectedPlanet = (selectedPlanet === i) ? null : i; });
       }
+      break;
     }
+
   } else if (gameState === 'DIFFICULTY') {
     for (const btn of diffButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
         currentDiff = btn.key;
-        gameState = 'PLAYING';
-        loadGame();
+        startBtnAnim(btn, DIFFICULTIES[btn.key]?.color ?? '#fff', () => { gameState = 'PLAYING'; loadGame(); });
+        break;
       }
     }
   }
@@ -313,6 +336,21 @@ canvas.addEventListener('click', e => {
 
 function isDown(...codes) {
   return codes.some(c => keys[c]);
+}
+
+// Start the universal button click animation; callback fires when animation ends
+function startBtnAnim(rect, color, callback, dur = 0.32) {
+  if (btnAnim.active) return;
+  btnAnim.active     = true;
+  btnAnim.cx         = rect.r > 0 ? rect.cx : rect.x + rect.w / 2;
+  btnAnim.cy         = rect.r > 0 ? rect.cy : rect.y + rect.h / 2;
+  btnAnim.w          = rect.w ?? 0;
+  btnAnim.h          = rect.h ?? 0;
+  btnAnim.r          = rect.r ?? 0;
+  btnAnim.color      = color;
+  btnAnim.dur        = dur;
+  btnAnim.timer      = dur;
+  btnAnim.onComplete = callback;
 }
 
 // ─── Touch Input ──────────────────────────────────────────────────────────────

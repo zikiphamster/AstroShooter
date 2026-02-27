@@ -44,9 +44,19 @@ let currentDiff = 'medium';
 const diffButtonRects = [];
 const menuButtonRects = [];
 const gameOverButtonRects = [];
-let controlsBackRect = null;
-let changelogScrollY  = 0;
-let changelogBackRect = null;
+let controlsBackRect    = null;
+let solarMapLaunchTimer = 0;   // countdown before entering PLAYING after launch
+// Universal button click animation — one active at a time
+const btnAnim = { active: false, cx: 0, cy: 0, w: 0, h: 0, r: 0, color: '#fff', timer: 0, dur: 0.32, onComplete: null };
+// ─── Planet Obstacles (Progress Mode) ─────────────────────────────────────────
+let planetObstacles    = [];
+let planetObstacleTimer = 0;
+const planetDebuffs    = { iceslow: 0 };   // seconds remaining per debuff
+let changelogScrollY       = 0;
+let changelogBackRect      = null;
+let changelogShowMoreRects = [];
+let changelogPopupEntry    = null;
+let changelogPopupCloseRect = null;
 
 // ─── Customization ────────────────────────────────────────────────────────────
 let playerColor    = '#4af';
@@ -126,33 +136,33 @@ let unlockedEngines = [0];
 // ─── Progress Mode — Solar System ─────────────────────────────────────────────
 // 9 bodies: Sun + 8 planets. Difficulty scales from easy (Sun) to brutal (Neptune).
 const PLANET_DEFS = [
-  { name: 'Sun',     color: '#ff8000', glowColor: '#ff4', size: 44, rings: false,
-    desc: 'The blazing heart of the solar system. A warm welcome.',
-    lives: 5, spawnMult: 2.0,  speedMult: 0.65, largeChance: 0.30, medChance: 0.45 },
+  { name: 'Sun',     color: '#ff8000', glowColor: '#ff4', size: 56, rings: false,
+    desc: 'The blazing heart of the solar system. An easy warm-up.',
+    lives: 6, spawnMult: 2.4,  speedMult: 0.50, largeChance: 0.22, medChance: 0.38 },
   { name: 'Mercury', color: '#a0a0a0', glowColor: null,   size: 11, rings: false,
-    desc: 'Cratered and airless. Rocks fly fast here.',
-    lives: 5, spawnMult: 1.7,  speedMult: 0.80, largeChance: 0.40, medChance: 0.40 },
+    desc: 'Cratered and airless. A gentle step up.',
+    lives: 6, spawnMult: 2.1,  speedMult: 0.60, largeChance: 0.28, medChance: 0.38 },
   { name: 'Venus',   color: '#e8c87a', glowColor: null,   size: 19, rings: false,
-    desc: 'Toxic clouds and crushing pressure. Things get real.',
-    lives: 4, spawnMult: 1.4,  speedMult: 0.95, largeChance: 0.50, medChance: 0.35 },
+    desc: 'Toxic clouds, but nothing too dangerous yet.',
+    lives: 5, spawnMult: 1.85, speedMult: 0.68, largeChance: 0.34, medChance: 0.36 },
   { name: 'Earth',   color: '#4af',    glowColor: null,   size: 21, rings: false,
-    desc: 'Home. Do not let it fall.',
-    lives: 3, spawnMult: 1.1,  speedMult: 1.10, largeChance: 0.60, medChance: 0.30 },
+    desc: 'Home. Keep it safe — things are heating up.',
+    lives: 5, spawnMult: 1.65, speedMult: 0.76, largeChance: 0.40, medChance: 0.34 },
   { name: 'Mars',    color: '#c1440e', glowColor: null,   size: 16, rings: false,
-    desc: 'The red planet is angry. Barrages incoming.',
-    lives: 3, spawnMult: 0.85, speedMult: 1.25, largeChance: 0.65, medChance: 0.28 },
+    desc: 'The red planet pushes back. Stay focused.',
+    lives: 4, spawnMult: 1.45, speedMult: 0.84, largeChance: 0.46, medChance: 0.32 },
   { name: 'Jupiter', color: '#c8883a', glowColor: null,   size: 36, rings: false,
-    desc: 'Massive gravity pulls more rocks into your path.',
-    lives: 3, spawnMult: 0.85, speedMult: 1.25, largeChance: 0.68, medChance: 0.25 },
+    desc: 'Massive gravity drags more rocks your way.',
+    lives: 4, spawnMult: 1.28, speedMult: 0.90, largeChance: 0.50, medChance: 0.30 },
   { name: 'Saturn',  color: '#e4d191', glowColor: null,   size: 28, rings: true,
-    desc: 'Ring debris scattered everywhere. Stay sharp.',
-    lives: 3, spawnMult: 0.75, speedMult: 1.35, largeChance: 0.70, medChance: 0.23 },
+    desc: 'Ring debris in your path. Keep moving.',
+    lives: 4, spawnMult: 1.12, speedMult: 0.96, largeChance: 0.54, medChance: 0.28 },
   { name: 'Uranus',  color: '#7de8e8', glowColor: null,   size: 23, rings: false,
-    desc: 'Ice giant on its side. Strange orbits, fast rocks.',
-    lives: 2, spawnMult: 0.65, speedMult: 1.45, largeChance: 0.72, medChance: 0.22 },
+    desc: 'An ice giant with a mean streak. Nearly there.',
+    lives: 3, spawnMult: 1.00, speedMult: 1.02, largeChance: 0.57, medChance: 0.26 },
   { name: 'Neptune', color: '#5060e0', glowColor: null,   size: 22, rings: false,
-    desc: 'The edge of the solar system. Cold, fast, relentless.',
-    lives: 2, spawnMult: 0.55, speedMult: 1.55, largeChance: 0.74, medChance: 0.20 },
+    desc: 'The edge of the solar system. A worthy finale.',
+    lives: 3, spawnMult: 0.90, speedMult: 1.08, largeChance: 0.60, medChance: 0.25 },
 ];
 
 let progressUnlocked = 0;   // index of furthest unlocked planet (0 = Sun only)
@@ -229,6 +239,18 @@ const CHANGELOG = [
   { v: 'v1.56.0', title: 'Touchscreen Support',    desc: 'Full touchscreen support added. Tap any button or menu to navigate. During gameplay a floating virtual joystick (bottom-left) controls movement and a large FIRE button (bottom-right) fires continuously while held. Swipe up/down in the Shop and Changelog. A PAUSE button appears top-right during play. Keyboard and mouse controls are unchanged.' },
   { v: 'v1.56.1', title: 'Remove Endless Saves',  desc: 'Endless Mode no longer saves progress between sessions. Each run starts fresh. Progress Mode continues to save planet unlocks as before.' },
   { v: 'v1.56.2', title: 'Progress Mode Boss Fix', desc: 'Fixed a crash where the boss would freeze the game in Progress Mode. The boss now correctly draws from easy/medium/hard templates based on planet index (Sun–Venus = easy, Earth–Jupiter = medium, Saturn–Neptune = hard).' },
+  { v: 'v1.57.0', title: 'Planet Bosses',          desc: 'Each planet in Progress Mode now has a unique boss: Solar Tyrant (Sun), Iron Revenant (Mercury), Veiled Inferno (Venus), Living Bastion (Earth), Red Warlord (Mars), Storm Colossus (Jupiter), Ringed Dominion (Saturn), Ice Monarch (Uranus), Deep Tempest (Neptune). Every boss has a distinct hull shape, color, and stats tuned to its planet.' },
+  { v: 'v1.57.1', title: 'Changelog Show More',    desc: 'Long changelog descriptions are now capped at two lines. A small "▾ more" button appears at the end of truncated entries — tap or click it to open a popup showing the full text.' },
+  { v: 'v1.57.2', title: 'Play Options Animation', desc: 'Clicking Endless Mode or Progress Mode in the Play Options screen now triggers a brief animated ripple and glow effect on the selected button before transitioning.' },
+  { v: 'v1.57.3', title: 'Launch Warp Animation',  desc: 'Clicking Launch on the Solar Map now plays a short warp animation — star streaks accelerate across the screen and the display flashes white before the level begins.' },
+  { v: 'v1.57.4', title: 'Difficulty Click Animation', desc: 'Selecting a difficulty in Endless Mode now triggers an animated glow, fill flash, and expanding ripple on the chosen button before the game starts. Works for both mouse clicks and keyboard (1/2/3).' },
+  { v: 'v1.57.5', title: 'Universal Button Animations', desc: 'Every clickable button in the game now plays a ripple, glow, and fill-flash animation when pressed — covering the menu, shop, pause screen, game over, level complete, controls, changelog, solar map, play options, and difficulty screens.' },
+  { v: 'v1.57.6', title: 'Planet Name on Level Complete', desc: 'In Progress Mode the level complete banner now shows the planet name (e.g. "MARS COMPLETE!") instead of a generic level number.' },
+  { v: 'v1.57.7', title: 'Solar Map Visual Overhaul',    desc: 'The Solar System map is now much more detailed. The Sun is larger with an animated pulsing corona. Each planet has a radial gradient fill, atmospheric glow, and unique surface features: Earth shows continents and a polar cap, Jupiter has bands and a Great Red Spot, Mars has a polar cap and craters, Saturn has dual rings, and more. A solar nebula glow and orbit tick marks complete the look.' },
+  { v: 'v1.57.8', title: 'Solar System Difficulty Tuned', desc: 'Progress Mode difficulty re-balanced. The Solar System is now designed as Galaxy 1 of 5 — an approachable introduction. All planets give more lives, rocks are slower and sparser, and bosses have lower HP and slower bullets. Neptune now tops out around medium difficulty, leaving plenty of room for future galaxies.' },
+  { v: 'v1.58.0', title: 'Planet Obstacles',             desc: 'Each planet in Progress Mode now spawns a unique themed hazard. Sun: solar flare beams. Mercury: radiation zones (1 heart/6s). Venus: toxic clouds (1 heart/5s). Earth: satellite debris. Mars: dust devils that push you. Jupiter: gravity wells that pull you. Saturn: ring shards. Uranus: ice shards that slow you to half speed for 5s. Neptune: wind gusts that push you sideways.' },
+  { v: 'v1.58.1', title: 'How to Play Expanded',        desc: 'The How to Play screen now includes descriptions of Endless Mode, Progress Mode, and the Coins & Shop system alongside the existing controls and power-up reference.' },
+  { v: 'v1.58.2', title: 'How to Play Text Size',       desc: 'Game mode titles (Endless Mode, Progress Mode, Coins & Shop) in the How to Play screen are now larger and easier to read.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

@@ -69,3 +69,21 @@ function circleRectDist(cx, cy, rx, ry, rw, rh) {
 function rand(min, max) {
   return min + Math.random() * (max - min);
 }
+
+// Word-wrap text to fit within maxWidth (requires ctx.font already set)
+function wrapText(text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}

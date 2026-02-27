@@ -50,6 +50,9 @@ function loadGame() {
   bossWarningTimer = 0;
   currentLevel    = 1;
   nextBossScore   = 10000;
+  planetObstacles.length = 0;
+  planetObstacleTimer    = 3.0;
+  planetDebuffs.iceslow  = 0;
 }
 
 function loadLevel(level) {
@@ -200,6 +203,19 @@ function collectPowerup(typeId) {
 function update(dt) {
   updateStars(dt);
 
+  // Universal button animation tick
+  if (btnAnim.active) {
+    btnAnim.timer -= dt;
+    if (btnAnim.timer <= 0) {
+      btnAnim.active = false;
+      btnAnim.timer  = 0;
+      if (btnAnim.onComplete) {
+        btnAnim.onComplete();
+        btnAnim.onComplete = null;
+      }
+    }
+  }
+
   if (gameState === 'MENU') {
     if (keys['Space']) {
       keys['Space'] = false;
@@ -237,17 +253,36 @@ function update(dt) {
   }
 
   if (gameState === 'SOLAR_MAP') {
+    if (solarMapLaunchTimer > 0) {
+      solarMapLaunchTimer -= dt;
+      if (solarMapLaunchTimer <= 0) {
+        solarMapLaunchTimer = 0;
+        selectedPlanet = null;
+        gameState      = 'PLAYING';
+        loadGame();
+      }
+    }
     return;
   }
 
   if (gameState === 'DIFFICULTY') {
-    const map = { Digit1: 'easy', Digit2: 'medium', Digit3: 'hard' };
-    for (const [code, diff] of Object.entries(map)) {
-      if (keys[code]) {
-        keys[code] = false;
-        currentDiff = diff;
-        gameState = 'PLAYING';
-        loadGame();
+    if (!btnAnim.active) {
+      const map = { Digit1: 'easy', Digit2: 'medium', Digit3: 'hard' };
+      for (const [code, diff] of Object.entries(map)) {
+        if (keys[code]) {
+          keys[code]  = false;
+          currentDiff = diff;
+          const rect  = diffButtonRects.find(b => b.key === diff);
+          if (rect) {
+            startBtnAnim(rect, DIFFICULTIES[diff]?.color ?? '#fff', () => {
+              gameState = 'PLAYING';
+              loadGame();
+            });
+          } else {
+            gameState = 'PLAYING';
+            loadGame();
+          }
+        }
       }
     }
     return;
@@ -509,6 +544,9 @@ function update(dt) {
     }
   }
   coinPickups = coinPickups.filter(c => c.active);
+
+  // ── Planet-specific obstacles (progress mode only) ───────────────────────
+  if (gameMode === 'progress') updatePlanetObstacles(dt);
 }
 
 // ─── Render ───────────────────────────────────────────────────────────────────
@@ -519,67 +557,535 @@ function render() {
 
   renderStars();
 
-  if (gameState === 'MENU') {
-    renderMenu();
-    return;
+  if (gameState === 'MENU')           { renderMenu(); }
+  else if (gameState === 'PLAY_MODE') { renderPlayMode(); }
+  else if (gameState === 'SOLAR_MAP') { renderSolarMap(); }
+  else if (gameState === 'DIFFICULTY'){ renderDifficulty(); }
+  else if (gameState === 'CONTROLS')  { renderControls(); }
+  else if (gameState === 'SHOP')      { renderShop(); }
+  else if (gameState === 'CHANGELOG') { renderChangelog(); }
+  else if (gameState === 'GAME_OVER') { renderGameOver(); }
+  else if (gameState === 'LEVEL_COMPLETE') { renderLevelComplete(); }
+  else {
+    // PLAYING + PAUSED (draw frozen world, then overlay if paused)
+    for (const a of asteroids) a.draw();
+    for (const b of bullets)   b.draw();
+    player.draw();
+    for (const p of particles) p.draw();
+    for (const pu of powerups)  pu.draw();
+    for (const c  of coinPickups) c.draw();
+    for (const bb of bossBullets) bb.draw();
+    if (boss && boss.active) boss.draw();
+    if (gameMode === 'progress') renderPlanetObstacles();
+
+    renderHUD();
+    renderBossHealthBar();
+    renderBossWarning();
+    renderPowerupBar();
+    if (IS_TOUCH) renderTouchControls();
+    if (gameState === 'PAUSED') renderPaused();
   }
 
-  if (gameState === 'PLAY_MODE') {
-    renderPlayMode();
-    return;
+  // Universal button animation overlay — always rendered on top
+  if (btnAnim.active) renderBtnAnimOverlay();
+}
+
+// ─── Planet Obstacle System ───────────────────────────────────────────────────
+// One themed hazard type per planet, active only in progress mode.
+const PLANET_OBSTACLE_CONFIG = [
+  { type: 'solar_flare',  interval: 13, maxActive: 2 },  // 0 Sun
+  { type: 'radiation',    interval:  9, maxActive: 3 },  // 1 Mercury
+  { type: 'toxic_cloud',  interval:  7, maxActive: 3 },  // 2 Venus
+  { type: 'debris',       interval:  5, maxActive: 4 },  // 3 Earth
+  { type: 'dust_devil',   interval: 15, maxActive: 2 },  // 4 Mars
+  { type: 'gravity_well', interval: 18, maxActive: 1 },  // 5 Jupiter
+  { type: 'ring_shard',   interval:  4, maxActive: 6 },  // 6 Saturn
+  { type: 'ice_shard',    interval:  7, maxActive: 3 },  // 7 Uranus
+  { type: 'wind_gust',    interval: 11, maxActive: 1 },  // 8 Neptune
+];
+
+function hurtPlayer(particleColors) {
+  if (player.hit()) {
+    lives--;
+    playPlayerHit();
+    spawnParticles(player.cx, player.cy, 6, particleColors);
+    if (lives <= 0) gameState = 'GAME_OVER';
+  }
+}
+
+function spawnPlanetObstacle() {
+  const cfg = PLANET_OBSTACLE_CONFIG[currentPlanet];
+  if (!cfg) return;
+  if (planetObstacles.filter(o => o.active).length >= cfg.maxActive) return;
+  const type = cfg.type;
+  const o    = { type, active: true, dmgTimer: 0 };
+  switch (type) {
+    case 'solar_flare': {
+      const y = 70 + Math.random() * (CANVAS_H - 140);
+      Object.assign(o, { y, h: 40, life: 3.2, maxLife: 3.2, phase: 'warning' });
+      break;
+    }
+    case 'radiation': {
+      const x = 200 + Math.random() * (CANVAS_W - 350);
+      const y = 70  + Math.random() * (CANVAS_H - 140);
+      Object.assign(o, { x, y, r: 55, life: 12, maxLife: 12 });
+      break;
+    }
+    case 'toxic_cloud': {
+      const y  = 80 + Math.random() * (CANVAS_H - 160);
+      const vx = -(22 + Math.random() * 28);
+      Object.assign(o, { x: CANVAS_W + 70, y, r: 55 + Math.random() * 22,
+        vx, vy: (Math.random() - 0.5) * 14, life: 14, maxLife: 14 });
+      break;
+    }
+    case 'debris': {
+      const left = Math.random() < 0.5;
+      const y    = 60 + Math.random() * (CANVAS_H - 120);
+      const spd  = 290 + Math.random() * 200;
+      const w    = 52 + Math.random() * 50;
+      const h    = 10 + Math.random() * 8;
+      Object.assign(o, { x: left ? -w : CANVAS_W, y, w, h,
+        vx: left ? spd : -spd, angle: (Math.random() - 0.5) * 0.35,
+        life: (CANVAS_W + w) / spd, maxLife: (CANVAS_W + w) / spd });
+      break;
+    }
+    case 'dust_devil': {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 38 + Math.random() * 28;
+      Object.assign(o, { x: 150 + Math.random() * (CANVAS_W - 300),
+        y: 80 + Math.random() * (CANVAS_H - 160), r: 70,
+        vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
+        spinAngle: 0, life: 18, maxLife: 18 });
+      break;
+    }
+    case 'gravity_well': {
+      Object.assign(o, { x: CANVAS_W * 0.55 + (Math.random() - 0.5) * 110,
+        y: CANVAS_H * 0.45 + (Math.random() - 0.5) * 80,
+        r: 22, pullR: 130, life: 15, maxLife: 15 });
+      break;
+    }
+    case 'ring_shard': {
+      const top  = Math.random() < 0.5;
+      const x    = 100 + Math.random() * (CANVAS_W - 200);
+      const y    = top ? -15 : CANVAS_H + 15;
+      const spd  = 270 + Math.random() * 90;
+      const vy   = top ? spd : -spd;
+      const vx   = (Math.random() - 0.5) * spd * 0.55;
+      const len  = 32 + Math.random() * 26;
+      Object.assign(o, { x, y, vx, vy, len, w: 7, angle: Math.atan2(vy, vx),
+        life: 3.5, maxLife: 3.5 });
+      break;
+    }
+    case 'ice_shard': {
+      const right = Math.random() < 0.65;
+      const y     = 60 + Math.random() * (CANVAS_H - 120);
+      const spd   = 175 + Math.random() * 85;
+      const vx    = right ? -spd : spd;
+      Object.assign(o, { x: right ? CANVAS_W + 30 : -30, y, vx,
+        vy: (Math.random() - 0.5) * spd * 0.45,
+        r: 18 + Math.random() * 9, life: 4.5, maxLife: 4.5 });
+      break;
+    }
+    case 'wind_gust': {
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      Object.assign(o, { x: 0, y: 0, dir, force: 360, life: 4.0, maxLife: 4.0 });
+      break;
+    }
+  }
+  planetObstacles.push(o);
+}
+
+function updatePlanetObstacles(dt) {
+  const cfg = PLANET_OBSTACLE_CONFIG[currentPlanet];
+  if (!cfg) return;
+
+  // Tick debuffs
+  if (planetDebuffs.iceslow > 0) planetDebuffs.iceslow = Math.max(0, planetDebuffs.iceslow - dt);
+
+  // Spawn timer
+  planetObstacleTimer -= dt;
+  if (planetObstacleTimer <= 0) {
+    spawnPlanetObstacle();
+    planetObstacleTimer = cfg.interval * (0.7 + Math.random() * 0.6);
   }
 
-  if (gameState === 'SOLAR_MAP') {
-    renderSolarMap();
-    return;
+  const pcx = player.cx, pcy = player.cy;
+
+  for (const o of planetObstacles) {
+    if (!o.active) continue;
+    o.life -= dt;
+    if (o.life <= 0) { o.active = false; continue; }
+
+    switch (o.type) {
+      case 'solar_flare': {
+        if (o.phase === 'warning' && o.life < o.maxLife * 0.50) o.phase = 'active';
+        if (o.phase === 'active') {
+          if (pcy >= o.y - o.h / 2 && pcy <= o.y + o.h / 2) {
+            o.dmgTimer -= dt;
+            if (o.dmgTimer <= 0) {
+              o.dmgTimer = 0.6;
+              hurtPlayer(['#ff8800', '#ffee00', '#fff']);
+            }
+          }
+        }
+        break;
+      }
+      case 'radiation': {
+        const dx = pcx - o.x, dy = pcy - o.y;
+        if (dx * dx + dy * dy < o.r * o.r) {
+          o.dmgTimer += dt;
+          if (o.dmgTimer >= 6.0) { o.dmgTimer = 0; hurtPlayer(['#ff4400', '#ff8800', '#fff']); }
+        } else {
+          o.dmgTimer = Math.max(0, o.dmgTimer - dt * 0.5);
+        }
+        break;
+      }
+      case 'toxic_cloud': {
+        o.x += o.vx * dt;
+        o.y += o.vy * dt;
+        if (o.x < -o.r - 80) { o.active = false; break; }
+        const dx = pcx - o.x, dy = pcy - o.y;
+        if (dx * dx + dy * dy < o.r * o.r) {
+          o.dmgTimer += dt;
+          if (o.dmgTimer >= 5.0) { o.dmgTimer = 0; hurtPlayer(['#88ff44', '#ccff88', '#fff']); }
+        } else {
+          o.dmgTimer = Math.max(0, o.dmgTimer - dt * 0.5);
+        }
+        break;
+      }
+      case 'debris': {
+        o.x += o.vx * dt;
+        if (o.x > CANVAS_W + o.w + 10 || o.x < -o.w * 2 - 10) { o.active = false; break; }
+        if (o.x < player.x + player.w && o.x + o.w > player.x &&
+            o.y < player.y + player.h && o.y + o.h > player.y) {
+          hurtPlayer(['#aaaaaa', '#cccccc', '#fff']);
+        }
+        break;
+      }
+      case 'dust_devil': {
+        o.x += o.vx * dt;
+        o.y += o.vy * dt;
+        o.spinAngle += dt * 2.6;
+        if (o.x < 70 || o.x > CANVAS_W - 70) o.vx = -o.vx;
+        if (o.y < 70 || o.y > CANVAS_H - 70) o.vy = -o.vy;
+        const dx = pcx - o.x, dy = pcy - o.y;
+        const d  = Math.sqrt(dx * dx + dy * dy);
+        if (d < o.r * 1.6 && d > 1) {
+          const push = 230 * (1 - d / (o.r * 1.6));
+          player.x = Math.max(0, Math.min(CANVAS_W - player.w, player.x + (dx / d) * push * dt));
+          player.y = Math.max(0, Math.min(CANVAS_H - player.h, player.y + (dy / d) * push * dt));
+        }
+        break;
+      }
+      case 'gravity_well': {
+        const dx = o.x - pcx, dy = o.y - pcy;
+        const d  = Math.sqrt(dx * dx + dy * dy);
+        if (d < o.pullR && d > 1) {
+          const pull = 155 * (1 - d / o.pullR);
+          player.x = Math.max(0, Math.min(CANVAS_W - player.w, player.x + (dx / d) * pull * dt));
+          player.y = Math.max(0, Math.min(CANVAS_H - player.h, player.y + (dy / d) * pull * dt));
+        }
+        break;
+      }
+      case 'ring_shard': {
+        o.x += o.vx * dt;
+        o.y += o.vy * dt;
+        if (o.x < -120 || o.x > CANVAS_W + 120 || o.y < -120 || o.y > CANVAS_H + 120) {
+          o.active = false; break;
+        }
+        if (Math.abs(o.x - player.cx) < player.w && Math.abs(o.y - player.cy) < player.h) {
+          hurtPlayer(['#e4d191', '#fff7aa', '#fff']);
+        }
+        break;
+      }
+      case 'ice_shard': {
+        o.x += o.vx * dt;
+        o.y += o.vy * dt;
+        if (o.x < -60 || o.x > CANVAS_W + 60) { o.active = false; break; }
+        const dx = pcx - o.x, dy = pcy - o.y;
+        if (dx * dx + dy * dy < (o.r + 14) * (o.r + 14)) {
+          o.active = false;
+          if (player.hit()) {
+            lives--;
+            planetDebuffs.iceslow = 5.0;
+            playPlayerHit();
+            spawnParticles(player.cx, player.cy, 8, ['#88ddff', '#ccf0ff', '#fff', '#5599cc']);
+            if (lives <= 0) gameState = 'GAME_OVER';
+          }
+        }
+        break;
+      }
+      case 'wind_gust': {
+        const gustProg = o.life / o.maxLife;
+        const force    = o.force * Math.sin((1 - gustProg) * Math.PI);
+        player.x = Math.max(0, Math.min(CANVAS_W - player.w, player.x + o.dir * force * dt));
+        break;
+      }
+    }
+  }
+  planetObstacles = planetObstacles.filter(o => o.active);
+}
+
+function renderPlanetObstacles() {
+  const now = performance.now() / 1000;
+  for (const o of planetObstacles) {
+    if (!o.active) continue;
+    const fadeIn  = Math.min(1, (o.maxLife - o.life) * 2.5);
+    const fadeOut = Math.min(1, o.life * 2.0);
+    const alpha   = Math.min(fadeIn, fadeOut);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    switch (o.type) {
+      case 'solar_flare': {
+        const pulse = 0.55 + 0.45 * Math.sin(now * 9);
+        if (o.phase === 'warning') {
+          ctx.strokeStyle = `rgba(255,200,0,${0.55 * pulse})`;
+          ctx.lineWidth   = 2;
+          ctx.setLineDash([10, 8]);
+          ctx.beginPath(); ctx.moveTo(0, o.y); ctx.lineTo(CANVAS_W, o.y); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.font = 'bold 13px "Courier New", monospace';
+          ctx.fillStyle = `rgba(255,200,0,${0.85 * pulse})`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('! SOLAR FLARE INCOMING', CANVAS_W / 2, o.y - 16);
+        } else {
+          const ba = Math.min(1, o.life * 3.5);
+          const g  = ctx.createLinearGradient(0, o.y - o.h / 2, 0, o.y + o.h / 2);
+          g.addColorStop(0,   'rgba(255,200,50,0)');
+          g.addColorStop(0.35, `rgba(255,240,100,${ba})`);
+          g.addColorStop(0.5,  `rgba(255,255,200,${ba})`);
+          g.addColorStop(0.65, `rgba(255,240,100,${ba})`);
+          g.addColorStop(1,   'rgba(255,200,50,0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, o.y - o.h / 2, CANVAS_W, o.h);
+          ctx.shadowColor = '#ffdd00'; ctx.shadowBlur = 18;
+          ctx.strokeStyle = `rgba(255,255,160,${ba * 0.8})`;
+          ctx.lineWidth   = 2;
+          ctx.beginPath(); ctx.moveTo(0, o.y); ctx.lineTo(CANVAS_W, o.y); ctx.stroke();
+          ctx.shadowBlur  = 0;
+        }
+        break;
+      }
+      case 'radiation': {
+        const pulse = 0.65 + 0.35 * Math.sin(now * 3.2);
+        const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r);
+        g.addColorStop(0,   'rgba(255,80,0,0.20)');
+        g.addColorStop(0.65,'rgba(255,40,0,0.12)');
+        g.addColorStop(1,   'rgba(255,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 12 * pulse;
+        ctx.strokeStyle = `rgba(255,80,0,${0.7 * pulse})`;
+        ctx.lineWidth   = 2;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur  = 0;
+        ctx.fillStyle   = `rgba(255,100,0,${0.55 * alpha})`;
+        ctx.font = '17px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('☢', o.x, o.y);
+        break;
+      }
+      case 'toxic_cloud': {
+        for (let b = 0; b < 3; b++) {
+          const bx = o.x + Math.sin(now * 0.9 + b * 2.1) * o.r * 0.24;
+          const by = o.y + Math.cos(now * 0.7 + b * 1.9) * o.r * 0.18;
+          const br = o.r * (0.68 + b * 0.18);
+          const cg = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+          cg.addColorStop(0,   'rgba(90,210,40,0.22)');
+          cg.addColorStop(0.6, 'rgba(55,170,15,0.13)');
+          cg.addColorStop(1,   'rgba(40,150,0,0)');
+          ctx.fillStyle = cg;
+          ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+        }
+        const wobble = 0.5 + 0.5 * Math.sin(now * 1.8);
+        ctx.strokeStyle = `rgba(90,210,40,${0.32 * wobble * alpha})`;
+        ctx.lineWidth   = 1.5;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case 'debris': {
+        ctx.save();
+        ctx.translate(o.x + o.w / 2, o.y + o.h / 2);
+        ctx.rotate(o.angle);
+        ctx.fillStyle   = '#888'; ctx.strokeStyle = '#bbb'; ctx.lineWidth = 1;
+        ctx.fillRect(-o.w / 2, -o.h / 2, o.w, o.h);
+        ctx.strokeRect(-o.w / 2, -o.h / 2, o.w, o.h);
+        ctx.fillStyle = '#336bcc';
+        ctx.fillRect(-o.w / 2 + 8, -o.h / 2 - 7, o.w * 0.33, 7);
+        ctx.fillRect(-o.w / 2 + 8,  o.h / 2,      o.w * 0.33, 7);
+        ctx.restore();
+        break;
+      }
+      case 'dust_devil': {
+        for (let k = 0; k < 9; k++) {
+          const a  = o.spinAngle + (k / 9) * Math.PI * 2;
+          const dr = o.r * 0.58 * (0.6 + 0.4 * Math.sin(a * 3 + now));
+          const px2 = o.x + Math.cos(a) * dr;
+          const py2 = o.y + Math.sin(a) * dr;
+          ctx.fillStyle = `rgba(185,95,35,${0.42 * alpha})`;
+          ctx.beginPath(); ctx.arc(px2, py2, 5, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.strokeStyle = `rgba(205,115,45,${0.28 * alpha})`;
+        ctx.lineWidth   = 2;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = `rgba(205,115,45,${0.13 * alpha})`;
+        ctx.lineWidth   = 1;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r * 1.55, 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case 'gravity_well': {
+        const pulse = 0.6 + 0.4 * Math.sin(now * 2.5);
+        for (let k = 1; k <= 3; k++) {
+          ctx.strokeStyle = `rgba(60,100,220,${0.14 * (4 - k) * alpha * pulse})`;
+          ctx.lineWidth   = 1.5;
+          ctx.beginPath(); ctx.arc(o.x, o.y, o.pullR * (k / 3), 0, Math.PI * 2); ctx.stroke();
+        }
+        const cg = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r * 2.5);
+        cg.addColorStop(0,   `rgba(110,140,255,${0.55 * alpha})`);
+        cg.addColorStop(0.5, `rgba(45,65,210,${0.24 * alpha})`);
+        cg.addColorStop(1,   'rgba(20,40,180,0)');
+        ctx.fillStyle = cg;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.pullR * 0.22, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowColor = '#4466ff'; ctx.shadowBlur = 16 * pulse;
+        ctx.strokeStyle = `rgba(110,145,255,${0.85 * alpha})`;
+        ctx.lineWidth   = 2;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur  = 0;
+        break;
+      }
+      case 'ring_shard': {
+        ctx.save();
+        ctx.translate(o.x, o.y); ctx.rotate(o.angle);
+        const sg = ctx.createLinearGradient(-o.len / 2, 0, o.len / 2, 0);
+        sg.addColorStop(0,   'rgba(230,220,150,0)');
+        sg.addColorStop(0.2, `rgba(245,238,185,${0.92 * alpha})`);
+        sg.addColorStop(0.5, `rgba(255,252,220,${alpha})`);
+        sg.addColorStop(0.8, `rgba(245,238,185,${0.92 * alpha})`);
+        sg.addColorStop(1,   'rgba(230,220,150,0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath();
+        ctx.moveTo(-o.len / 2, 0); ctx.lineTo(0, -o.w / 2);
+        ctx.lineTo(o.len / 2, 0);  ctx.lineTo(0, o.w / 2);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+        break;
+      }
+      case 'ice_shard': {
+        ctx.save();
+        ctx.translate(o.x, o.y); ctx.rotate(now * 1.4);
+        const ip = 0.7 + 0.3 * Math.sin(now * 4.2);
+        ctx.strokeStyle = `rgba(155,225,255,${0.92 * alpha * ip})`;
+        ctx.fillStyle   = `rgba(185,238,255,${0.30 * alpha})`;
+        ctx.lineWidth   = 2;
+        ctx.shadowColor = '#88ddff'; ctx.shadowBlur = 10 * ip;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI * 2;
+          k === 0 ? ctx.moveTo(Math.cos(a) * o.r, Math.sin(a) * o.r)
+                  : ctx.lineTo(Math.cos(a) * o.r, Math.sin(a) * o.r);
+        }
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+        break;
+      }
+      case 'wind_gust': {
+        const wp = Math.sin((1 - o.life / o.maxLife) * Math.PI);
+        const wa = wp * 0.32;
+        for (let k = 0; k < 16; k++) {
+          const sy  = 28 + k * (CANVAS_H / 16);
+          const len = 75 + Math.sin(k * 2.4 + now * 9) * 48;
+          const sx  = o.dir > 0
+            ? (((k * 131 + now * 580) % (CANVAS_W + len)) - len)
+            : CANVAS_W - (((k * 131 + now * 580) % (CANVAS_W + len)));
+          ctx.strokeStyle = `rgba(100,130,255,${wa})`;
+          ctx.lineWidth   = 1.5;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + o.dir * len, sy); ctx.stroke();
+        }
+        ctx.fillStyle = `rgba(40,60,200,${wa * 0.22})`;
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        break;
+      }
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
-  if (gameState === 'DIFFICULTY') {
-    renderDifficulty();
-    return;
+  // Ice-slow HUD indicator
+  if (planetDebuffs.iceslow > 0) {
+    const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 180);
+    ctx.save();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font        = 'bold 13px "Courier New", monospace';
+    ctx.fillStyle   = `rgba(160,230,255,${0.95 * pulse})`;
+    ctx.shadowColor = '#88ddff'; ctx.shadowBlur = 9;
+    ctx.fillText(`ICE SLOWED  ${Math.ceil(planetDebuffs.iceslow)}s`, CANVAS_W / 2, 56);
+    ctx.shadowBlur  = 0;
+    ctx.restore();
+  }
+}
+
+// ─── Universal Button Animation Overlay ──────────────────────────────────────
+function renderBtnAnimOverlay() {
+  const a    = btnAnim;
+  const prog = 1 - a.timer / a.dur;          // 0 → 1
+  const pulse = Math.sin(prog * Math.PI);     // 0 → 1 → 0
+
+  // Parse hex color (#rgb or #rrggbb) to r,g,b integers
+  let r = 255, g = 255, b = 255;
+  const hex = a.color;
+  if (hex && hex[0] === '#') {
+    if (hex.length === 4) {
+      r = parseInt(hex[1] + hex[1], 16);
+      g = parseInt(hex[2] + hex[2], 16);
+      b = parseInt(hex[3] + hex[3], 16);
+    } else if (hex.length === 7) {
+      r = parseInt(hex.slice(1, 3), 16);
+      g = parseInt(hex.slice(3, 5), 16);
+      b = parseInt(hex.slice(5, 7), 16);
+    }
   }
 
-  if (gameState === 'CONTROLS') {
-    renderControls();
-    return;
-  }
+  const isCircle = a.r > 0;
+  const bx = a.cx - a.w / 2;
+  const by = a.cy - a.h / 2;
 
-  if (gameState === 'SHOP') {
-    renderShop();
-    return;
-  }
+  ctx.save();
 
-  if (gameState === 'CHANGELOG') {
-    renderChangelog();
-    return;
-  }
+  // Glow halo + stroke
+  ctx.shadowColor = a.color;
+  ctx.shadowBlur  = 45 * pulse;
+  ctx.strokeStyle = a.color;
+  ctx.lineWidth   = 3;
+  ctx.globalAlpha = 0.9 * pulse;
+  ctx.beginPath();
+  if (isCircle) { ctx.arc(a.cx, a.cy, a.r, 0, Math.PI * 2); }
+  else          { ctx.roundRect(bx, by, a.w, a.h, 12); }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
 
-  if (gameState === 'GAME_OVER') {
-    renderGameOver();
-    return;
-  }
+  // Fill flash
+  ctx.fillStyle   = `rgba(${r},${g},${b},${0.30 * pulse})`;
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  if (isCircle) { ctx.arc(a.cx, a.cy, a.r, 0, Math.PI * 2); }
+  else          { ctx.roundRect(bx, by, a.w, a.h, 12); }
+  ctx.fill();
 
-  if (gameState === 'LEVEL_COMPLETE') {
-    renderLevelComplete();
-    return;
-  }
+  // Expanding ripple ring
+  const baseSize = isCircle ? a.r * 2 : Math.max(a.w, a.h);
+  const rippleR  = baseSize * 0.65 * prog;
+  ctx.strokeStyle = `rgba(${r},${g},${b},${0.55 * (1 - prog)})`;
+  ctx.lineWidth   = 3;
+  ctx.shadowBlur  = 0;
+  ctx.beginPath();
+  ctx.arc(a.cx, a.cy, rippleR, 0, Math.PI * 2);
+  ctx.stroke();
 
-  // PLAYING + PAUSED (draw frozen world, then overlay if paused)
-  for (const a of asteroids) a.draw();
-  for (const b of bullets)   b.draw();
-  player.draw();
-  for (const p of particles) p.draw();
-  for (const pu of powerups)  pu.draw();
-  for (const c  of coinPickups) c.draw();
-  for (const bb of bossBullets) bb.draw();
-  if (boss && boss.active) boss.draw();
-
-  renderHUD();
-  renderBossHealthBar();
-  renderBossWarning();
-  renderPowerupBar();
-  if (IS_TOUCH) renderTouchControls();
-  if (gameState === 'PAUSED') renderPaused();
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur  = 0;
+  ctx.restore();
 }
 
 function renderHUD() {
@@ -690,7 +1196,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.56.2';
+  const verText = 'v1.58.2';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1262,99 +1768,279 @@ function renderSolarMap() {
 
   solarMapButtonRects.length = 0;
 
-  const mapLeft  = 160;
-  const mapRight = CANVAS_W - 160;
+  const mapLeft  = 170;
+  const mapRight = CANVAS_W - 130;
   const step     = (mapRight - mapLeft) / (PLANET_DEFS.length - 1);
-  const cy       = CANVAS_H * 0.58;
+  const cy       = CANVAS_H * 0.60;
+  const now      = performance.now() / 1000;
+
+  // Solar nebula ambient glow near the sun
+  const nebGrad = ctx.createRadialGradient(mapLeft, cy, 0, mapLeft, cy, CANVAS_W * 0.38);
+  nebGrad.addColorStop(0,   'rgba(255,140,20,0.13)');
+  nebGrad.addColorStop(0.5, 'rgba(255,60,0,0.05)');
+  nebGrad.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = nebGrad;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   // Orbit line
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.09)';
   ctx.lineWidth   = 1.5;
-  ctx.setLineDash([6, 8]);
+  ctx.setLineDash([5, 9]);
   ctx.beginPath();
   ctx.moveTo(mapLeft, cy);
   ctx.lineTo(mapRight, cy);
   ctx.stroke();
   ctx.setLineDash([]);
 
+  // Tiny distance tick marks on the orbit line
+  for (let i = 1; i < PLANET_DEFS.length - 1; i++) {
+    const tx = mapLeft + i * step;
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(tx, cy - 4);
+    ctx.lineTo(tx, cy + 4);
+    ctx.stroke();
+  }
+
   // Draw planets
   for (let i = 0; i < PLANET_DEFS.length; i++) {
-    const p   = PLANET_DEFS[i];
-    const px  = mapLeft + i * step;
+    const p      = PLANET_DEFS[i];
+    const px     = mapLeft + i * step;
+    const sz     = p.size;
     const locked = i > progressUnlocked;
+    const alpha  = locked ? 0.28 : 1;
 
-    ctx.globalAlpha = locked ? 0.28 : 1;
+    ctx.globalAlpha = alpha;
 
-    // Sun glow
-    if (i === 0 && !locked) {
-      ctx.shadowColor = p.glowColor;
-      ctx.shadowBlur  = 28;
-    }
+    // ── Sun special rendering ────────────────────────────────────────────────
+    if (i === 0) {
+      if (!locked) {
+        const pulse1 = 0.5 + 0.5 * Math.sin(now * 2.1);
+        const pulse2 = 0.5 + 0.5 * Math.sin(now * 1.4 + 1.2);
+        const pulse3 = 0.5 + 0.5 * Math.sin(now * 1.8 + 2.5);
+        // Outermost corona
+        const cg3 = ctx.createRadialGradient(px, cy, sz * 0.9, px, cy, sz * 2.8);
+        cg3.addColorStop(0, `rgba(255,120,0,${0.13 + pulse3 * 0.07})`);
+        cg3.addColorStop(1, 'rgba(255,60,0,0)');
+        ctx.fillStyle = cg3;
+        ctx.beginPath(); ctx.arc(px, cy, sz * 2.8, 0, Math.PI * 2); ctx.fill();
+        // Middle corona
+        const cg2 = ctx.createRadialGradient(px, cy, sz * 0.85, px, cy, sz * 1.9);
+        cg2.addColorStop(0, `rgba(255,170,0,${0.22 + pulse2 * 0.12})`);
+        cg2.addColorStop(1, 'rgba(255,80,0,0)');
+        ctx.fillStyle = cg2;
+        ctx.beginPath(); ctx.arc(px, cy, sz * 1.9, 0, Math.PI * 2); ctx.fill();
+        // Inner corona
+        const cg1 = ctx.createRadialGradient(px, cy, sz * 0.78, px, cy, sz * 1.38);
+        cg1.addColorStop(0, `rgba(255,220,80,${0.40 + pulse1 * 0.18})`);
+        cg1.addColorStop(1, 'rgba(255,120,0,0)');
+        ctx.fillStyle = cg1;
+        ctx.beginPath(); ctx.arc(px, cy, sz * 1.38, 0, Math.PI * 2); ctx.fill();
+      }
+      // Sun core radial gradient
+      const sunGrad = ctx.createRadialGradient(px - sz * 0.28, cy - sz * 0.28, sz * 0.05, px, cy, sz);
+      sunGrad.addColorStop(0,   '#fff5c0');
+      sunGrad.addColorStop(0.25,'#ffe060');
+      sunGrad.addColorStop(0.6, '#ff8800');
+      sunGrad.addColorStop(1,   '#c82000');
+      ctx.fillStyle = sunGrad;
+      ctx.beginPath(); ctx.arc(px, cy, sz, 0, Math.PI * 2); ctx.fill();
+      // Animated surface hot spots
+      if (!locked) {
+        const sx1 = px - sz * 0.18 + Math.sin(now * 0.7)  * sz * 0.12;
+        const sy1 = cy + sz * 0.08  + Math.cos(now * 0.9)  * sz * 0.10;
+        const sx2 = px + sz * 0.22  + Math.sin(now * 1.1 + 2) * sz * 0.10;
+        const sy2 = cy - sz * 0.15  + Math.cos(now * 0.8 + 1) * sz * 0.08;
+        for (const [spx, spy] of [[sx1, sy1], [sx2, sy2]]) {
+          const sg = ctx.createRadialGradient(spx, spy, 0, spx, spy, sz * 0.30);
+          sg.addColorStop(0, 'rgba(255,80,0,0.28)');
+          sg.addColorStop(1, 'rgba(255,80,0,0)');
+          ctx.fillStyle = sg;
+          ctx.beginPath(); ctx.arc(spx, spy, sz * 0.30, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      // Limb darkening
+      const limb = ctx.createRadialGradient(px, cy, sz * 0.65, px, cy, sz);
+      limb.addColorStop(0, 'rgba(0,0,0,0)');
+      limb.addColorStop(1, 'rgba(60,5,0,0.38)');
+      ctx.fillStyle = limb;
+      ctx.beginPath(); ctx.arc(px, cy, sz, 0, Math.PI * 2); ctx.fill();
 
-    // Saturn rings (back half)
-    if (p.rings) {
+    } else {
+      // ── Regular planet rendering ─────────────────────────────────────────
+
+      // Atmospheric glow
+      const atmColors = {
+        Venus:   `rgba(230,200,100,0.18)`,
+        Earth:   `rgba(50,120,255,0.22)`,
+        Mars:    `rgba(200,70,20,0.18)`,
+        Jupiter: `rgba(200,130,60,0.14)`,
+        Saturn:  `rgba(220,210,140,0.14)`,
+        Uranus:  `rgba(80,220,220,0.18)`,
+        Neptune: `rgba(50,70,210,0.18)`,
+      };
+      if (atmColors[p.name] && !locked) {
+        const atmG = ctx.createRadialGradient(px, cy, sz * 0.8, px, cy, sz + 7);
+        atmG.addColorStop(0, 'rgba(0,0,0,0)');
+        atmG.addColorStop(1, atmColors[p.name]);
+        ctx.fillStyle = atmG;
+        ctx.beginPath(); ctx.arc(px, cy, sz + 7, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Saturn rings — back half
+      if (p.rings) {
+        ctx.save();
+        ctx.globalAlpha = locked ? 0.28 : 0.50;
+        ctx.strokeStyle = 'rgba(230,210,130,0.75)';
+        ctx.lineWidth   = 7;
+        ctx.beginPath(); ctx.ellipse(px, cy, sz * 2.05, sz * 0.50, 0, Math.PI, 2 * Math.PI); ctx.stroke();
+        ctx.strokeStyle = 'rgba(200,180,90,0.55)';
+        ctx.lineWidth   = 3;
+        ctx.beginPath(); ctx.ellipse(px, cy, sz * 1.58, sz * 0.37, 0, Math.PI, 2 * Math.PI); ctx.stroke();
+        ctx.restore();
+        ctx.globalAlpha = alpha;
+      }
+
+      // Planet base gradient (lit from upper-left — sun is to the left)
+      const grad = ctx.createRadialGradient(px - sz * 0.32, cy - sz * 0.32, sz * 0.04, px, cy, sz);
+      const fills = {
+        Mercury: ['#d8d8d8', '#909090', '#383838'],
+        Venus:   ['#f8eda0', '#d4b840', '#6a4808'],
+        Earth:   ['#90d8ff', '#3a8fdd', '#082860'],
+        Mars:    ['#e06030', '#b03010', '#480c00'],
+        Jupiter: ['#ecd090', '#c07030', '#583010'],
+        Saturn:  ['#f4e8b0', '#c8a840', '#584800'],
+        Uranus:  ['#b8f4f4', '#50caca', '#105454'],
+        Neptune: ['#7080fc', '#3040cc', '#080820'],
+      };
+      const [c0, c1, c2] = fills[p.name] ?? [p.color, '#444', '#111'];
+      grad.addColorStop(0,   c0);
+      grad.addColorStop(0.5, c1);
+      grad.addColorStop(1,   c2);
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(px, cy, sz, 0, Math.PI * 2); ctx.fill();
+
+      // Surface details (clipped to planet circle)
       ctx.save();
-      ctx.globalAlpha = locked ? 0.28 : 0.55;
-      ctx.strokeStyle = p.color;
-      ctx.lineWidth   = 5;
-      ctx.beginPath();
-      ctx.ellipse(px, cy, p.size * 1.8, p.size * 0.45, 0, Math.PI, 2 * Math.PI);
-      ctx.stroke();
-      ctx.restore();
+      ctx.beginPath(); ctx.arc(px, cy, sz, 0, Math.PI * 2); ctx.clip();
+      if (p.name === 'Earth') {
+        ctx.fillStyle = 'rgba(35,130,55,0.65)';
+        ctx.beginPath(); ctx.ellipse(px - sz * 0.10, cy - sz * 0.10, sz * 0.36, sz * 0.26, -0.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px + sz * 0.28, cy + sz * 0.18, sz * 0.22, sz * 0.30, 0.4, 0, Math.PI * 2);  ctx.fill();
+        ctx.fillStyle = 'rgba(230,242,255,0.78)';
+        ctx.beginPath(); ctx.ellipse(px, cy - sz * 0.82, sz * 0.44, sz * 0.20, 0, 0, Math.PI * 2); ctx.fill();
+      } else if (p.name === 'Jupiter') {
+        ctx.fillStyle = 'rgba(140,70,15,0.38)';
+        ctx.fillRect(px - sz, cy - sz * 0.12, sz * 2, sz * 0.24);
+        ctx.fillStyle = 'rgba(220,160,80,0.32)';
+        ctx.fillRect(px - sz, cy + sz * 0.26, sz * 2, sz * 0.18);
+        ctx.fillStyle = 'rgba(90,40,8,0.28)';
+        ctx.fillRect(px - sz, cy - sz * 0.44, sz * 2, sz * 0.14);
+        // Great Red Spot
+        ctx.fillStyle = 'rgba(195,55,25,0.62)';
+        ctx.beginPath(); ctx.ellipse(px + sz * 0.28, cy + sz * 0.06, sz * 0.20, sz * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+      } else if (p.name === 'Saturn') {
+        ctx.fillStyle = 'rgba(180,140,55,0.28)';
+        ctx.fillRect(px - sz, cy - sz * 0.12, sz * 2, sz * 0.22);
+        ctx.fillStyle = 'rgba(140,100,25,0.22)';
+        ctx.fillRect(px - sz, cy + sz * 0.24, sz * 2, sz * 0.14);
+      } else if (p.name === 'Mars') {
+        ctx.fillStyle = 'rgba(215,228,240,0.72)';
+        ctx.beginPath(); ctx.ellipse(px, cy - sz * 0.80, sz * 0.36, sz * 0.17, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.beginPath(); ctx.arc(px - sz * 0.22, cy + sz * 0.12, sz * 0.13, 0, Math.PI * 2); ctx.fill();
+      } else if (p.name === 'Mercury') {
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.beginPath(); ctx.arc(px - sz * 0.28, cy - sz * 0.14, sz * 0.17, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + sz * 0.22, cy + sz * 0.28,  sz * 0.11, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + sz * 0.08, cy - sz * 0.32,  sz * 0.08, 0, Math.PI * 2); ctx.fill();
+      } else if (p.name === 'Venus') {
+        ctx.fillStyle = 'rgba(255,245,185,0.28)';
+        ctx.fillRect(px - sz, cy - sz * 0.15, sz * 2, sz * 0.28);
+        ctx.fillStyle = 'rgba(200,175,90,0.18)';
+        ctx.fillRect(px - sz, cy + sz * 0.28, sz * 2, sz * 0.16);
+      } else if (p.name === 'Uranus') {
+        ctx.fillStyle = 'rgba(130,250,250,0.18)';
+        ctx.fillRect(px - sz, cy - sz * 0.08, sz * 2, sz * 0.18);
+      } else if (p.name === 'Neptune') {
+        ctx.fillStyle = 'rgba(20,20,190,0.38)';
+        ctx.fillRect(px - sz, cy - sz * 0.10, sz * 2, sz * 0.20);
+        ctx.fillStyle = 'rgba(50,70,200,0.32)';
+        ctx.beginPath(); ctx.arc(px - sz * 0.22, cy, sz * 0.17, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore(); // end clip
+
+      // Shadow overlay (sun is left → shadow falls on right side)
+      const shade = ctx.createRadialGradient(px + sz * 0.28, cy + sz * 0.18, 0, px, cy, sz * 1.05);
+      shade.addColorStop(0,    'rgba(0,0,0,0)');
+      shade.addColorStop(0.50, 'rgba(0,0,0,0)');
+      shade.addColorStop(1,    'rgba(0,0,0,0.60)');
+      ctx.fillStyle = shade;
+      ctx.beginPath(); ctx.arc(px, cy, sz, 0, Math.PI * 2); ctx.fill();
+
+      // Specular highlight (upper-left)
+      const spec = ctx.createRadialGradient(px - sz * 0.36, cy - sz * 0.36, 0, px - sz * 0.28, cy - sz * 0.28, sz * 0.52);
+      spec.addColorStop(0, 'rgba(255,255,255,0.22)');
+      spec.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = spec;
+      ctx.beginPath(); ctx.arc(px, cy, sz, 0, Math.PI * 2); ctx.fill();
+
+      // Saturn rings — front half
+      if (p.rings) {
+        ctx.save();
+        ctx.globalAlpha = locked ? 0.28 : 0.80;
+        ctx.strokeStyle = 'rgba(230,210,130,0.88)';
+        ctx.lineWidth   = 7;
+        ctx.beginPath(); ctx.ellipse(px, cy, sz * 2.05, sz * 0.50, 0, 0, Math.PI); ctx.stroke();
+        ctx.strokeStyle = 'rgba(200,180,90,0.68)';
+        ctx.lineWidth   = 3;
+        ctx.beginPath(); ctx.ellipse(px, cy, sz * 1.58, sz * 0.37, 0, 0, Math.PI); ctx.stroke();
+        ctx.restore();
+        ctx.globalAlpha = alpha;
+      }
     }
 
-    // Planet circle
-    ctx.beginPath();
-    ctx.arc(px, cy, p.size, 0, Math.PI * 2);
-    ctx.fillStyle = p.color;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Selected highlight
+    // Selected highlight ring
     if (selectedPlanet === i && !locked) {
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur  = 16;
       ctx.strokeStyle = '#fff';
-      ctx.lineWidth   = 3;
+      ctx.lineWidth   = 2.5;
       ctx.beginPath();
-      ctx.arc(px, cy, p.size + 5, 0, Math.PI * 2);
+      ctx.arc(px, cy, sz + (i === 0 ? 10 : 6), 0, Math.PI * 2);
       ctx.stroke();
-    }
-
-    // Saturn rings (front half)
-    if (p.rings) {
-      ctx.save();
-      ctx.globalAlpha = locked ? 0.28 : 0.85;
-      ctx.strokeStyle = p.color;
-      ctx.lineWidth   = 5;
-      ctx.beginPath();
-      ctx.ellipse(px, cy, p.size * 1.8, p.size * 0.45, 0, 0, Math.PI);
-      ctx.stroke();
-      ctx.restore();
+      ctx.shadowBlur  = 0;
     }
 
     // Lock icon
     if (locked) {
       ctx.globalAlpha = 0.55;
-      ctx.strokeStyle = '#888';
+      ctx.strokeStyle = '#777';
       ctx.lineWidth   = 1.5;
       ctx.beginPath();
-      ctx.arc(px, cy - p.size - 12, 5, Math.PI, 0);
+      ctx.arc(px, cy - sz - 12, 5, Math.PI, 0);
       ctx.stroke();
-      ctx.fillStyle = '#888';
-      ctx.fillRect(px - 5, cy - p.size - 12, 10, 8);
-      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#777';
+      ctx.fillRect(px - 5, cy - sz - 12, 10, 8);
+      ctx.globalAlpha = alpha;
     }
 
-    ctx.globalAlpha = locked ? 0.28 : 1;
-
     // Name label
-    ctx.font      = `bold 11px "Courier New", monospace`;
-    ctx.fillStyle = locked ? '#555' : p.color;
-    ctx.fillText(p.name, px, cy + p.size + 16);
-
+    ctx.globalAlpha = locked ? 0.30 : 1;
+    ctx.font        = `bold 11px "Courier New", monospace`;
+    ctx.fillStyle   = locked ? '#555' : p.color;
+    ctx.shadowColor = locked ? 'transparent' : (p.glowColor || p.color);
+    ctx.shadowBlur  = locked ? 0 : 7;
+    ctx.fillText(p.name, px, cy + sz + 17);
+    ctx.shadowBlur  = 0;
     ctx.globalAlpha = 1;
 
-    // Click rect (circle bounding box, slightly enlarged)
-    solarMapButtonRects.push({ x: px - p.size - 8, y: cy - p.size - 8, w: (p.size + 8) * 2, h: (p.size + 8) * 2, key: `planet_${i}`, cx: px, cy, r: p.size + 8 });
+    // Click rect
+    solarMapButtonRects.push({
+      x: px - sz - 8, y: cy - sz - 8, w: (sz + 8) * 2, h: (sz + 8) * 2,
+      key: `planet_${i}`, cx: px, cy, r: sz + 8, color: p.color,
+    });
   }
 
   // Info panel
@@ -1386,7 +2072,7 @@ function renderSolarMap() {
     // Description
     ctx.font      = '13px "Courier New", monospace';
     ctx.fillStyle = '#ccc';
-    ctx.fillText(p.desc, CANVAS_W / 2, ppy + 54);
+    ctx.fillText(p.desc, CANVAS_W / 2, ppy + 54, pw - 36);
 
     // Difficulty pips (1 per planet index + 1)
     const pipCount = selectedPlanet + 1, pipTotal = 9;
@@ -1427,6 +2113,48 @@ function renderSolarMap() {
   ctx.beginPath(); ctx.roundRect(backX, backY, backW, backH, 10); ctx.fill(); ctx.stroke();
   ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = 'bold 15px "Courier New", monospace';
   ctx.fillText('← BACK', CANVAS_W / 2, backY + backH / 2);
+
+  // ── Launch warp animation overlay ────────────────────────────────────────
+  if (solarMapLaunchTimer > 0) {
+    const LAUNCH_DUR = 1.6;
+    const prog  = 1 - solarMapLaunchTimer / LAUNCH_DUR; // 0 → 1
+
+    // Stars warp: draw extra long horizontal streaks
+    const streakCount = 40;
+    ctx.save();
+    for (let si = 0; si < streakCount; si++) {
+      const sx = (si / streakCount) * CANVAS_W;
+      const sy = 50 + Math.sin(si * 7.3) * (CANVAS_H - 100);
+      const len = 60 + Math.sin(si * 3.7) * 40;
+      const warpLen = len + prog * CANVAS_W * 1.4;
+      const alpha   = 0.1 + prog * 0.7;
+      ctx.strokeStyle = `rgba(200,220,255,${alpha})`;
+      ctx.lineWidth   = 1 + prog * 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + warpLen, sy);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // White flash at end
+    const flashAlpha = Math.pow(prog, 2.5);
+    ctx.fillStyle = `rgba(255,255,255,${flashAlpha * 0.95})`;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // "LAUNCHING..." text
+    const textAlpha = Math.min(1, prog * 3);
+    ctx.globalAlpha = textAlpha;
+    ctx.font        = 'bold 28px "Courier New", monospace';
+    ctx.fillStyle   = '#4af';
+    ctx.shadowColor = '#0af';
+    ctx.shadowBlur  = 20;
+    ctx.textAlign   = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LAUNCHING...', CANVAS_W / 2, CANVAS_H / 2);
+    ctx.shadowBlur  = 0;
+    ctx.globalAlpha = 1;
+  }
 
   ctx.restore();
 }
@@ -1487,7 +2215,7 @@ function renderPowerupBar() {
 
 function renderControls() {
   ctx.save();
-  ctx.textAlign = 'center';
+  ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
 
   // Overlay
@@ -1499,52 +2227,52 @@ function renderControls() {
   ctx.fillStyle = '#4af';
   ctx.shadowColor = '#0af';
   ctx.shadowBlur = 16;
-  ctx.fillText('HOW TO PLAY', CANVAS_W / 2, 70);
+  ctx.fillText('HOW TO PLAY', CANVAS_W / 2, 58);
   ctx.shadowBlur = 0;
 
-  const col1 = CANVAS_W / 2 - 260;
-  const col2 = CANVAS_W / 2 + 60;
-  let y = 140;
-  const lineH = 30;
+  const col1  = CANVAS_W / 2 - 260;
+  const col2  = CANVAS_W / 2 + 50;
+  const lineH = 26;
+  let y = 120;
 
-  function sectionHeader(text, x) {
-    ctx.font = 'bold 13px "Courier New", monospace';
-    ctx.fillStyle = '#4af';
+  function secHead(text, x, color = '#4af') {
+    ctx.font      = 'bold 13px "Courier New", monospace';
+    ctx.fillStyle = color;
     ctx.textAlign = 'left';
     ctx.fillText(text, x, y);
-    y += lineH * 0.8;
+    y += Math.round(lineH * 0.82);
   }
 
   function row(key, desc, x) {
-    ctx.font = 'bold 13px "Courier New", monospace';
+    ctx.font      = 'bold 13px "Courier New", monospace';
     ctx.fillStyle = '#ff0';
     ctx.textAlign = 'left';
     ctx.fillText(key, x, y);
-    ctx.font = '13px "Courier New", monospace';
+    ctx.font      = '13px "Courier New", monospace';
     ctx.fillStyle = '#ccc';
-    ctx.fillText(desc, x + 130, y);
+    ctx.fillText(desc, x + 128, y);
     y += lineH;
   }
 
-  // ── Movement ──
-  sectionHeader('MOVEMENT', col1);
+  // ── Left column: controls ──────────────────────────────────────────────────
+  secHead('MOVEMENT', col1);
   row('W / ↑', 'Move up',    col1);
   row('S / ↓', 'Move down',  col1);
   row('A / ←', 'Move left',  col1);
   row('D / →', 'Move right', col1);
-  y += 10;
-  sectionHeader('COMBAT', col1);
+  y += 8;
+  secHead('COMBAT', col1);
   row('SPACE',  'Hold to shoot', col1);
-  y += 10;
-  sectionHeader('MENU', col1);
-  row('ESC',    'Pause / back',  col1);
-  row('R',      'Restart',       col1);
-  row('M',      'Main menu',     col1);
+  y += 8;
+  secHead('MENU', col1);
+  row('ESC',  'Pause / back', col1);
+  row('R',    'Restart',      col1);
+  row('M',    'Main menu',    col1);
 
-  // ── Right column ──
-  y = 140;
-  sectionHeader('POWER-UPS', col2);
-  y += 6;
+  // ── Right column: power-ups + modes + shop ─────────────────────────────────
+  y = 120;
+  secHead('POWER-UPS', col2);
+  y += 4;
 
   const entries = [
     { color: '#f80', label: 'RAPID FIRE',  desc: 'Shoot 3× faster [10s]'        },
@@ -1554,32 +2282,67 @@ function renderControls() {
     { color: '#f44', label: 'BOMB',        desc: 'Destroys all asteroids'       },
     { color: '#f4f', label: 'EXTRA LIFE',  desc: 'Auto-grants +1 life'          },
   ];
+  const entryH = 30;
   for (const e of entries) {
     ctx.beginPath();
     ctx.arc(col2 + 8, y, 5, 0, Math.PI * 2);
     ctx.fillStyle = e.color;
     ctx.fill();
-    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.font      = 'bold 12px "Courier New", monospace';
     ctx.fillStyle = e.color;
     ctx.textAlign = 'left';
     ctx.fillText(e.label, col2 + 20, y);
-    ctx.font = '12px "Courier New", monospace';
+    ctx.font      = '12px "Courier New", monospace';
     ctx.fillStyle = '#999';
-    ctx.fillText(e.desc, col2 + 20, y + 14);
-    y += 36;
+    ctx.fillText(e.desc, col2 + 20, y + 13);
+    y += entryH;
   }
 
-  // ── Objective blurb ──
-  ctx.font = '13px "Courier New", monospace';
-  ctx.fillStyle = '#999';
-  ctx.textAlign = 'center';
-  ctx.fillText('Destroy asteroids to score points. Large ones split into smaller ones.', CANVAS_W / 2, CANVAS_H - 120);
-  ctx.fillText('Power-ups spawn randomly — fly over one to collect it instantly.', CANVAS_W / 2, CANVAS_H - 100);
+  // ── Game Modes ───────────────────────────────────────────────────────────
+  y += 10;
+  secHead('GAME MODES', col2);
+
+  // Endless Mode
+  ctx.font      = 'bold 15px "Courier New", monospace';
+  ctx.fillStyle = '#4af';
+  ctx.textAlign = 'left';
+  ctx.fillText('ENDLESS MODE', col2, y);
+  y += 18;
+  ctx.font      = '13px "Courier New", monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Survive infinite waves — asteroids get', col2, y);
+  y += 16;
+  ctx.fillText('faster and more frequent over time.', col2, y);
+  y += 24;
+
+  // Progress Mode
+  ctx.font      = 'bold 15px "Courier New", monospace';
+  ctx.fillStyle = '#a8f';
+  ctx.textAlign = 'left';
+  ctx.fillText('PROGRESS MODE', col2, y);
+  y += 18;
+  ctx.font      = '13px "Courier New", monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Travel through 9 planets. Each has', col2, y);
+  y += 16;
+  ctx.fillText('unique hazards and a boss to defeat.', col2, y);
+  y += 24;
+
+  // Coins & Shop
+  secHead('COINS & SHOP', col2, '#fd0');
+  ctx.font      = '13px "Courier New", monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.textAlign = 'left';
+  ctx.fillText('Collect gold coins during gameplay.', col2, y);
+  y += 16;
+  ctx.fillText('Spend them in the Shop to unlock new', col2, y);
+  y += 16;
+  ctx.fillText('ship colors, hulls, and engines.', col2, y);
 
   // Back button
   const backW = 180, backH = 38;
   const backX = CANVAS_W / 2 - backW / 2;
-  const backY = CANVAS_H - backH - 28;
+  const backY = CANVAS_H - backH - 24;
   controlsBackRect = { x: backX, y: backY, w: backW, h: backH };
 
   ctx.fillStyle   = 'rgba(0,30,70,0.75)';
@@ -1633,6 +2396,9 @@ function renderChangelog() {
 
   const startY = areaY - changelogScrollY;
 
+  const descMaxW = CANVAS_W - padX * 2 - 72;
+  changelogShowMoreRects = [];
+
   const entries = [...CHANGELOG].reverse();
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
@@ -1679,13 +2445,99 @@ function renderChangelog() {
       ctx.textBaseline = 'top';
     }
 
-    // Description
+    // Description — wrap to max 2 lines; show "▾ more" button if longer
     ctx.font      = '12px "Courier New", monospace';
     ctx.fillStyle = '#889';
-    ctx.fillText(entry.desc, padX + 72, ey + 30, CANVAS_W - padX * 2 - 72);
+    const lines = wrapText(entry.desc, descMaxW);
+    if (lines.length <= 2) {
+      ctx.fillText(lines[0] ?? '', padX + 72, ey + 30);
+      if (lines[1]) ctx.fillText(lines[1], padX + 72, ey + 44);
+    } else {
+      ctx.fillText(lines[0], padX + 72, ey + 30);
+      // Truncate line 2 to leave room for the "more" button
+      const moreLabel = '▾ more';
+      const moreLabelW = ctx.measureText('  ' + moreLabel).width;
+      const line2MaxW  = descMaxW - moreLabelW;
+      const remainWords = lines.slice(1).join(' ').split(' ');
+      let line2 = '';
+      for (const w of remainWords) {
+        const t = line2 ? line2 + ' ' + w : w;
+        if (ctx.measureText(t).width > line2MaxW) break;
+        line2 = t;
+      }
+      ctx.fillText(line2 + '…', padX + 72, ey + 44);
+      // "more" button
+      const moreX = padX + 72 + descMaxW - ctx.measureText(moreLabel).width;
+      const moreRect = { x: moreX - 4, y: ey + 37, w: ctx.measureText(moreLabel).width + 8, h: 15, idx: i };
+      changelogShowMoreRects.push(moreRect);
+      ctx.fillStyle = '#4af';
+      ctx.fillText(moreLabel, moreX, ey + 44);
+    }
   }
 
   ctx.restore();
+
+  // Popup overlay for expanded entry
+  if (changelogPopupEntry !== null && changelogPopupEntry < entries.length) {
+    const pe = entries[changelogPopupEntry];
+    ctx.fillStyle = 'rgba(0,0,20,0.82)';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    const popupW = Math.min(CANVAS_W - 80, 680);
+    const popupX = (CANVAS_W - popupW) / 2;
+    ctx.font = '13px "Courier New", monospace';
+    const popupDescLines = wrapText(pe.desc, popupW - 40);
+    const popupH = 64 + popupDescLines.length * 20 + 50;
+    const popupY = Math.max(20, (CANVAS_H - popupH) / 2);
+
+    ctx.fillStyle   = 'rgba(0,10,35,0.98)';
+    ctx.strokeStyle = '#4af';
+    ctx.lineWidth   = 2;
+    ctx.shadowColor = '#0af';
+    ctx.shadowBlur  = 20;
+    ctx.beginPath();
+    ctx.roundRect(popupX, popupY, popupW, popupH, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'top';
+    ctx.font         = 'bold 12px "Courier New", monospace';
+    ctx.fillStyle    = '#4af';
+    ctx.fillText(pe.v, popupX + 20, popupY + 20);
+    ctx.font         = 'bold 14px "Courier New", monospace';
+    ctx.fillStyle    = '#fff';
+    ctx.fillText(pe.title, popupX + 20 + ctx.measureText(pe.v + '   ').width, popupY + 20);
+
+    ctx.font      = '13px "Courier New", monospace';
+    ctx.fillStyle = '#aab';
+    for (let li = 0; li < popupDescLines.length; li++) {
+      ctx.fillText(popupDescLines[li], popupX + 20, popupY + 44 + li * 20);
+    }
+
+    // Close button
+    const closeW = 90, closeH = 32;
+    const closeX = popupX + (popupW - closeW) / 2;
+    const closeY = popupY + popupH - closeH - 14;
+    changelogPopupCloseRect = { x: closeX, y: closeY, w: closeW, h: closeH };
+
+    ctx.fillStyle   = 'rgba(0,30,70,0.85)';
+    ctx.strokeStyle = '#4af';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(closeX, closeY, closeW, closeH, 7);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle    = '#fff';
+    ctx.font         = 'bold 13px "Courier New", monospace';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Close', closeX + closeW / 2, closeY + closeH / 2);
+  } else {
+    changelogPopupCloseRect = null;
+  }
 
   // Scroll hint
   if (maxScroll > 0) {
@@ -1741,7 +2593,10 @@ function renderLevelComplete() {
   ctx.fillStyle = '#4f8';
   ctx.shadowColor = '#0f4';
   ctx.shadowBlur  = 20;
-  ctx.fillText(`LEVEL ${currentLevel} COMPLETE!`, CANVAS_W / 2, bannerY + bannerH / 2);
+  const completeBanner = gameMode === 'progress'
+    ? `${PLANET_DEFS[currentPlanet]?.name?.toUpperCase() ?? 'PLANET'} COMPLETE!`
+    : `LEVEL ${currentLevel} COMPLETE!`;
+  ctx.fillText(completeBanner, CANVAS_W / 2, bannerY + bannerH / 2);
   ctx.shadowBlur  = 0;
 
   // Stats
@@ -1763,9 +2618,10 @@ function renderLevelComplete() {
   // Buttons
   levelCompleteButtonRects.length = 0;
   const btnW = 300, gap = 16, cx = CANVAS_W / 2;
+  const continueLabel = gameMode === 'progress' ? 'Next Planet' : `Continue to Level ${currentLevel + 1}`;
   const buttons = [
-    { key: 'continue', label: `Continue to Level ${currentLevel + 1}`, hint: '',      color: '#4f8', bg: 'rgba(0,60,25,0.85)', btnH: 58 },
-    { key: 'menu',     label: 'Main Menu',                              hint: 'M',     color: '#4af', bg: 'rgba(0,30,70,0.75)', btnH: 48 },
+    { key: 'continue', label: continueLabel,  hint: '',  color: '#4f8', bg: 'rgba(0,60,25,0.85)', btnH: 58 },
+    { key: 'menu',     label: 'Main Menu',     hint: 'M', color: '#4af', bg: 'rgba(0,30,70,0.75)', btnH: 48 },
   ];
 
   let btnY = CANVAS_H / 2 + 38;
