@@ -310,6 +310,7 @@ const CHANGELOG = [
   { v: 'v1.59.1', title: 'Tutorial & Progress Polish',  desc: 'Tutorial overlay redesigned with a gradient card, per-slide emoji icon, colored accent stripe, glow effects, and cleaner button styles. The Next/Done button now always uses white text so it is readable on any slide color. The Progress Mode button now correctly shows planets completed (0–9) instead of planets unlocked.' },
   { v: 'v1.60.0', title: 'Settings Screen',             desc: 'New Settings button on the main menu. The Settings screen lets you toggle sound on/off (saved between sessions) and replay the Progress Mode tutorial (which brings you directly to the Solar Map).' },
   { v: 'v1.60.1', title: 'Settings Freeze Fix',         desc: 'Fixed a freeze when opening the Settings screen. The game update loop was missing an early return for the SETTINGS state, causing it to fall through into gameplay logic with uninitialized objects.' },
+  { v: 'v1.60.2', title: 'Tutorial Back Button',        desc: 'Added a permanent ← BACK button to the tutorial overlay. Previously the Skip button was hidden on the last slide, leaving no way to exit without clicking Next.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────
