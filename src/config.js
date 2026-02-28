@@ -242,6 +242,8 @@ const PLANET_DEFS = [
     dialogue: [
       { speaker: 'CTRL',  text: 'Solar flares active. Watch yourself out there.' },
       { speaker: 'PILOT', text: 'Copy. Heading into the Sun\'s orbit now.' },
+      { speaker: 'CTRL',  text: 'Temperature sensors are going off the charts.' },
+      { speaker: 'PILOT', text: 'I can handle the heat.' },
       { speaker: 'CTRL',  text: 'Solar Tyrant detected on long-range radar.' },
       { speaker: 'PILOT', text: 'I see it. Engaging.' },
     ],
@@ -252,6 +254,8 @@ const PLANET_DEFS = [
     dialogue: [
       { speaker: 'CTRL',  text: 'Radiation spikes in your sector. Stay clear.' },
       { speaker: 'PILOT', text: 'Received. Keeping away from the hot zones.' },
+      { speaker: 'CTRL',  text: 'Asteroid density is higher than predicted.' },
+      { speaker: 'PILOT', text: 'Good. More to shoot.' },
       { speaker: 'CTRL',  text: 'Iron Revenant has been causing havoc out there.' },
       { speaker: 'PILOT', text: 'I\'ll take care of it.' },
     ],
@@ -262,6 +266,8 @@ const PLANET_DEFS = [
     dialogue: [
       { speaker: 'CTRL',  text: 'Heavy cloud cover. Watch for toxic pockets.' },
       { speaker: 'PILOT', text: 'Navigating by instruments. I\'ve got this.' },
+      { speaker: 'CTRL',  text: 'Visibility near zero. Trust your sensors.' },
+      { speaker: 'PILOT', text: 'I\'ve flown blind before.' },
       { speaker: 'CTRL',  text: 'Veiled Inferno is lurking in the upper clouds.' },
       { speaker: 'PILOT', text: 'I\'ll flush it out.' },
     ],
@@ -272,6 +278,8 @@ const PLANET_DEFS = [
     dialogue: [
       { speaker: 'CTRL',  text: 'Earth Defense here. Orbital debris is a threat.' },
       { speaker: 'PILOT', text: 'Home turf. Nothing gets through.' },
+      { speaker: 'CTRL',  text: 'Civilian platforms must stay intact.' },
+      { speaker: 'PILOT', text: 'Understood. Surgical strikes only.' },
       { speaker: 'CTRL',  text: 'Living Bastion approaching from the dark side.' },
       { speaker: 'PILOT', text: 'Not on my watch.' },
     ],
@@ -282,6 +290,8 @@ const PLANET_DEFS = [
     dialogue: [
       { speaker: 'CTRL',  text: 'Dust devil activity is off the charts today.' },
       { speaker: 'PILOT', text: 'Copy. I\'ve fought through worse.' },
+      { speaker: 'CTRL',  text: 'The colony is counting on you. Don\'t slip up.' },
+      { speaker: 'PILOT', text: 'Never do.' },
       { speaker: 'CTRL',  text: 'Red Warlord is fortifying its position.' },
       { speaker: 'PILOT', text: 'Already plotting an intercept course.' },
     ],
@@ -292,6 +302,8 @@ const PLANET_DEFS = [
     dialogue: [
       { speaker: 'CTRL',  text: 'Jupiter\'s gravity will funnel rocks toward you.' },
       { speaker: 'PILOT', text: 'Gravity works both ways.' },
+      { speaker: 'CTRL',  text: 'Magnetic interference is scrambling our sensors.' },
+      { speaker: 'PILOT', text: 'I\'ll rely on my eyes then.' },
       { speaker: 'CTRL',  text: 'Storm Colossus is hiding in the magnetic field.' },
       { speaker: 'PILOT', text: 'Then I\'ll have to get close.' },
     ],
@@ -302,6 +314,8 @@ const PLANET_DEFS = [
     dialogue: [
       { speaker: 'CTRL',  text: 'Ring shards incoming from all angles. Stay alert.' },
       { speaker: 'PILOT', text: 'Cutting through the rings now.' },
+      { speaker: 'CTRL',  text: 'The ring plane is denser than the charts show.' },
+      { speaker: 'PILOT', text: 'I\'ve noticed. Adapting.' },
       { speaker: 'CTRL',  text: 'Ringed Dominion is using the rings as cover.' },
       { speaker: 'PILOT', text: 'I\'ll draw it out into open space.' },
     ],
@@ -312,6 +326,8 @@ const PLANET_DEFS = [
     dialogue: [
       { speaker: 'CTRL',  text: 'Ice storms ahead. Push through if you slow down.' },
       { speaker: 'PILOT', text: 'Understood. One more after this.' },
+      { speaker: 'CTRL',  text: 'You\'re almost at the edge of charted space.' },
+      { speaker: 'PILOT', text: 'Doesn\'t feel that far.' },
       { speaker: 'CTRL',  text: 'Ice Monarch stands between you and Neptune.' },
       { speaker: 'PILOT', text: 'Let\'s make it quick.' },
     ],
@@ -322,6 +338,8 @@ const PLANET_DEFS = [
     dialogue: [
       { speaker: 'CTRL',  text: 'AstroShooter... this is it. Edge of the system.' },
       { speaker: 'PILOT', text: 'Long way from home.' },
+      { speaker: 'CTRL',  text: 'No rescue if things go wrong out here.' },
+      { speaker: 'PILOT', text: 'They won\'t.' },
       { speaker: 'CTRL',  text: 'Deep Tempest is the strongest we\'ve ever tracked.' },
       { speaker: 'PILOT', text: 'No holding back. Let\'s finish this.' },
     ],
@@ -427,6 +445,7 @@ const CHANGELOG = [
   { v: 'v1.61.0', date: '3:12 PM, 28 Feb 2026',  title: 'Shop Tutorial',                desc: 'A 4-slide tutorial overlay now appears the first time you open the Shop. It explains how to earn coins, how to change colors and hull shapes, what each ship attribute does (SPD, RATE, DEF, POW), and how engines modify your stats. Can be replayed from the Settings screen.' },
   { v: 'v1.61.1', date: '3:16 PM, 28 Feb 2026',  title: 'Story Mode Lives Fix',      desc: 'Defeating a boss in Story Mode no longer grants +2 lives. The bonus only applies in Endless Mode.' },
   { v: 'v1.62.0', date: '6:16 PM, 28 Feb 2026',  title: 'Planet Launch Dialogue',    desc: 'Each Story Mode planet now opens with a short radio conversation between the Pilot and Earth Control Tower. The dialogue plays over scrolling stars after the warp animation. Press SPACE or click NEXT to advance; the final line launches the level.' },
+  { v: 'v1.62.1', date: '6:26 PM, 28 Feb 2026',  title: 'Dialogue Upgrade',          desc: 'The destination planet is now displayed large in the upper-center of the screen during dialogue. A 64×64 avatar appears in the panel — the player\'s ship when the Pilot speaks, a space command tower when Control speaks. All planets now have 6 lines of dialogue.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

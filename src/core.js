@@ -1229,7 +1229,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.62.0';
+  const verText = 'v1.62.1';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1781,22 +1781,127 @@ function renderDifficulty() {
   ctx.restore();
 }
 
+// ── Dialogue planet preview ───────────────────────────────────────────────────
+function drawDialoguePlanet(cx, cy, planet) {
+  const sz = 90;
+  ctx.save();
+
+  if (planet.name === 'Sun') {
+    const t   = performance.now() / 1000;
+    const cor = ctx.createRadialGradient(cx, cy, sz * 0.7, cx, cy, sz * 1.9);
+    cor.addColorStop(0,   'rgba(255,180,0,0.45)');
+    cor.addColorStop(0.5, 'rgba(255,80,0,0.18)');
+    cor.addColorStop(1,   'rgba(255,50,0,0)');
+    ctx.fillStyle = cor;
+    ctx.beginPath(); ctx.arc(cx, cy, sz * (1.9 + Math.sin(t) * 0.06), 0, Math.PI * 2); ctx.fill();
+    const g = ctx.createRadialGradient(cx - sz * 0.3, cy - sz * 0.3, sz * 0.05, cx, cy, sz);
+    g.addColorStop(0, '#fff8c0'); g.addColorStop(0.4, '#ffb000'); g.addColorStop(1, '#cc4400');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, sz, 0, Math.PI * 2); ctx.fill();
+  } else {
+    const atm = ctx.createRadialGradient(cx, cy, sz * 0.85, cx, cy, sz * 1.45);
+    atm.addColorStop(0, planet.color + '44');
+    atm.addColorStop(1, planet.color + '00');
+    ctx.fillStyle = atm;
+    ctx.beginPath(); ctx.arc(cx, cy, sz * 1.45, 0, Math.PI * 2); ctx.fill();
+
+    if (planet.rings) {
+      ctx.strokeStyle = 'rgba(230,210,130,0.75)';
+      ctx.lineWidth   = 10;
+      ctx.beginPath(); ctx.ellipse(cx, cy, sz * 2.1, sz * 0.52, 0, Math.PI, 2 * Math.PI); ctx.stroke();
+    }
+
+    const fills = {
+      Mercury: ['#d8d8d8','#909090','#383838'],
+      Venus:   ['#f8eda0','#d4b840','#6a4808'],
+      Earth:   ['#90d8ff','#3a8fdd','#082860'],
+      Mars:    ['#e06030','#c1440e','#5a1a04'],
+      Jupiter: ['#e8c090','#c8883a','#6a3810'],
+      Saturn:  ['#f0e0a0','#c8aa60','#685030'],
+      Uranus:  ['#b0f0f0','#7de8e8','#206060'],
+      Neptune: ['#7090ff','#5060e0','#182060'],
+    };
+    const [c0, c1, c2] = fills[planet.name] ?? [planet.color, '#444', '#111'];
+    const grad = ctx.createRadialGradient(cx - sz * 0.32, cy - sz * 0.32, sz * 0.04, cx, cy, sz);
+    grad.addColorStop(0, c0); grad.addColorStop(0.5, c1); grad.addColorStop(1, c2);
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, sz, 0, Math.PI * 2); ctx.fill();
+
+    const shad = ctx.createRadialGradient(cx + sz * 0.4, cy + sz * 0.1, 0, cx + sz * 0.3, cy, sz * 1.1);
+    shad.addColorStop(0,    'rgba(0,0,0,0)');
+    shad.addColorStop(0.55, 'rgba(0,0,0,0)');
+    shad.addColorStop(1,    'rgba(0,0,0,0.72)');
+    ctx.fillStyle = shad;
+    ctx.beginPath(); ctx.arc(cx, cy, sz, 0, Math.PI * 2); ctx.fill();
+
+    if (planet.rings) {
+      ctx.strokeStyle = 'rgba(230,210,130,0.88)';
+      ctx.lineWidth   = 10;
+      ctx.beginPath(); ctx.ellipse(cx, cy, sz * 2.1, sz * 0.52, 0, 0, Math.PI); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+// ── Speaker avatars ───────────────────────────────────────────────────────────
+function drawShipAvatar(bx, by) {
+  ctx.save();
+  ctx.fillStyle   = 'rgba(0,10,30,0.85)';
+  ctx.strokeStyle = '#8f8';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath(); ctx.roundRect(bx, by, 64, 64, 8); ctx.fill(); ctx.stroke();
+  drawPlayerShip(bx + 4, by + 16, 56, 32, playerColor, playerVariant, performance.now() / 300);
+  ctx.restore();
+}
+
+function drawTowerAvatar(bx, by) {
+  ctx.save();
+  ctx.fillStyle   = 'rgba(0,10,30,0.85)';
+  ctx.strokeStyle = '#4af';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath(); ctx.roundRect(bx, by, 64, 64, 8); ctx.fill(); ctx.stroke();
+
+  const cx = bx + 32, cy = by + 38;
+  ctx.translate(cx, cy);
+
+  // Building base
+  ctx.fillStyle = '#223344'; ctx.fillRect(-14, -4, 28, 18);
+  // Tower
+  ctx.fillStyle = '#2a3a50'; ctx.fillRect(-5, -20, 10, 16);
+  // Windows
+  ctx.fillStyle = '#4af';
+  for (let i = 0; i < 3; i++) ctx.fillRect(-10 + i * 9, 0, 5, 5);
+  // Dish arm + dish
+  ctx.strokeStyle = '#6af'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(4, -20); ctx.lineTo(14, -30); ctx.stroke();
+  ctx.beginPath(); ctx.arc(14, -30, 8, Math.PI * 1.1, Math.PI * 2.1); ctx.stroke();
+  // Blinking antenna
+  ctx.fillStyle = Math.sin(performance.now() / 350) > 0 ? '#f44' : '#600';
+  ctx.beginPath(); ctx.arc(-1, -26, 2.5, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
 function renderDialogue() {
   const planet = PLANET_DEFS[currentPlanet];
   const lines  = planet.dialogue;
   if (!lines || dialogueStep >= lines.length) return;
   const line = lines[dialogueStep];
 
-  const panelH = 156;
-  const panelX = 30;
-  const panelW = CANVAS_W - 60;
-  const panelY = CANVAS_H - panelH - 24;
+  // ── Planet in upper-center ─────────────────────────────────────────────────
+  drawDialoguePlanet(CANVAS_W / 2, CANVAS_H * 0.34, planet);
+
+  // ── Dialogue panel ─────────────────────────────────────────────────────────
+  const panelH = 120;
+  const panelX = 20;
+  const panelW = CANVAS_W - 40;
+  const panelY = CANVAS_H - panelH - 16;
 
   ctx.save();
   ctx.textBaseline = 'middle';
 
   // Panel background
-  ctx.fillStyle   = 'rgba(0,4,18,0.92)';
+  ctx.fillStyle   = 'rgba(0,4,18,0.93)';
   ctx.strokeStyle = planet.color + '88';
   ctx.lineWidth   = 2;
   ctx.beginPath();
@@ -1804,7 +1909,7 @@ function renderDialogue() {
   ctx.fill();
   ctx.stroke();
 
-  // Planet-color accent stripe at top of panel
+  // Accent stripe
   ctx.shadowColor = planet.color;
   ctx.shadowBlur  = 14;
   ctx.fillStyle   = planet.color;
@@ -1813,35 +1918,44 @@ function renderDialogue() {
   ctx.fill();
   ctx.shadowBlur  = 0;
 
-  // Speaker tag  [ CTRL ] or [ PILOT ]
+  // Avatar (64×64, vertically centered in panel)
+  const avX = panelX + 12;
+  const avY = panelY + (panelH - 64) / 2;
+  if (line.speaker === 'PILOT') drawShipAvatar(avX, avY);
+  else                          drawTowerAvatar(avX, avY);
+
+  // Text area starts to the right of avatar
+  const textX = avX + 64 + 14;
+  const textW = panelW - (textX - panelX) - 130; // leave room for button
+
+  // Speaker tag
   const speakerColor = line.speaker === 'CTRL' ? '#4af' : '#8f8';
   ctx.shadowColor = speakerColor;
   ctx.shadowBlur  = 8;
   ctx.fillStyle   = speakerColor;
-  ctx.font        = 'bold 13px "Courier New", monospace';
+  ctx.font        = 'bold 12px "Courier New", monospace';
   ctx.textAlign   = 'left';
-  ctx.fillText(`[ ${line.speaker} ]`, panelX + 20, panelY + 34);
+  ctx.fillText(`[ ${line.speaker} ]`, textX, panelY + 22);
   ctx.shadowBlur  = 0;
 
-  // Speech text (word-wrapped)
+  // Speech text
   ctx.fillStyle = '#c8d4ee';
-  ctx.font      = '15px "Courier New", monospace';
-  const textMaxW = panelW - 160;
-  const wrapped  = wrapText(line.text, textMaxW);
+  ctx.font      = '14px "Courier New", monospace';
+  const wrapped = wrapText(line.text, textW);
   for (let i = 0; i < wrapped.length; i++) {
-    ctx.fillText(wrapped[i], panelX + 20, panelY + 66 + i * 22);
+    ctx.fillText(wrapped[i], textX, panelY + 44 + i * 22);
   }
 
-  // Progress counter  e.g. "2 / 4"
+  // Progress counter
   ctx.fillStyle = '#446';
   ctx.font      = '11px "Courier New", monospace';
-  ctx.fillText(`${dialogueStep + 1} / ${lines.length}`, panelX + 20, panelY + panelH - 20);
+  ctx.fillText(`${dialogueStep + 1} / ${lines.length}`, panelX + 12, panelY + panelH - 12);
 
   // NEXT / LAUNCH button
   const isLast = dialogueStep === lines.length - 1;
-  const btnW   = 110, btnH = 36;
-  const btnX   = panelX + panelW - btnW - 16;
-  const btnY   = panelY + (panelH - btnH) / 2 + 10;
+  const btnW   = 110, btnH = 34;
+  const btnX   = panelX + panelW - btnW - 14;
+  const btnY   = panelY + (panelH - btnH) / 2;
   dialogueNextRect = { x: btnX, y: btnY, w: btnW, h: btnH };
 
   ctx.shadowColor = planet.color;
