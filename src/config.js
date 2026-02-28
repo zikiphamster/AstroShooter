@@ -55,11 +55,12 @@ let planetObstacles    = [];
 let planetObstacleTimer = 0;
 const planetDebuffs    = { iceslow: 0 };   // seconds remaining per debuff
 
-// ─── Progress Mode Tutorial ───────────────────────────────────────────────────
-let tutorialActive   = false;
-let tutorialStep     = 0;
-let tutorialNextRect = null;
-let tutorialPrevRect = null;
+// ─── Tutorial State ───────────────────────────────────────────────────────────
+let tutorialActive    = false;
+let tutorialStep      = 0;
+let tutorialContext   = 'progress'; // 'progress' | 'shop'
+let tutorialNextRect  = null;
+let tutorialPrevRect  = null;
 let tutorialCloseRect = null;
 const TUTORIAL_SLIDES = [
   {
@@ -105,6 +106,44 @@ const TUTORIAL_SLIDES = [
       'Collect gold coins during gameplay. Visit the Shop',
       'from the main menu to unlock hull shapes, colors,',
       'and engines that improve your stats.',
+    ],
+  },
+];
+const SHOP_TUTORIAL_SLIDES = [
+  {
+    icon: '🏪', title: 'WELCOME TO THE SHOP',
+    color: '#8af',
+    body: [
+      'Spend your SpaceCoins to customize your ship.',
+      'Coins are earned by destroying asteroids in-game.',
+      'Your coin balance is shown in the top-right corner.',
+    ],
+  },
+  {
+    icon: '🎨', title: 'COLORS & HULL SHAPES',
+    color: '#f8a',
+    body: [
+      'Click a color swatch to repaint your ship.',
+      'Click a hull shape to change your ship\'s form.',
+      'Locked items show their coin cost — buy to unlock.',
+    ],
+  },
+  {
+    icon: '📊', title: 'SHIP ATTRIBUTES',
+    color: '#4af',
+    body: [
+      'Each hull has four stats shown in the Attributes panel.',
+      'SPD: movement speed  •  RATE: fire rate',
+      'DEF: invincibility time after a hit  •  POW: bullet speed',
+    ],
+  },
+  {
+    icon: '⚙️', title: 'ENGINES',
+    color: '#f84',
+    body: [
+      'Engines modify your hull\'s base stats.',
+      'Green values boost a stat; red values reduce it.',
+      'Mix hulls + engines to build your ideal loadout.',
     ],
   },
 ];
@@ -317,6 +356,7 @@ const CHANGELOG = [
   { v: 'v1.60.5', date: '2:59 PM, 28 Feb 2026',  title: 'Changelog Dates',              desc: 'Each changelog entry now shows the time, day, month, and year it was released, sourced from the git commit history.' },
   { v: 'v1.60.6', date: '3:00 PM, 28 Feb 2026',  title: 'Changelog Layout Fix',         desc: 'Fixed the "NEW" badge overlapping the date label in changelog entries. The date is now rendered on its own dedicated row, separate from the version title and badge.' },
   { v: 'v1.60.7', date: '3:00 PM, 28 Feb 2026',  title: 'Changelog Date Spacing Fix',   desc: 'Fixed the date label overlapping description text in changelog entries. Entry height increased and the date, first description line, and second description line now each occupy a distinct row.' },
+  { v: 'v1.61.0', date: '3:12 PM, 28 Feb 2026',  title: 'Shop Tutorial',                desc: 'A 4-slide tutorial overlay now appears the first time you open the Shop. It explains how to earn coins, how to change colors and hull shapes, what each ship attribute does (SPD, RATE, DEF, POW), and how engines modify your stats. Can be replayed from the Settings screen.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

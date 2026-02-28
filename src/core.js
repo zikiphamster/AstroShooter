@@ -245,6 +245,10 @@ function update(dt) {
   }
 
   if (gameState === 'SHOP') {
+    if (tutorialActive) {
+      if (keys['Space'] || keys['Enter']) { keys['Space'] = keys['Enter'] = false; advanceTutorial(); }
+      if (keys['Escape'])                 { keys['Escape'] = false; completeTutorial(); }
+    }
     return;
   }
 
@@ -578,7 +582,7 @@ function render() {
   else if (gameState === 'DIFFICULTY'){ renderDifficulty(); }
   else if (gameState === 'CONTROLS')  { renderControls(); }
   else if (gameState === 'SETTINGS')  { renderSettings(); }
-  else if (gameState === 'SHOP')      { renderShop(); }
+  else if (gameState === 'SHOP')      { renderShop(); if (tutorialActive) renderTutorialOverlay(); }
   else if (gameState === 'CHANGELOG') { renderChangelog(); }
   else if (gameState === 'GAME_OVER') { renderGameOver(); }
   else if (gameState === 'LEVEL_COMPLETE') { renderLevelComplete(); }
@@ -1213,7 +1217,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.60.7';
+  const verText = 'v1.61.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1766,9 +1770,10 @@ function renderDifficulty() {
 }
 
 function renderTutorialOverlay() {
-  const slide  = TUTORIAL_SLIDES[tutorialStep];
+  const slides = tutorialContext === 'shop' ? SHOP_TUTORIAL_SLIDES : TUTORIAL_SLIDES;
+  const slide  = slides[tutorialStep];
   if (!slide) return;
-  const isLast = tutorialStep === TUTORIAL_SLIDES.length - 1;
+  const isLast = tutorialStep === slides.length - 1;
   const cx     = CANVAS_W / 2;
 
   ctx.save();
@@ -1851,8 +1856,8 @@ function renderTutorialOverlay() {
   // ── Progress dots ──────────────────────────────────────────────────────────
   const dotY  = cardY + cardH - 66;
   const dotGap = 22;
-  const dotX0  = cx - ((TUTORIAL_SLIDES.length - 1) * dotGap) / 2;
-  for (let i = 0; i < TUTORIAL_SLIDES.length; i++) {
+  const dotX0  = cx - ((slides.length - 1) * dotGap) / 2;
+  for (let i = 0; i < slides.length; i++) {
     const active = i === tutorialStep;
     ctx.beginPath();
     ctx.arc(dotX0 + i * dotGap, dotY, active ? 6 : 4, 0, Math.PI * 2);
@@ -2477,6 +2482,23 @@ function renderSettings() {
   ctx.fillStyle = '#a8f';
   ctx.font      = '12px "Courier New", monospace';
   ctx.fillText('Teleports you to the Solar Map', cx, btnY + 38);
+  btnY += 54 + gap;
+
+  // ── Replay Shop Tutorial button ─────────────────────────────────────────────
+  settingsButtonRects.push({ x: cx - btnW / 2, y: btnY, w: btnW, h: 54, key: 'replay_shop_tutorial' });
+  ctx.fillStyle   = 'rgba(0,20,50,0.65)';
+  ctx.strokeStyle = '#8af';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.roundRect(cx - btnW / 2, btnY, btnW, 54, 10);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font      = 'bold 16px "Courier New", monospace';
+  ctx.fillText('REPLAY SHOP TUTORIAL', cx, btnY + 20);
+  ctx.fillStyle = '#8af';
+  ctx.font      = '12px "Courier New", monospace';
+  ctx.fillText('Opens the Shop with tutorial', cx, btnY + 38);
   btnY += 54 + gap + 12;
 
   // ── Back button ─────────────────────────────────────────────────────────────

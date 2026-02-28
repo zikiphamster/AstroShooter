@@ -180,7 +180,12 @@ function handleCanvasClick(mx, my) {
         if (btn.key === 'play')
           startBtnAnim(btn, c, () => { gameState = 'PLAY_MODE'; });
         else if (btn.key === 'shop')
-          startBtnAnim(btn, c, () => { gameState = 'SHOP'; });
+          startBtnAnim(btn, c, () => {
+            gameState = 'SHOP';
+            let seen = false;
+            try { seen = !!localStorage.getItem('shopTutorialSeen'); } catch(_) {}
+            if (!seen) { tutorialContext = 'shop'; tutorialActive = true; tutorialStep = 0; }
+          });
         else if (btn.key === 'controls')
           startBtnAnim(btn, c, () => { gameState = 'CONTROLS'; });
         else if (btn.key === 'settings')
@@ -204,10 +209,18 @@ function handleCanvasClick(mx, my) {
         startBtnAnim(btn, soundMuted ? '#4f8' : '#f44', () => { soundMuted = !soundMuted; saveShop(); });
       else if (btn.key === 'replay_tutorial')
         startBtnAnim(btn, '#a8f', () => {
-          gameMode      = 'progress';
-          gameState     = 'SOLAR_MAP';
-          tutorialActive = true;
-          tutorialStep  = 0;
+          tutorialContext = 'progress';
+          gameMode        = 'progress';
+          gameState       = 'SOLAR_MAP';
+          tutorialActive  = true;
+          tutorialStep    = 0;
+        });
+      else if (btn.key === 'replay_shop_tutorial')
+        startBtnAnim(btn, '#8af', () => {
+          tutorialContext = 'shop';
+          gameState       = 'SHOP';
+          tutorialActive  = true;
+          tutorialStep    = 0;
         });
       else if (btn.key === 'back')
         startBtnAnim(btn, '#4af', () => { gameState = 'MENU'; });
@@ -317,7 +330,7 @@ function handleCanvasClick(mx, my) {
             gameState = 'SOLAR_MAP';
             let seen = false;
             try { seen = !!localStorage.getItem('progressTutorialSeen'); } catch(_) {}
-            if (!seen) { tutorialActive = true; tutorialStep = 0; }
+            if (!seen) { tutorialContext = 'progress'; tutorialActive = true; tutorialStep = 0; }
           });
         else if (btn.key === 'back')
           startBtnAnim(btn, '#4af', () => { gameState = 'MENU'; });
@@ -373,10 +386,11 @@ function isDown(...codes) {
   return codes.some(c => keys[c]);
 }
 
-// ─── Progress Mode Tutorial ───────────────────────────────────────────────────
+// ─── Tutorial Functions ───────────────────────────────────────────────────────
 function advanceTutorial() {
+  const slides = tutorialContext === 'shop' ? SHOP_TUTORIAL_SLIDES : TUTORIAL_SLIDES;
   tutorialStep++;
-  if (tutorialStep >= TUTORIAL_SLIDES.length) {
+  if (tutorialStep >= slides.length) {
     completeTutorial();
   }
 }
@@ -384,7 +398,8 @@ function advanceTutorial() {
 function completeTutorial() {
   tutorialActive = false;
   tutorialStep   = 0;
-  try { localStorage.setItem('progressTutorialSeen', '1'); } catch(_) {}
+  const key = tutorialContext === 'shop' ? 'shopTutorialSeen' : 'progressTutorialSeen';
+  try { localStorage.setItem(key, '1'); } catch(_) {}
 }
 
 // Start the universal button click animation; callback fires when animation ends
