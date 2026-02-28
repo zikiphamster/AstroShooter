@@ -50,10 +50,15 @@ let soundMuted          = false;
 let solarMapLaunchTimer = 0;   // countdown before entering PLAYING after launch
 // Universal button click animation — one active at a time
 const btnAnim = { active: false, cx: 0, cy: 0, w: 0, h: 0, r: 0, color: '#fff', timer: 0, dur: 0.32, onComplete: null };
-// ─── Planet Obstacles (Progress Mode) ─────────────────────────────────────────
+// ─── Planet Obstacles (Story Mode) ─────────────────────────────────────────
 let planetObstacles    = [];
 let planetObstacleTimer = 0;
 const planetDebuffs    = { iceslow: 0 };   // seconds remaining per debuff
+
+// ─── Dialogue State ───────────────────────────────────────────────────────────
+let dialogueActive   = false;
+let dialogueStep     = 0;
+let dialogueNextRect = null;
 
 // ─── Tutorial State ───────────────────────────────────────────────────────────
 let tutorialActive    = false;
@@ -64,7 +69,7 @@ let tutorialPrevRect  = null;
 let tutorialCloseRect = null;
 const TUTORIAL_SLIDES = [
   {
-    icon: '🚀', title: 'PROGRESS MODE',
+    icon: '🚀', title: 'STORY MODE',
     color: '#a8f',
     body: [
       'Journey through all 9 planets of the Solar System,',
@@ -228,36 +233,99 @@ const ENGINE_DEFS = [
 let playerEngine    = 0;
 let unlockedEngines = [0];
 
-// ─── Progress Mode — Solar System ─────────────────────────────────────────────
+// ─── Story Mode — Solar System ─────────────────────────────────────────────
 // 9 bodies: Sun + 8 planets. Difficulty scales from easy (Sun) to brutal (Neptune).
 const PLANET_DEFS = [
   { name: 'Sun',     color: '#ff8000', glowColor: '#ff4', size: 56, rings: false,
     desc: 'The blazing heart of the solar system. An easy warm-up.',
-    lives: 6, spawnMult: 2.4,  speedMult: 0.50, largeChance: 0.22, medChance: 0.38 },
+    lives: 6, spawnMult: 2.4,  speedMult: 0.50, largeChance: 0.22, medChance: 0.38,
+    dialogue: [
+      { speaker: 'CTRL',  text: 'Solar flares active. Watch yourself out there.' },
+      { speaker: 'PILOT', text: 'Copy. Heading into the Sun\'s orbit now.' },
+      { speaker: 'CTRL',  text: 'Solar Tyrant detected on long-range radar.' },
+      { speaker: 'PILOT', text: 'I see it. Engaging.' },
+    ],
+  },
   { name: 'Mercury', color: '#a0a0a0', glowColor: null,   size: 11, rings: false,
     desc: 'Cratered and airless. A gentle step up.',
-    lives: 6, spawnMult: 2.1,  speedMult: 0.60, largeChance: 0.28, medChance: 0.38 },
+    lives: 6, spawnMult: 2.1,  speedMult: 0.60, largeChance: 0.28, medChance: 0.38,
+    dialogue: [
+      { speaker: 'CTRL',  text: 'Radiation spikes in your sector. Stay clear.' },
+      { speaker: 'PILOT', text: 'Received. Keeping away from the hot zones.' },
+      { speaker: 'CTRL',  text: 'Iron Revenant has been causing havoc out there.' },
+      { speaker: 'PILOT', text: 'I\'ll take care of it.' },
+    ],
+  },
   { name: 'Venus',   color: '#e8c87a', glowColor: null,   size: 19, rings: false,
     desc: 'Toxic clouds, but nothing too dangerous yet.',
-    lives: 5, spawnMult: 1.85, speedMult: 0.68, largeChance: 0.34, medChance: 0.36 },
+    lives: 5, spawnMult: 1.85, speedMult: 0.68, largeChance: 0.34, medChance: 0.36,
+    dialogue: [
+      { speaker: 'CTRL',  text: 'Heavy cloud cover. Watch for toxic pockets.' },
+      { speaker: 'PILOT', text: 'Navigating by instruments. I\'ve got this.' },
+      { speaker: 'CTRL',  text: 'Veiled Inferno is lurking in the upper clouds.' },
+      { speaker: 'PILOT', text: 'I\'ll flush it out.' },
+    ],
+  },
   { name: 'Earth',   color: '#4af',    glowColor: null,   size: 21, rings: false,
     desc: 'Home. Keep it safe — things are heating up.',
-    lives: 5, spawnMult: 1.65, speedMult: 0.76, largeChance: 0.40, medChance: 0.34 },
+    lives: 5, spawnMult: 1.65, speedMult: 0.76, largeChance: 0.40, medChance: 0.34,
+    dialogue: [
+      { speaker: 'CTRL',  text: 'Earth Defense here. Orbital debris is a threat.' },
+      { speaker: 'PILOT', text: 'Home turf. Nothing gets through.' },
+      { speaker: 'CTRL',  text: 'Living Bastion approaching from the dark side.' },
+      { speaker: 'PILOT', text: 'Not on my watch.' },
+    ],
+  },
   { name: 'Mars',    color: '#c1440e', glowColor: null,   size: 16, rings: false,
     desc: 'The red planet pushes back. Stay focused.',
-    lives: 4, spawnMult: 1.45, speedMult: 0.84, largeChance: 0.46, medChance: 0.32 },
+    lives: 4, spawnMult: 1.45, speedMult: 0.84, largeChance: 0.46, medChance: 0.32,
+    dialogue: [
+      { speaker: 'CTRL',  text: 'Dust devil activity is off the charts today.' },
+      { speaker: 'PILOT', text: 'Copy. I\'ve fought through worse.' },
+      { speaker: 'CTRL',  text: 'Red Warlord is fortifying its position.' },
+      { speaker: 'PILOT', text: 'Already plotting an intercept course.' },
+    ],
+  },
   { name: 'Jupiter', color: '#c8883a', glowColor: null,   size: 36, rings: false,
     desc: 'Massive gravity drags more rocks your way.',
-    lives: 4, spawnMult: 1.28, speedMult: 0.90, largeChance: 0.50, medChance: 0.30 },
+    lives: 4, spawnMult: 1.28, speedMult: 0.90, largeChance: 0.50, medChance: 0.30,
+    dialogue: [
+      { speaker: 'CTRL',  text: 'Jupiter\'s gravity will funnel rocks toward you.' },
+      { speaker: 'PILOT', text: 'Gravity works both ways.' },
+      { speaker: 'CTRL',  text: 'Storm Colossus is hiding in the magnetic field.' },
+      { speaker: 'PILOT', text: 'Then I\'ll have to get close.' },
+    ],
+  },
   { name: 'Saturn',  color: '#e4d191', glowColor: null,   size: 28, rings: true,
     desc: 'Ring debris in your path. Keep moving.',
-    lives: 4, spawnMult: 1.12, speedMult: 0.96, largeChance: 0.54, medChance: 0.28 },
+    lives: 4, spawnMult: 1.12, speedMult: 0.96, largeChance: 0.54, medChance: 0.28,
+    dialogue: [
+      { speaker: 'CTRL',  text: 'Ring shards incoming from all angles. Stay alert.' },
+      { speaker: 'PILOT', text: 'Cutting through the rings now.' },
+      { speaker: 'CTRL',  text: 'Ringed Dominion is using the rings as cover.' },
+      { speaker: 'PILOT', text: 'I\'ll draw it out into open space.' },
+    ],
+  },
   { name: 'Uranus',  color: '#7de8e8', glowColor: null,   size: 23, rings: false,
     desc: 'An ice giant with a mean streak. Nearly there.',
-    lives: 3, spawnMult: 1.00, speedMult: 1.02, largeChance: 0.57, medChance: 0.26 },
+    lives: 3, spawnMult: 1.00, speedMult: 1.02, largeChance: 0.57, medChance: 0.26,
+    dialogue: [
+      { speaker: 'CTRL',  text: 'Ice storms ahead. Push through if you slow down.' },
+      { speaker: 'PILOT', text: 'Understood. One more after this.' },
+      { speaker: 'CTRL',  text: 'Ice Monarch stands between you and Neptune.' },
+      { speaker: 'PILOT', text: 'Let\'s make it quick.' },
+    ],
+  },
   { name: 'Neptune', color: '#5060e0', glowColor: null,   size: 22, rings: false,
     desc: 'The edge of the solar system. A worthy finale.',
-    lives: 3, spawnMult: 0.90, speedMult: 1.08, largeChance: 0.60, medChance: 0.25 },
+    lives: 3, spawnMult: 0.90, speedMult: 1.08, largeChance: 0.60, medChance: 0.25,
+    dialogue: [
+      { speaker: 'CTRL',  text: 'AstroShooter... this is it. Edge of the system.' },
+      { speaker: 'PILOT', text: 'Long way from home.' },
+      { speaker: 'CTRL',  text: 'Deep Tempest is the strongest we\'ve ever tracked.' },
+      { speaker: 'PILOT', text: 'No holding back. Let\'s finish this.' },
+    ],
+  },
 ];
 
 let progressUnlocked = 0;   // index of furthest unlocked planet (0 = Sun only)
@@ -326,29 +394,29 @@ const CHANGELOG = [
   { v: 'v1.54.3', date: '4:41 PM, 23 Feb 2026',  title: 'Flat Color Pricing',       desc: 'All unlockable colors now cost a flat 40 coins each.' },
   { v: 'v1.54.4', date: '4:41 PM, 23 Feb 2026',  title: 'Coin HUD & Visual Polish', desc: 'In-game coins now match the shop icon style (solid gold with dark inner circle). SpaceCoins balance shown in the bottom-right corner during gameplay.' },
   { v: 'v1.54.5', date: '7:48 PM, 23 Feb 2026',  title: 'Coin Spawn Tuning',        desc: 'Coins now spawn in batches of 2–4 every 10–15 seconds regardless of difficulty.' },
-  { v: 'v1.55.0', date: '7:48 PM, 23 Feb 2026',  title: 'Progress Mode',            desc: 'New Progress Mode: fight through the solar system from Sun to Neptune. Each of the 9 planets has a fixed, escalating difficulty. Planets unlock sequentially — beat one to reveal the next. Click any unlocked planet on the solar map to read its description and launch. Progress is saved between sessions.' },
+  { v: 'v1.55.0', date: '7:48 PM, 23 Feb 2026',  title: 'Story Mode',            desc: 'New Story Mode: fight through the solar system from Sun to Neptune. Each of the 9 planets has a fixed, escalating difficulty. Planets unlock sequentially — beat one to reveal the next. Click any unlocked planet on the solar map to read its description and launch. Progress is saved between sessions.' },
   { v: 'v1.55.1', date: '7:48 PM, 23 Feb 2026',  title: 'Planet Difficulty Tuning', desc: 'Outer planets (Jupiter through Neptune) are now significantly less punishing. Neptune now sits between Medium and Hard difficulty rather than beyond Hard.' },
-  { v: 'v1.55.2', date: '7:48 PM, 23 Feb 2026',  title: 'Play Mode Bug Fixes',      desc: 'Fixed Progress Mode being unclickable (SOLAR_MAP state was falling through into game update logic). Fixed load/delete chip overlapping the Endless Mode sub-text.' },
+  { v: 'v1.55.2', date: '7:48 PM, 23 Feb 2026',  title: 'Play Mode Bug Fixes',      desc: 'Fixed Story Mode being unclickable (SOLAR_MAP state was falling through into game update logic). Fixed load/delete chip overlapping the Endless Mode sub-text.' },
   { v: 'v1.55.3', date: '7:48 PM, 23 Feb 2026',  title: 'Button Overlap Fix',       desc: 'Fixed the delete/load buttons triggering the Endless Mode button simultaneously. Smaller buttons now take priority and clicks stop at the first match.' },
   { v: 'v1.55.4', date: '7:48 PM, 23 Feb 2026',  title: 'Solar Map Margin Fix',     desc: 'Increased horizontal margins on the solar system map so Sun and Neptune labels no longer clip near the screen edges.' },
   { v: 'v1.56.0', date: '7:48 PM, 23 Feb 2026',  title: 'Touchscreen Support',      desc: 'Full touchscreen support added. Tap any button or menu to navigate. During gameplay a floating virtual joystick (bottom-left) controls movement and a large FIRE button (bottom-right) fires continuously while held. Swipe up/down in the Shop and Changelog. A PAUSE button appears top-right during play. Keyboard and mouse controls are unchanged.' },
-  { v: 'v1.56.1', date: '7:00 PM, 24 Feb 2026',  title: 'Remove Endless Saves',    desc: 'Endless Mode no longer saves progress between sessions. Each run starts fresh. Progress Mode continues to save planet unlocks as before.' },
-  { v: 'v1.56.2', date: '7:00 PM, 24 Feb 2026',  title: 'Progress Mode Boss Fix',   desc: 'Fixed a crash where the boss would freeze the game in Progress Mode. The boss now correctly draws from easy/medium/hard templates based on planet index (Sun–Venus = easy, Earth–Jupiter = medium, Saturn–Neptune = hard).' },
-  { v: 'v1.57.0', date: '8:14 PM, 26 Feb 2026',  title: 'Planet Bosses',            desc: 'Each planet in Progress Mode now has a unique boss: Solar Tyrant (Sun), Iron Revenant (Mercury), Veiled Inferno (Venus), Living Bastion (Earth), Red Warlord (Mars), Storm Colossus (Jupiter), Ringed Dominion (Saturn), Ice Monarch (Uranus), Deep Tempest (Neptune). Every boss has a distinct hull shape, color, and stats tuned to its planet.' },
+  { v: 'v1.56.1', date: '7:00 PM, 24 Feb 2026',  title: 'Remove Endless Saves',    desc: 'Endless Mode no longer saves progress between sessions. Each run starts fresh. Story Mode continues to save planet unlocks as before.' },
+  { v: 'v1.56.2', date: '7:00 PM, 24 Feb 2026',  title: 'Story Mode Boss Fix',   desc: 'Fixed a crash where the boss would freeze the game in Story Mode. The boss now correctly draws from easy/medium/hard templates based on planet index (Sun–Venus = easy, Earth–Jupiter = medium, Saturn–Neptune = hard).' },
+  { v: 'v1.57.0', date: '8:14 PM, 26 Feb 2026',  title: 'Planet Bosses',            desc: 'Each planet in Story Mode now has a unique boss: Solar Tyrant (Sun), Iron Revenant (Mercury), Veiled Inferno (Venus), Living Bastion (Earth), Red Warlord (Mars), Storm Colossus (Jupiter), Ringed Dominion (Saturn), Ice Monarch (Uranus), Deep Tempest (Neptune). Every boss has a distinct hull shape, color, and stats tuned to its planet.' },
   { v: 'v1.57.1', date: '8:14 PM, 26 Feb 2026',  title: 'Changelog Show More',      desc: 'Long changelog descriptions are now capped at two lines. A small "▾ more" button appears at the end of truncated entries — tap or click it to open a popup showing the full text.' },
-  { v: 'v1.57.2', date: '8:14 PM, 26 Feb 2026',  title: 'Play Options Animation',   desc: 'Clicking Endless Mode or Progress Mode in the Play Options screen now triggers a brief animated ripple and glow effect on the selected button before transitioning.' },
+  { v: 'v1.57.2', date: '8:14 PM, 26 Feb 2026',  title: 'Play Options Animation',   desc: 'Clicking Endless Mode or Story Mode in the Play Options screen now triggers a brief animated ripple and glow effect on the selected button before transitioning.' },
   { v: 'v1.57.3', date: '8:14 PM, 26 Feb 2026',  title: 'Launch Warp Animation',    desc: 'Clicking Launch on the Solar Map now plays a short warp animation — star streaks accelerate across the screen and the display flashes white before the level begins.' },
   { v: 'v1.57.4', date: '8:14 PM, 26 Feb 2026',  title: 'Difficulty Click Animation', desc: 'Selecting a difficulty in Endless Mode now triggers an animated glow, fill flash, and expanding ripple on the chosen button before the game starts. Works for both mouse clicks and keyboard (1/2/3).' },
   { v: 'v1.57.5', date: '8:14 PM, 26 Feb 2026',  title: 'Universal Button Animations', desc: 'Every clickable button in the game now plays a ripple, glow, and fill-flash animation when pressed — covering the menu, shop, pause screen, game over, level complete, controls, changelog, solar map, play options, and difficulty screens.' },
-  { v: 'v1.57.6', date: '8:14 PM, 26 Feb 2026',  title: 'Planet Name on Level Complete', desc: 'In Progress Mode the level complete banner now shows the planet name (e.g. "MARS COMPLETE!") instead of a generic level number.' },
+  { v: 'v1.57.6', date: '8:14 PM, 26 Feb 2026',  title: 'Planet Name on Level Complete', desc: 'In Story Mode the level complete banner now shows the planet name (e.g. "MARS COMPLETE!") instead of a generic level number.' },
   { v: 'v1.57.7', date: '8:14 PM, 26 Feb 2026',  title: 'Solar Map Visual Overhaul',    desc: 'The Solar System map is now much more detailed. The Sun is larger with an animated pulsing corona. Each planet has a radial gradient fill, atmospheric glow, and unique surface features: Earth shows continents and a polar cap, Jupiter has bands and a Great Red Spot, Mars has a polar cap and craters, Saturn has dual rings, and more. A solar nebula glow and orbit tick marks complete the look.' },
-  { v: 'v1.57.8', date: '8:14 PM, 26 Feb 2026',  title: 'Solar System Difficulty Tuned', desc: 'Progress Mode difficulty re-balanced. The Solar System is now designed as Galaxy 1 of 5 — an approachable introduction. All planets give more lives, rocks are slower and sparser, and bosses have lower HP and slower bullets. Neptune now tops out around medium difficulty, leaving plenty of room for future galaxies.' },
-  { v: 'v1.58.0', date: '8:14 PM, 26 Feb 2026',  title: 'Planet Obstacles',             desc: 'Each planet in Progress Mode now spawns a unique themed hazard. Sun: solar flare beams. Mercury: radiation zones (1 heart/6s). Venus: toxic clouds (1 heart/5s). Earth: satellite debris. Mars: dust devils that push you. Jupiter: gravity wells that pull you. Saturn: ring shards. Uranus: ice shards that slow you to half speed for 5s. Neptune: wind gusts that push you sideways.' },
-  { v: 'v1.58.1', date: '8:14 PM, 26 Feb 2026',  title: 'How to Play Expanded',         desc: 'The How to Play screen now includes descriptions of Endless Mode, Progress Mode, and the Coins & Shop system alongside the existing controls and power-up reference.' },
-  { v: 'v1.58.2', date: '8:14 PM, 26 Feb 2026',  title: 'How to Play Text Size',        desc: 'Game mode titles (Endless Mode, Progress Mode, Coins & Shop) in the How to Play screen are now larger and easier to read.' },
-  { v: 'v1.59.0', date: '8:25 PM, 26 Feb 2026',  title: 'Progress Mode Tutorial',       desc: 'A 5-slide tutorial overlay appears the first time you enter Progress Mode. It covers the Solar Map, planet hazards, boss battles, and the coins/shop system. Use NEXT or SPACE to advance, SKIP or ESC to dismiss. Never shown again after the first visit.' },
-  { v: 'v1.59.1', date: '8:37 PM, 26 Feb 2026',  title: 'Tutorial & Progress Polish',   desc: 'Tutorial overlay redesigned with a gradient card, per-slide emoji icon, colored accent stripe, glow effects, and cleaner button styles. The Next/Done button now always uses white text so it is readable on any slide color. The Progress Mode button now correctly shows planets completed (0–9) instead of planets unlocked.' },
-  { v: 'v1.60.0', date: '8:46 PM, 26 Feb 2026',  title: 'Settings Screen',              desc: 'New Settings button on the main menu. The Settings screen lets you toggle sound on/off (saved between sessions) and replay the Progress Mode tutorial (which brings you directly to the Solar Map).' },
+  { v: 'v1.57.8', date: '8:14 PM, 26 Feb 2026',  title: 'Solar System Difficulty Tuned', desc: 'Story Mode difficulty re-balanced. The Solar System is now designed as Galaxy 1 of 5 — an approachable introduction. All planets give more lives, rocks are slower and sparser, and bosses have lower HP and slower bullets. Neptune now tops out around medium difficulty, leaving plenty of room for future galaxies.' },
+  { v: 'v1.58.0', date: '8:14 PM, 26 Feb 2026',  title: 'Planet Obstacles',             desc: 'Each planet in Story Mode now spawns a unique themed hazard. Sun: solar flare beams. Mercury: radiation zones (1 heart/6s). Venus: toxic clouds (1 heart/5s). Earth: satellite debris. Mars: dust devils that push you. Jupiter: gravity wells that pull you. Saturn: ring shards. Uranus: ice shards that slow you to half speed for 5s. Neptune: wind gusts that push you sideways.' },
+  { v: 'v1.58.1', date: '8:14 PM, 26 Feb 2026',  title: 'How to Play Expanded',         desc: 'The How to Play screen now includes descriptions of Endless Mode, Story Mode, and the Coins & Shop system alongside the existing controls and power-up reference.' },
+  { v: 'v1.58.2', date: '8:14 PM, 26 Feb 2026',  title: 'How to Play Text Size',        desc: 'Game mode titles (Endless Mode, Story Mode, Coins & Shop) in the How to Play screen are now larger and easier to read.' },
+  { v: 'v1.59.0', date: '8:25 PM, 26 Feb 2026',  title: 'Story Mode Tutorial',       desc: 'A 5-slide tutorial overlay appears the first time you enter Story Mode. It covers the Solar Map, planet hazards, boss battles, and the coins/shop system. Use NEXT or SPACE to advance, SKIP or ESC to dismiss. Never shown again after the first visit.' },
+  { v: 'v1.59.1', date: '8:37 PM, 26 Feb 2026',  title: 'Tutorial & Progress Polish',   desc: 'Tutorial overlay redesigned with a gradient card, per-slide emoji icon, colored accent stripe, glow effects, and cleaner button styles. The Next/Done button now always uses white text so it is readable on any slide color. The Story Mode button now correctly shows planets completed (0–9) instead of planets unlocked.' },
+  { v: 'v1.60.0', date: '8:46 PM, 26 Feb 2026',  title: 'Settings Screen',              desc: 'New Settings button on the main menu. The Settings screen lets you toggle sound on/off (saved between sessions) and replay the Story Mode tutorial (which brings you directly to the Solar Map).' },
   { v: 'v1.60.1', date: '8:46 PM, 26 Feb 2026',  title: 'Settings Freeze Fix',          desc: 'Fixed a freeze when opening the Settings screen. The game update loop was missing an early return for the SETTINGS state, causing it to fall through into gameplay logic with uninitialized objects.' },
   { v: 'v1.60.2', date: '8:50 PM, 26 Feb 2026',  title: 'Tutorial Back Button',         desc: 'Added a permanent ← BACK button to the tutorial overlay. Previously the Skip button was hidden on the last slide, leaving no way to exit without clicking Next.' },
   { v: 'v1.60.3', date: '8:52 PM, 26 Feb 2026',  title: 'Tutorial Navigation Rework',   desc: 'Tutorial overlay now has a ✕ close button in the top-right corner of the card to exit at any time, and a ← BACK button at the bottom-left to return to the previous slide (hidden on the first slide).' },
@@ -357,7 +425,8 @@ const CHANGELOG = [
   { v: 'v1.60.6', date: '3:00 PM, 28 Feb 2026',  title: 'Changelog Layout Fix',         desc: 'Fixed the "NEW" badge overlapping the date label in changelog entries. The date is now rendered on its own dedicated row, separate from the version title and badge.' },
   { v: 'v1.60.7', date: '3:00 PM, 28 Feb 2026',  title: 'Changelog Date Spacing Fix',   desc: 'Fixed the date label overlapping description text in changelog entries. Entry height increased and the date, first description line, and second description line now each occupy a distinct row.' },
   { v: 'v1.61.0', date: '3:12 PM, 28 Feb 2026',  title: 'Shop Tutorial',                desc: 'A 4-slide tutorial overlay now appears the first time you open the Shop. It explains how to earn coins, how to change colors and hull shapes, what each ship attribute does (SPD, RATE, DEF, POW), and how engines modify your stats. Can be replayed from the Settings screen.' },
-  { v: 'v1.61.1', date: '3:16 PM, 28 Feb 2026',  title: 'Progress Mode Lives Fix',      desc: 'Defeating a boss in Progress Mode no longer grants +2 lives. The bonus only applies in Endless Mode.' },
+  { v: 'v1.61.1', date: '3:16 PM, 28 Feb 2026',  title: 'Story Mode Lives Fix',      desc: 'Defeating a boss in Story Mode no longer grants +2 lives. The bonus only applies in Endless Mode.' },
+  { v: 'v1.62.0', date: '6:16 PM, 28 Feb 2026',  title: 'Planet Launch Dialogue',    desc: 'Each Story Mode planet now opens with a short radio conversation between the Pilot and Earth Control Tower. The dialogue plays over scrolling stars after the warp animation. Press SPACE or click NEXT to advance; the final line launches the level.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

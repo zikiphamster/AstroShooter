@@ -272,13 +272,22 @@ function update(dt) {
       }
       return;
     }
+    // Dialogue keyboard: Space/Enter = advance line
+    if (dialogueActive) {
+      if (keys['Space'] || keys['Enter']) {
+        keys['Space'] = keys['Enter'] = false;
+        advanceDialogue();
+      }
+      return;
+    }
+
     if (solarMapLaunchTimer > 0) {
       solarMapLaunchTimer -= dt;
       if (solarMapLaunchTimer <= 0) {
         solarMapLaunchTimer = 0;
-        selectedPlanet = null;
-        gameState      = 'PLAYING';
-        loadGame();
+        selectedPlanet      = null;
+        dialogueActive      = true;
+        dialogueStep        = 0;
       }
     }
     return;
@@ -578,7 +587,10 @@ function render() {
 
   if (gameState === 'MENU')           { renderMenu(); }
   else if (gameState === 'PLAY_MODE') { renderPlayMode(); }
-  else if (gameState === 'SOLAR_MAP') { renderSolarMap(); if (tutorialActive) renderTutorialOverlay(); }
+  else if (gameState === 'SOLAR_MAP') {
+    if (dialogueActive) { renderDialogue(); }
+    else { renderSolarMap(); if (tutorialActive) renderTutorialOverlay(); }
+  }
   else if (gameState === 'DIFFICULTY'){ renderDifficulty(); }
   else if (gameState === 'CONTROLS')  { renderControls(); }
   else if (gameState === 'SETTINGS')  { renderSettings(); }
@@ -1217,7 +1229,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.61.1';
+  const verText = 'v1.62.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1640,7 +1652,7 @@ function renderPlayMode() {
 
   btnY += btnH + gap;
 
-  // ── PROGRESS MODE button ─────────────────────────────────────────────────
+  // ── STORY MODE button ─────────────────────────────────────────────────
   playModeButtonRects.push({ x: cx - btnW / 2, y: btnY, w: btnW, h: btnH, key: 'progress' });
   ctx.shadowColor = '#a8f'; ctx.shadowBlur = 10;
   ctx.fillStyle   = 'rgba(25,0,60,0.85)';
@@ -1650,7 +1662,7 @@ function renderPlayMode() {
   ctx.shadowBlur  = 0;
   ctx.fillStyle   = '#fff';
   ctx.font        = 'bold 22px "Courier New", monospace';
-  ctx.fillText('PROGRESS MODE', cx, btnY + 28);
+  ctx.fillText('STORY MODE', cx, btnY + 28);
   ctx.font        = '13px "Courier New", monospace';
   ctx.fillStyle   = '#a8f';
   ctx.fillText('9 planets. Fixed challenges. Sequential unlock.', cx, btnY + 52);
@@ -1765,6 +1777,84 @@ function renderDifficulty() {
   ctx.font = '14px "Courier New", monospace';
   ctx.fillText('Press 1, 2, 3  or  click a button', CANVAS_W / 2, CANVAS_H / 2 + 80);
   ctx.fillText('ESC — Back', CANVAS_W / 2, CANVAS_H / 2 + 104);
+
+  ctx.restore();
+}
+
+function renderDialogue() {
+  const planet = PLANET_DEFS[currentPlanet];
+  const lines  = planet.dialogue;
+  if (!lines || dialogueStep >= lines.length) return;
+  const line = lines[dialogueStep];
+
+  const panelH = 156;
+  const panelX = 30;
+  const panelW = CANVAS_W - 60;
+  const panelY = CANVAS_H - panelH - 24;
+
+  ctx.save();
+  ctx.textBaseline = 'middle';
+
+  // Panel background
+  ctx.fillStyle   = 'rgba(0,4,18,0.92)';
+  ctx.strokeStyle = planet.color + '88';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.roundRect(panelX, panelY, panelW, panelH, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  // Planet-color accent stripe at top of panel
+  ctx.shadowColor = planet.color;
+  ctx.shadowBlur  = 14;
+  ctx.fillStyle   = planet.color;
+  ctx.beginPath();
+  ctx.roundRect(panelX, panelY, panelW, 4, [12, 12, 0, 0]);
+  ctx.fill();
+  ctx.shadowBlur  = 0;
+
+  // Speaker tag  [ CTRL ] or [ PILOT ]
+  const speakerColor = line.speaker === 'CTRL' ? '#4af' : '#8f8';
+  ctx.shadowColor = speakerColor;
+  ctx.shadowBlur  = 8;
+  ctx.fillStyle   = speakerColor;
+  ctx.font        = 'bold 13px "Courier New", monospace';
+  ctx.textAlign   = 'left';
+  ctx.fillText(`[ ${line.speaker} ]`, panelX + 20, panelY + 34);
+  ctx.shadowBlur  = 0;
+
+  // Speech text (word-wrapped)
+  ctx.fillStyle = '#c8d4ee';
+  ctx.font      = '15px "Courier New", monospace';
+  const textMaxW = panelW - 160;
+  const wrapped  = wrapText(line.text, textMaxW);
+  for (let i = 0; i < wrapped.length; i++) {
+    ctx.fillText(wrapped[i], panelX + 20, panelY + 66 + i * 22);
+  }
+
+  // Progress counter  e.g. "2 / 4"
+  ctx.fillStyle = '#446';
+  ctx.font      = '11px "Courier New", monospace';
+  ctx.fillText(`${dialogueStep + 1} / ${lines.length}`, panelX + 20, panelY + panelH - 20);
+
+  // NEXT / LAUNCH button
+  const isLast = dialogueStep === lines.length - 1;
+  const btnW   = 110, btnH = 36;
+  const btnX   = panelX + panelW - btnW - 16;
+  const btnY   = panelY + (panelH - btnH) / 2 + 10;
+  dialogueNextRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+  ctx.shadowColor = planet.color;
+  ctx.shadowBlur  = 12;
+  ctx.fillStyle   = planet.color;
+  ctx.beginPath();
+  ctx.roundRect(btnX, btnY, btnW, btnH, 8);
+  ctx.fill();
+  ctx.shadowBlur  = 0;
+  ctx.fillStyle   = '#fff';
+  ctx.font        = 'bold 13px "Courier New", monospace';
+  ctx.textAlign   = 'center';
+  ctx.fillText(isLast ? 'LAUNCH ▶' : 'NEXT ▶', btnX + btnW / 2, btnY + btnH / 2);
 
   ctx.restore();
 }
@@ -2621,11 +2711,11 @@ function renderControls() {
   ctx.fillText('faster and more frequent over time.', col2, y);
   y += 24;
 
-  // Progress Mode
+  // Story Mode
   ctx.font      = 'bold 15px "Courier New", monospace';
   ctx.fillStyle = '#a8f';
   ctx.textAlign = 'left';
-  ctx.fillText('PROGRESS MODE', col2, y);
+  ctx.fillText('STORY MODE', col2, y);
   y += 18;
   ctx.font      = '13px "Courier New", monospace';
   ctx.fillStyle = '#aaa';

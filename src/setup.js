@@ -163,6 +163,13 @@ window.addEventListener('wheel', e => {
 function handleCanvasClick(mx, my) {
   if (btnAnim.active) return; // block clicks during animation
 
+  // Dialogue intercepts all clicks while active
+  if (dialogueActive) {
+    const hit = (r) => r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
+    if (hit(dialogueNextRect)) advanceDialogue();
+    return;
+  }
+
   // Tutorial overlay intercepts all clicks while active
   if (tutorialActive) {
     const hit = (r) => r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
@@ -384,6 +391,18 @@ canvas.addEventListener('click', e => {
 
 function isDown(...codes) {
   return codes.some(c => keys[c]);
+}
+
+// ─── Dialogue Functions ───────────────────────────────────────────────────────
+function advanceDialogue() {
+  const planet = PLANET_DEFS[currentPlanet];
+  dialogueStep++;
+  if (dialogueStep >= planet.dialogue.length) {
+    dialogueActive = false;
+    dialogueStep   = 0;
+    loadGame();
+    gameState = 'PLAYING';
+  }
 }
 
 // ─── Tutorial Functions ───────────────────────────────────────────────────────
