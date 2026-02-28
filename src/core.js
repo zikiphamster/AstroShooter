@@ -1213,7 +1213,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.60.4';
+  const verText = 'v1.60.7';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -2667,7 +2667,7 @@ function renderChangelog() {
   const padX   = 80;
   const areaY  = 90;
   const areaH  = CANVAS_H - 90 - 70; // leave room for back button
-  const entryH = 62;
+  const entryH = 72;
 
   const totalH = CHANGELOG.length * entryH;
   const maxScroll = Math.max(0, totalH - areaH);
@@ -2729,15 +2729,25 @@ function renderChangelog() {
       ctx.textBaseline = 'top';
     }
 
+    // Date — dedicated row between title and description
+    if (entry.date) {
+      ctx.font         = '11px "Courier New", monospace';
+      ctx.fillStyle    = '#445';
+      ctx.textAlign    = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText(entry.date, CANVAS_W - padX, ey + 27);
+      ctx.textAlign    = 'left';
+    }
+
     // Description — wrap to max 2 lines; show "▾ more" button if longer
     ctx.font      = '12px "Courier New", monospace';
     ctx.fillStyle = '#889';
     const lines = wrapText(entry.desc, descMaxW);
     if (lines.length <= 2) {
-      ctx.fillText(lines[0] ?? '', padX + 72, ey + 30);
-      if (lines[1]) ctx.fillText(lines[1], padX + 72, ey + 44);
+      ctx.fillText(lines[0] ?? '', padX + 72, ey + 40);
+      if (lines[1]) ctx.fillText(lines[1], padX + 72, ey + 54);
     } else {
-      ctx.fillText(lines[0], padX + 72, ey + 30);
+      ctx.fillText(lines[0], padX + 72, ey + 40);
       // Truncate line 2 to leave room for the "more" button
       const moreLabel = '▾ more';
       const moreLabelW = ctx.measureText('  ' + moreLabel).width;
@@ -2749,13 +2759,13 @@ function renderChangelog() {
         if (ctx.measureText(t).width > line2MaxW) break;
         line2 = t;
       }
-      ctx.fillText(line2 + '…', padX + 72, ey + 44);
+      ctx.fillText(line2 + '…', padX + 72, ey + 54);
       // "more" button
       const moreX = padX + 72 + descMaxW - ctx.measureText(moreLabel).width;
-      const moreRect = { x: moreX - 4, y: ey + 37, w: ctx.measureText(moreLabel).width + 8, h: 15, idx: i };
+      const moreRect = { x: moreX - 4, y: ey + 47, w: ctx.measureText(moreLabel).width + 8, h: 15, idx: i };
       changelogShowMoreRects.push(moreRect);
       ctx.fillStyle = '#4af';
-      ctx.fillText(moreLabel, moreX, ey + 44);
+      ctx.fillText(moreLabel, moreX, ey + 54);
     }
   }
 
