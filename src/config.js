@@ -357,6 +357,7 @@ const CHANGELOG = [
   { v: 'v1.60.6', date: '3:00 PM, 28 Feb 2026',  title: 'Changelog Layout Fix',         desc: 'Fixed the "NEW" badge overlapping the date label in changelog entries. The date is now rendered on its own dedicated row, separate from the version title and badge.' },
   { v: 'v1.60.7', date: '3:00 PM, 28 Feb 2026',  title: 'Changelog Date Spacing Fix',   desc: 'Fixed the date label overlapping description text in changelog entries. Entry height increased and the date, first description line, and second description line now each occupy a distinct row.' },
   { v: 'v1.61.0', date: '3:12 PM, 28 Feb 2026',  title: 'Shop Tutorial',                desc: 'A 4-slide tutorial overlay now appears the first time you open the Shop. It explains how to earn coins, how to change colors and hull shapes, what each ship attribute does (SPD, RATE, DEF, POW), and how engines modify your stats. Can be replayed from the Settings screen.' },
+  { v: 'v1.61.1', date: '3:16 PM, 28 Feb 2026',  title: 'Progress Mode Lives Fix',      desc: 'Defeating a boss in Progress Mode no longer grants +2 lives. The bonus only applies in Endless Mode.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────
