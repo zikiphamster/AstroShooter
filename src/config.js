@@ -314,9 +314,9 @@ const CHANGELOG = [
   { v: 'v1.60.2', date: '8:50 PM, 26 Feb 2026',  title: 'Tutorial Back Button',         desc: 'Added a permanent ← BACK button to the tutorial overlay. Previously the Skip button was hidden on the last slide, leaving no way to exit without clicking Next.' },
   { v: 'v1.60.3', date: '8:52 PM, 26 Feb 2026',  title: 'Tutorial Navigation Rework',   desc: 'Tutorial overlay now has a ✕ close button in the top-right corner of the card to exit at any time, and a ← BACK button at the bottom-left to return to the previous slide (hidden on the first slide).' },
   { v: 'v1.60.4', date: '2:45 PM, 28 Feb 2026',  title: 'Tutorial Back Button Glow',    desc: 'The ← BACK button in the tutorial now glows with the current slide color, matching the visual style of the NEXT button.' },
-  { v: 'v1.60.5', date: '2:45 PM, 28 Feb 2026',  title: 'Changelog Dates',              desc: 'Each changelog entry now shows the time, day, month, and year it was released, sourced from the git commit history.' },
-  { v: 'v1.60.6', date: '3:10 PM, 28 Feb 2026',  title: 'Changelog Layout Fix',         desc: 'Fixed the "NEW" badge overlapping the date label in changelog entries. The date is now rendered on its own dedicated row, separate from the version title and badge.' },
-  { v: 'v1.60.7', date: '3:10 PM, 28 Feb 2026',  title: 'Changelog Date Spacing Fix',   desc: 'Fixed the date label overlapping description text in changelog entries. Entry height increased and the date, first description line, and second description line now each occupy a distinct row.' },
+  { v: 'v1.60.5', date: '2:59 PM, 28 Feb 2026',  title: 'Changelog Dates',              desc: 'Each changelog entry now shows the time, day, month, and year it was released, sourced from the git commit history.' },
+  { v: 'v1.60.6', date: '3:00 PM, 28 Feb 2026',  title: 'Changelog Layout Fix',         desc: 'Fixed the "NEW" badge overlapping the date label in changelog entries. The date is now rendered on its own dedicated row, separate from the version title and badge.' },
+  { v: 'v1.60.7', date: '3:00 PM, 28 Feb 2026',  title: 'Changelog Date Spacing Fix',   desc: 'Fixed the date label overlapping description text in changelog entries. Entry height increased and the date, first description line, and second description line now each occupy a distinct row.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────
