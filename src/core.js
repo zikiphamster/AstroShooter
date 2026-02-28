@@ -449,7 +449,7 @@ function update(dt) {
           // Defeated
           bossDefeated = true;
           score += 5000;
-          lives += 2;
+          if (gameMode !== 'progress') lives += 2;
           for (let i = 0; i < 5; i++) {
             spawnParticles(
               boss.x + Math.random() * boss.w,
@@ -1217,7 +1217,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.61.0';
+  const verText = 'v1.61.1';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
