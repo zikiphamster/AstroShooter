@@ -1213,7 +1213,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.60.3';
+  const verText = 'v1.60.4';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1891,15 +1891,18 @@ function renderTutorialOverlay() {
     const sw = 90, sh = 32;
     const sx = cardX + 24, sy = btnRowCY - sh / 2;
     tutorialPrevRect = { x: sx, y: sy, w: sw, h: sh };
-    ctx.fillStyle   = 'rgba(255,255,255,0.05)';
-    ctx.strokeStyle = '#2c2c50';
-    ctx.lineWidth   = 1;
+    ctx.shadowColor = slide.color;
+    ctx.shadowBlur  = 10;
+    ctx.fillStyle   = slide.color + '22';
+    ctx.strokeStyle = slide.color + '88';
+    ctx.lineWidth   = 1.5;
     ctx.beginPath();
     ctx.roundRect(sx, sy, sw, sh, 7);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#50507a';
-    ctx.font      = '13px "Courier New", monospace';
+    ctx.shadowBlur  = 0;
+    ctx.fillStyle   = slide.color;
+    ctx.font        = '13px "Courier New", monospace';
     ctx.fillText('← BACK', sx + sw / 2, btnRowCY);
   }
 
