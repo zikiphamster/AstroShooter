@@ -47,7 +47,8 @@ function loadGame() {
   bossBullets     = [];
   bossSpawned     = false;
   bossDefeated    = false;
-  bossWarningTimer = 0;
+  bossWarningTimer   = 0;
+  bossEnterCinematic = false;
   currentLevel    = 1;
   nextBossScore   = 10000;
   planetObstacles.length = 0;
@@ -353,6 +354,22 @@ function update(dt) {
   }
 
   // ── PLAYING ──────────────────────────────────────────────────────────────
+
+  // Boss entrance cinematic — player auto-pilots to left-center, boss slides in
+  if (bossEnterCinematic) {
+    const targetX = 80;
+    const targetY = CANVAS_H / 2 - player.h / 2;
+    player.x += (targetX - player.x) * 4 * dt;
+    player.y += (targetY - player.y) * 4 * dt;
+    player.thrusterAnim += dt * 12;
+    if (boss) boss.update(dt, bossBullets);
+    if (boss && !boss.entering) {
+      bossEnterCinematic = false;
+      bossDialogueActive = true;
+    }
+    return;
+  }
+
   if (bossDialogueActive) {
     if (keys['Space'] || keys['Enter']) {
       keys['Space'] = keys['Enter'] = false;
@@ -453,8 +470,13 @@ function update(dt) {
     const bsets = gameMode === 'progress' && PLANET_DEFS[currentPlanet]?.bossDialogueSets;
     if (bsets && bsets.length) {
       currentBossDialogueLines = bsets[Math.floor(Math.random() * bsets.length)];
-      bossDialogueActive       = true;
       bossDialogueStep         = 0;
+      bossEnterCinematic       = true;   // wait for boss to fully arrive before dialogue
+      // Clear the battlefield for a clean cinematic
+      asteroids.length       = 0;
+      bullets.length         = 0;
+      bossBullets.length     = 0;
+      planetObstacles.length = 0;
     } else {
       bossWarningTimer = 3.0; // Endless Mode fallback
     }
@@ -1247,7 +1269,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.63.0';
+  const verText = 'v1.63.1';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;

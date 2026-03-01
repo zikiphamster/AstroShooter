@@ -62,6 +62,7 @@ let dialogueNextRect     = null;
 let currentDialogueLines = [];   // randomly chosen script for the current launch
 
 // ─── Boss Dialogue State ───────────────────────────────────────────────────────
+let bossEnterCinematic       = false; // true while boss is sliding onto screen pre-dialogue
 let bossDialogueActive       = false;
 let bossDialogueStep         = 0;
 let bossDialogueNextRect     = null;
@@ -351,7 +352,7 @@ const PLANET_DEFS = [
       ],
     ],
   },
-  { name: 'Earth',   color: '#4af',    glowColor: null,   size: 21, rings: false,
+  { name: 'Earth',   color: '#44aaff', glowColor: null,   size: 21, rings: false,
     desc: 'Home. Keep it safe — things are heating up.',
     lives: 5, spawnMult: 1.65, speedMult: 0.76, largeChance: 0.40, medChance: 0.34,
     dialogueSets: [
@@ -670,6 +671,7 @@ const CHANGELOG = [
   { v: 'v1.62.0', date: '6:16 PM, 28 Feb 2026',  title: 'Planet Launch Dialogue',    desc: 'Each Story Mode planet now opens with a short radio conversation between the Pilot and Earth Control Tower. The dialogue plays over scrolling stars after the warp animation. Press SPACE or click NEXT to advance; the final line launches the level.' },
   { v: 'v1.62.1', date: '6:26 PM, 28 Feb 2026',  title: 'Dialogue Upgrade',          desc: 'The destination planet is now displayed large in the upper-center of the screen during dialogue. A 64×64 avatar appears in the panel — the player\'s ship when the Pilot speaks, a space command tower when Control speaks. All planets now have 6 lines of dialogue.' },
   { v: 'v1.63.0', date: '7:38 PM, 28 Feb 2026',  title: 'Dialogue Overhaul',         desc: 'All 9 planets now have 2 randomized pre-launch dialogue scripts picked at random on each visit, with varied speaker order and unique content. The Sun features a special intro from Earth Control Tower explaining the mission and hinting at a larger threat. Each boss encounter now opens with a 4-line exchange between the boss and the pilot, rendered over the live game world with a skull avatar in the boss\'s color. Endless Mode is unaffected.' },
+  { v: 'v1.63.1', date: '9:59 AM, 01 Mar 2026',  title: 'Boss Entrance Cinematic',   desc: 'When a boss spawns in Story Mode, the battlefield is instantly cleared, the player\'s ship auto-pilots to the left-center of the screen, and the boss slides fully onto screen before the dialogue panel appears. Stars continue scrolling throughout the cinematic.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────
