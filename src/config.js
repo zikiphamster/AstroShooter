@@ -76,7 +76,7 @@ let veilProgressUnlocked = 0;    // planet unlock counter for Veil Expanse
 let neptuneDeathDying      = false; // true during boss-burning dying phase (before dialogue)
 let neptuneDeathDyingTimer = 0;    // counts up during dying phase
 let dyingBoss              = null; // reference to boss object kept alive for dying render
-const NEPTUNE_DYING_DUR    = 2.5;  // seconds of dying animation before dialogue starts
+const NEPTUNE_DYING_DUR    = 3.5;  // seconds of dying animation before dialogue starts
 let neptuneDeathActive   = false; // true during post-Neptune cross-galaxy cutscene
 let neptuneDeathStep     = 0;    // 0=death-dialogue  1=portal-cinematic  2=arrival-dialogue
 let neptuneDeathLineStep = 0;    // line index within active dialogue array
@@ -1041,6 +1041,7 @@ const CHANGELOG = [
   { v: 'v1.64.3', date: '5:00 PM, 01 Mar 2026',  title: 'Shop Stat Comparison',      desc: 'Clicking a hull or engine in the shop now enters a preview mode instead of instantly equipping. The attributes panel switches to a side-by-side comparison (current bar vs. preview bar) with colour-coded +/- deltas per stat. A BUY / EQUIP button appears below — click it to confirm, or click the item again to dismiss the preview.' },
   { v: 'v1.64.4', date: '6:00 PM, 01 Mar 2026',  title: 'Veil Boss HP Rebalance',     desc: 'All 9 Veil Expanse bosses have 20% less HP, making encounters feel more manageable. A minimum floor ensures every Veil boss still has more health than Neptune, the toughest Solar System boss.' },
   { v: 'v1.64.5', date: '7:00 PM, 01 Mar 2026',  title: 'Level Complete Cleanup',     desc: 'The "+2 LIVES BONUS" text no longer appears on the level complete screen in Story Mode, where boss kills do not grant extra lives. The bonus text is now exclusive to Endless and Arcade modes.' },
+  { v: 'v1.64.6', date: '8:00 PM, 01 Mar 2026',  title: 'Neptune Cinematic Overhaul', desc: 'Reworked the Neptune boss death sequence: the defeated boss now slides to the far-left of the screen, its back ignites with fire particles, and the player is pushed rightward into the portal. Duration extended from 2.5 s to 3.5 s. Veil Expanse planets now each have a unique themed hazard distinct from their Solar System counterparts.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

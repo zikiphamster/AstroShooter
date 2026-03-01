@@ -367,7 +367,7 @@ function update(dt) {
 
   // ── PLAYING ──────────────────────────────────────────────────────────────
 
-  // ── Neptune dying phase (boss burns before dialogue) ──────────────────────
+  // ── Neptune dying phase (boss slides left, burns, pushes player right) ────
   if (neptuneDeathDying) {
     neptuneDeathDyingTimer += dt;
 
@@ -375,34 +375,32 @@ function update(dt) {
     for (const p of particles) p.update(dt);
     particles = particles.filter(p => p.active);
 
-    // Player glides to left-centre
-    player.x += (CANVAS_W * 0.14 - player.w / 2 - player.x) * 3 * dt;
-    player.y += (CANVAS_H / 2    - player.h / 2 - player.y) * 3 * dt;
-    player.thrusterAnim += dt * 8;
-
     if (dyingBoss) {
+      // Boss slides to the far-left centre of the screen
+      const bossTargetX = 40;
+      const bossTargetY = CANVAS_H / 2 - dyingBoss.h / 2;
+      dyingBoss.x += (bossTargetX - dyingBoss.x) * 2.5 * dt;
+      dyingBoss.y += (bossTargetY - dyingBoss.y) * 2.5 * dt;
       dyingBoss.anim = (dyingBoss.anim || 0) + dt;
 
-      // Continuous trickle of fire particles
-      spawnParticles(
-        dyingBoss.x + Math.random() * dyingBoss.w,
-        dyingBoss.y + Math.random() * dyingBoss.h,
-        Math.ceil(rand(2, 5)),
-        ['#f44', '#f84', '#ff0', '#ffa000', '#fff']
-      );
+      // Fire erupts from the back (right side) of the boss
+      const fireX = dyingBoss.x + dyingBoss.w;
+      const fireY = dyingBoss.y + dyingBoss.h * 0.25 + Math.random() * dyingBoss.h * 0.5;
+      spawnParticles(fireX, fireY, Math.ceil(rand(3, 7)), ['#f44', '#f84', '#ff0', '#ffa000', '#fff']);
 
       // Big burst every ~0.3 s
       const burstIdx = Math.floor(neptuneDeathDyingTimer / 0.3);
       const prevIdx  = Math.floor((neptuneDeathDyingTimer - dt) / 0.3);
       if (burstIdx > prevIdx) {
-        spawnParticles(
-          dyingBoss.x + Math.random() * dyingBoss.w,
-          dyingBoss.y + Math.random() * dyingBoss.h,
-          16, ['#f44', '#f84', '#ff0', '#fff', '#f00']
-        );
+        spawnParticles(fireX, dyingBoss.y + dyingBoss.h / 2, 20, ['#f44', '#f84', '#ff0', '#fff', '#f00']);
         playExplosion(0);
       }
     }
+
+    // Player gets pushed rightward toward the portal by the boss's thruster wash
+    player.x += (CANVAS_W * 0.62 - player.w / 2 - player.x) * 2 * dt;
+    player.y += (CANVAS_H / 2    - player.h / 2 - player.y) * 2 * dt;
+    player.thrusterAnim += dt * 8;
 
     // Transition to dialogue once timer expires
     if (neptuneDeathDyingTimer >= NEPTUNE_DYING_DUR) {
@@ -1396,7 +1394,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.64.5';
+  const verText = 'v1.64.6';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
