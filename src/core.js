@@ -790,6 +790,19 @@ const PLANET_OBSTACLE_CONFIG = [
   { type: 'wind_gust',    interval: 17, maxActive: 1 },  // 8 Neptune
 ];
 
+// Veil Expanse — each planet gets a unique danger distinct from its Solar System counterpart.
+const VEIL_OBSTACLE_CONFIG = [
+  { type: 'radiation',    interval: 12, maxActive: 2 },  // 0 Aethon  — intense energy field
+  { type: 'debris',       interval:  7, maxActive: 3 },  // 1 Dross   — scrap-world wreckage
+  { type: 'wind_gust',    interval: 14, maxActive: 1 },  // 2 Solace  — alien atmospheric currents
+  { type: 'ice_shard',    interval: 10, maxActive: 2 },  // 3 Varix   — crystal shards
+  { type: 'toxic_cloud',  interval: 10, maxActive: 2 },  // 4 Quellar — dense smog atmosphere
+  { type: 'solar_flare',  interval: 16, maxActive: 2 },  // 5 Pyral   — fire-planet energy bursts
+  { type: 'dust_devil',   interval: 18, maxActive: 2 },  // 6 Cerune  — ice-dust vortices
+  { type: 'gravity_well', interval: 22, maxActive: 1 },  // 7 Manthos — crushing gravity
+  { type: 'ring_shard',   interval:  6, maxActive: 4 },  // 8 Novarix — explosive shrapnel
+];
+
 function hurtPlayer(particleColors) {
   if (player.hit()) {
     lives--;
@@ -800,7 +813,7 @@ function hurtPlayer(particleColors) {
 }
 
 function spawnPlanetObstacle() {
-  const cfg = PLANET_OBSTACLE_CONFIG[currentPlanet];
+  const cfg = (currentGalaxy === 0 ? PLANET_OBSTACLE_CONFIG : VEIL_OBSTACLE_CONFIG)[currentPlanet];
   if (!cfg) return;
   if (planetObstacles.filter(o => o.active).length >= cfg.maxActive) return;
   const type = cfg.type;
@@ -882,7 +895,7 @@ function spawnPlanetObstacle() {
 }
 
 function updatePlanetObstacles(dt) {
-  const cfg = PLANET_OBSTACLE_CONFIG[currentPlanet];
+  const cfg = (currentGalaxy === 0 ? PLANET_OBSTACLE_CONFIG : VEIL_OBSTACLE_CONFIG)[currentPlanet];
   if (!cfg) return;
 
   // Tick debuffs
