@@ -163,6 +163,13 @@ window.addEventListener('wheel', e => {
 function handleCanvasClick(mx, my) {
   if (btnAnim.active) return; // block clicks during animation
 
+  // Neptune death cutscene intercepts all clicks during dialogue phases
+  if (neptuneDeathActive && (neptuneDeathStep === 0 || neptuneDeathStep === 2)) {
+    const hit = (r) => r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
+    if (hit(neptuneDeathNextRect)) advanceNeptuneDeath();
+    return;
+  }
+
   // Boss dialogue intercepts all clicks while active (checked before pre-launch dialogue)
   if (bossDialogueActive) {
     const hit = (r) => r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
@@ -358,12 +365,17 @@ function handleCanvasClick(mx, my) {
         ? dist(mx, my, btn.cx, btn.cy) <= btn.r
         : mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h;
       if (!hit) continue;
-      if (btn.key === 'map_back') {
+      if (btn.key === 'galaxy_prev') {
+        startBtnAnim(btn, '#a8f', () => { currentGalaxy--; selectedPlanet = null; });
+      } else if (btn.key === 'galaxy_next') {
+        startBtnAnim(btn, '#a8f', () => { currentGalaxy++; selectedPlanet = null; });
+      } else if (btn.key === 'map_back') {
         startBtnAnim(btn, '#4af', () => { selectedPlanet = null; gameState = 'PLAY_MODE'; });
       } else if (btn.key === 'close_panel') {
         startBtnAnim(btn, '#f88', () => { selectedPlanet = null; });
       } else if (btn.key === 'launch' && solarMapLaunchTimer === 0) {
-        const p = PLANET_DEFS[selectedPlanet];
+        const activePlanets = currentGalaxy === 0 ? PLANET_DEFS : VEIL_PLANET_DEFS;
+        const p = activePlanets[selectedPlanet];
         DIFFICULTIES['progress'] = {
           label: p.name.toUpperCase(), color: p.color,
           lives: p.lives, spawnMult: p.spawnMult, speedMult: p.speedMult,
@@ -418,6 +430,23 @@ function advanceBossDialogue() {
     bossDialogueActive       = false;
     bossDialogueStep         = 0;
     currentBossDialogueLines = [];
+  }
+}
+
+function advanceNeptuneDeath() {
+  if (neptuneDeathStep === 0) {
+    neptuneDeathLineStep++;
+    if (neptuneDeathLineStep >= NEPTUNE_DEATH_LINES.length) {
+      neptuneDeathStep = 1; // start portal cinematic
+      portalTimer      = 0;
+    }
+  } else if (neptuneDeathStep === 2) {
+    neptuneDeathLineStep++;
+    if (neptuneDeathLineStep >= VEIL_ARRIVAL_LINES.length) {
+      neptuneDeathActive = false;
+      gameState          = 'SOLAR_MAP';
+      selectedPlanet     = null;
+    }
   }
 }
 

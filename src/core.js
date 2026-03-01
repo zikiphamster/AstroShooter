@@ -54,6 +54,10 @@ function loadGame() {
   planetObstacles.length = 0;
   planetObstacleTimer    = 3.0;
   planetDebuffs.iceslow  = 0;
+  neptuneDeathActive     = false;
+  neptuneDeathStep       = 0;
+  neptuneDeathLineStep   = 0;
+  portalTimer            = 0;
 }
 
 function loadLevel(level) {
@@ -92,6 +96,7 @@ function saveShop() {
     unlockedColors, unlockedHulls,
     engine: playerEngine, unlockedEngines,
     progressUnlocked, soundMuted,
+    currentGalaxy, veilProgressUnlocked,
   }));
 }
 
@@ -287,7 +292,7 @@ function update(dt) {
       if (solarMapLaunchTimer <= 0) {
         solarMapLaunchTimer  = 0;
         selectedPlanet       = null;
-        const sets           = PLANET_DEFS[currentPlanet].dialogueSets;
+        const sets           = (currentGalaxy === 0 ? PLANET_DEFS : VEIL_PLANET_DEFS)[currentPlanet].dialogueSets;
         currentDialogueLines = sets[Math.floor(Math.random() * sets.length)];
         dialogueActive       = true;
         dialogueStep         = 0;
@@ -354,6 +359,33 @@ function update(dt) {
   }
 
   // ── PLAYING ──────────────────────────────────────────────────────────────
+
+  // ── Neptune death cutscene ─────────────────────────────────────────────────
+  if (neptuneDeathActive) {
+    if (neptuneDeathStep === 0 || neptuneDeathStep === 2) {
+      if (keys['Space'] || keys['Enter']) {
+        keys['Space'] = keys['Enter'] = false;
+        advanceNeptuneDeath();
+      }
+      return;
+    }
+    if (neptuneDeathStep === 1) {
+      // Portal cinematic: autopilot player rightward into portal
+      portalTimer += dt;
+      const lerpSpeed = Math.min(6, 1 + portalTimer * 2.5);
+      player.x += (CANVAS_W * 0.74 - player.w / 2 - player.x) * lerpSpeed * dt;
+      player.y += (CANVAS_H / 2 - player.h / 2 - player.y) * lerpSpeed * dt;
+      player.thrusterAnim += dt * 14;
+      if (portalTimer >= PORTAL_DUR) {
+        currentGalaxy        = 1;
+        neptuneDeathStep     = 2;
+        neptuneDeathLineStep = 0;
+        portalTimer          = 0;
+        saveShop();
+      }
+      return;
+    }
+  }
 
   // Boss entrance cinematic — player auto-pilots to left-center, boss slides in
   if (bossEnterCinematic) {
@@ -467,7 +499,7 @@ function update(dt) {
   if (!bossSpawned && score >= nextBossScore) {
     bossSpawned = true;
     boss        = new Boss(currentLevel);
-    const bsets = gameMode === 'progress' && PLANET_DEFS[currentPlanet]?.bossDialogueSets;
+    const bsets = gameMode === 'progress' && (currentGalaxy === 0 ? PLANET_DEFS : VEIL_PLANET_DEFS)[currentPlanet]?.bossDialogueSets;
     if (bsets && bsets.length) {
       currentBossDialogueLines = bsets[Math.floor(Math.random() * bsets.length)];
       bossDialogueStep         = 0;
@@ -507,10 +539,20 @@ function update(dt) {
           }
           playBossDefeat();
           boss = null;
-          gameState = 'LEVEL_COMPLETE';
-          if (gameMode === 'progress') {
-            progressUnlocked = Math.max(progressUnlocked, currentPlanet + 1);
+          if (gameMode === 'progress' && currentPlanet === 8 && currentGalaxy === 0) {
+            // Neptune defeated — trigger cross-galaxy cutscene instead of LEVEL_COMPLETE
+            progressUnlocked   = 9;
             saveShop();
+            neptuneDeathActive   = true;
+            neptuneDeathStep     = 0;
+            neptuneDeathLineStep = 0;
+          } else {
+            gameState = 'LEVEL_COMPLETE';
+            if (gameMode === 'progress') {
+              if (currentGalaxy === 0) progressUnlocked     = Math.max(progressUnlocked,     currentPlanet + 1);
+              else                     veilProgressUnlocked = Math.max(veilProgressUnlocked, currentPlanet + 1);
+              saveShop();
+            }
           }
           break;
         }
@@ -619,10 +661,11 @@ function update(dt) {
 // ─── Render ───────────────────────────────────────────────────────────────────
 function render() {
   // Background
-  ctx.fillStyle = '#05050f';
+  ctx.fillStyle = currentGalaxy === 0 ? '#05050f' : '#080012';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   renderStars();
+  if (currentGalaxy === 1) renderVeilNebula();
 
   if (gameState === 'MENU')           { renderMenu(); }
   else if (gameState === 'PLAY_MODE') { renderPlayMode(); }
@@ -654,6 +697,7 @@ function render() {
     renderBossWarning();
     renderPowerupBar();
     if (bossDialogueActive) renderBossDialogue();
+    if (neptuneDeathActive) renderNeptuneDeathOverlay();
     if (IS_TOUCH) renderTouchControls();
     if (gameState === 'PAUSED') renderPaused();
   }
@@ -1269,7 +1313,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.63.1';
+  const verText = 'v1.64.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1923,7 +1967,7 @@ function drawTowerAvatar(bx, by) {
 }
 
 function renderDialogue() {
-  const planet = PLANET_DEFS[currentPlanet];
+  const planet = (currentGalaxy === 0 ? PLANET_DEFS : VEIL_PLANET_DEFS)[currentPlanet];
   const lines  = currentDialogueLines;
   if (!lines || !lines.length || dialogueStep >= lines.length) return;
   const line = lines[dialogueStep];
@@ -2105,6 +2149,155 @@ function renderBossDialogue() {
   ctx.restore();
 }
 
+// ─── Neptune Death Cutscene Overlays ──────────────────────────────────────────
+function renderNeptuneDeathOverlay() {
+  if (neptuneDeathStep === 0)
+    renderNeptuneDialoguePanel(NEPTUNE_DEATH_LINES, neptuneDeathLineStep, '#1050ff');
+  else if (neptuneDeathStep === 1)
+    renderPortalCinematic();
+  else if (neptuneDeathStep === 2)
+    renderNeptuneDialoguePanel(VEIL_ARRIVAL_LINES, neptuneDeathLineStep, '#aa44ff');
+}
+
+function renderNeptuneDialoguePanel(lines, step, accentColor) {
+  const line = lines[step];
+  if (!line) return;
+
+  // Semi-transparent overlay — game world remains visible
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  const panelH = 120, panelX = 20, panelW = CANVAS_W - 40;
+  const panelY = CANVAS_H - panelH - 16;
+  ctx.save();
+  ctx.textBaseline = 'middle';
+
+  // Panel background
+  ctx.fillStyle   = 'rgba(5,0,20,0.97)';
+  ctx.strokeStyle = accentColor + '88';
+  ctx.lineWidth   = 2;
+  ctx.beginPath(); ctx.roundRect(panelX, panelY, panelW, panelH, 12); ctx.fill(); ctx.stroke();
+
+  // Accent stripe
+  ctx.shadowColor = accentColor; ctx.shadowBlur = 14; ctx.fillStyle = accentColor;
+  ctx.beginPath(); ctx.roundRect(panelX, panelY, panelW, 4, [12, 12, 0, 0]); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Avatar
+  const avX = panelX + 12, avY = panelY + (panelH - 64) / 2;
+  if (line.speaker === 'PILOT') drawShipAvatar(avX, avY);
+  else if (line.speaker === 'CTRL') drawTowerAvatar(avX, avY);
+  else drawBossAvatar(avX, avY);
+
+  // Text area
+  const textX = avX + 64 + 14;
+  const textW  = panelW - (textX - panelX) - 130;
+  const speakerColor = line.speaker === 'PILOT' ? '#8f8' : line.speaker === 'CTRL' ? '#4af' : accentColor;
+  const label = line.speaker === 'PILOT' ? '[ PILOT ]'
+    : line.speaker === 'CTRL' ? '[ CTRL ]'
+    : '[ ??? ]';
+  ctx.shadowColor = speakerColor; ctx.shadowBlur = 8; ctx.fillStyle = speakerColor;
+  ctx.font = 'bold 12px "Courier New", monospace'; ctx.textAlign = 'left';
+  ctx.fillText(label, textX, panelY + 22);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#c8d4ee'; ctx.font = '14px "Courier New", monospace';
+  const wrapped = wrapText(line.text, textW);
+  for (let i = 0; i < wrapped.length; i++)
+    ctx.fillText(wrapped[i], textX, panelY + 44 + i * 22);
+
+  // Progress counter
+  ctx.fillStyle = '#446'; ctx.font = '11px "Courier New", monospace';
+  ctx.fillText(`${step + 1} / ${lines.length}`, panelX + 12, panelY + panelH - 12);
+
+  // Button
+  const isLastOfStep0 = neptuneDeathStep === 0 && step === NEPTUNE_DEATH_LINES.length - 1;
+  const isLastOfStep2 = neptuneDeathStep === 2 && step === VEIL_ARRIVAL_LINES.length - 1;
+  const btnLabel = isLastOfStep0 ? 'PORTAL ▶' : isLastOfStep2 ? 'EXPLORE ▶' : 'NEXT ▶';
+  const btnW = 120, btnH = 34;
+  const btnX = panelX + panelW - btnW - 14, btnY = panelY + (panelH - btnH) / 2;
+  neptuneDeathNextRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+  ctx.shadowColor = accentColor; ctx.shadowBlur = 12; ctx.fillStyle = accentColor;
+  ctx.beginPath(); ctx.roundRect(btnX, btnY, btnW, btnH, 8); ctx.fill();
+  ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px "Courier New", monospace'; ctx.textAlign = 'center';
+  ctx.fillText(btnLabel, btnX + btnW / 2, btnY + btnH / 2);
+  ctx.restore();
+}
+
+function renderPortalCinematic() {
+  const prog = Math.min(1, portalTimer / PORTAL_DUR);
+  const now  = performance.now() / 1000;
+  const portalX = CANVAS_W * 0.74;
+  const portalY = CANVAS_H / 2;
+  const portalR = Math.min(prog * 1.5, 1) * 130;
+
+  // Outer glow
+  if (portalR > 2) {
+    const glow = ctx.createRadialGradient(portalX, portalY, 0, portalX, portalY, portalR * 2.2);
+    glow.addColorStop(0,   `rgba(140,40,255,${0.55 * prog})`);
+    glow.addColorStop(0.5, `rgba(100,20,200,${0.20 * prog})`);
+    glow.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(portalX, portalY, portalR * 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Animated ring
+  if (portalR > 1) {
+    ctx.save();
+    const ringPulse = 2 + Math.sin(now * 6) * 1.2;
+    ctx.shadowColor = '#a030ff';
+    ctx.shadowBlur  = 20;
+    ctx.strokeStyle = `rgba(200,120,255,${0.85 * prog})`;
+    ctx.lineWidth   = ringPulse;
+    ctx.beginPath(); ctx.arc(portalX, portalY, portalR, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Dark eye
+  if (portalR > 3) {
+    ctx.fillStyle = `rgba(20,0,40,0.85)`;
+    ctx.beginPath(); ctx.arc(portalX, portalY, portalR * 0.85, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Vignette once halfway through
+  if (prog > 0.5) {
+    const vigAlpha = (prog - 0.5) / 0.5;
+    const vig = ctx.createRadialGradient(CANVAS_W / 2, CANVAS_H / 2, CANVAS_W * 0.25, CANVAS_W / 2, CANVAS_H / 2, CANVAS_W * 0.75);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, `rgba(60,0,100,${vigAlpha * 0.70})`);
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
+
+  // White-purple flash near end
+  if (prog > 0.85) {
+    const flashA = ((prog - 0.85) / 0.15) * 0.95;
+    ctx.fillStyle = `rgba(80,20,180,${flashA})`;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
+}
+
+function renderVeilNebula() {
+  const now = performance.now() / 1000;
+  ctx.save();
+  // Purple cloud (left-centre)
+  const a1 = 0.06 + 0.02 * Math.sin(now * 0.4);
+  const n1 = ctx.createRadialGradient(CANVAS_W * 0.3, CANVAS_H * 0.4, 0, CANVAS_W * 0.3, CANVAS_H * 0.4, CANVAS_W * 0.5);
+  n1.addColorStop(0, `rgba(90,20,180,${a1})`);
+  n1.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = n1;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  // Magenta cloud (right-centre)
+  const a2 = 0.07 + 0.02 * Math.sin(now * 0.3 + 1.5);
+  const n2 = ctx.createRadialGradient(CANVAS_W * 0.7, CANVAS_H * 0.6, 0, CANVAS_W * 0.7, CANVAS_H * 0.6, CANVAS_W * 0.4);
+  n2.addColorStop(0, `rgba(160,20,120,${a2})`);
+  n2.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = n2;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.restore();
+}
+
 function renderTutorialOverlay() {
   const slides = tutorialContext === 'shop' ? SHOP_TUTORIAL_SLIDES : TUTORIAL_SLIDES;
   const slide  = slides[tutorialStep];
@@ -2283,35 +2476,66 @@ function renderTutorialOverlay() {
 }
 
 function renderSolarMap() {
+  const planets  = currentGalaxy === 0 ? PLANET_DEFS      : VEIL_PLANET_DEFS;
+  const unlocked = currentGalaxy === 0 ? progressUnlocked  : veilProgressUnlocked;
+  const mapTitle = currentGalaxy === 0 ? 'SOLAR SYSTEM'    : 'THE VEIL EXPANSE';
+
   ctx.save();
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
 
-  // Background
-  ctx.fillStyle = '#05050f';
+  // Background (already drawn in render() but solar map has its own bg pass)
+  ctx.fillStyle = currentGalaxy === 0 ? '#05050f' : '#080012';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   renderStars();
+  if (currentGalaxy === 1) renderVeilNebula();
 
   // Title
   ctx.font        = 'bold 28px "Courier New", monospace';
   ctx.fillStyle   = '#fff';
   ctx.shadowColor = '#a8f';
   ctx.shadowBlur  = 14;
-  ctx.fillText('SOLAR SYSTEM', CANVAS_W / 2, 40);
+  ctx.fillText(mapTitle, CANVAS_W / 2, 40);
   ctx.shadowBlur  = 0;
 
   solarMapButtonRects.length = 0;
 
+  // ── Galaxy navigation arrows ─────────────────────────────────────────────
+  const arrW = 48, arrH = 32, arrY = 40 - arrH / 2;
+  const canGoPrev = currentGalaxy > 0;
+  const canGoNext = currentGalaxy === 0 && progressUnlocked >= 9;
+  if (canGoPrev) {
+    const ax = CANVAS_W / 2 - 200 - arrW;
+    solarMapButtonRects.push({ x: ax, y: arrY, w: arrW, h: arrH, key: 'galaxy_prev', cx: 0, cy: 0, r: 0 });
+    ctx.shadowColor = '#a8f'; ctx.shadowBlur = 8;
+    ctx.fillStyle   = 'rgba(20,10,50,0.88)'; ctx.strokeStyle = '#a8f'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(ax, arrY, arrW, arrH, 8); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.fillStyle = '#a8f';
+    ctx.font = 'bold 16px "Courier New", monospace';
+    ctx.fillText('◀', ax + arrW / 2, 40);
+  }
+  if (canGoNext) {
+    const ax = CANVAS_W / 2 + 200;
+    solarMapButtonRects.push({ x: ax, y: arrY, w: arrW, h: arrH, key: 'galaxy_next', cx: 0, cy: 0, r: 0 });
+    ctx.shadowColor = '#a8f'; ctx.shadowBlur = 8;
+    ctx.fillStyle   = 'rgba(20,10,50,0.88)'; ctx.strokeStyle = '#a8f'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(ax, arrY, arrW, arrH, 8); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.fillStyle = '#a8f';
+    ctx.font = 'bold 16px "Courier New", monospace';
+    ctx.fillText('▶', ax + arrW / 2, 40);
+  }
+
   const mapLeft  = 170;
   const mapRight = CANVAS_W - 130;
-  const step     = (mapRight - mapLeft) / (PLANET_DEFS.length - 1);
+  const step     = (mapRight - mapLeft) / (planets.length - 1);
   const cy       = CANVAS_H * 0.60;
   const now      = performance.now() / 1000;
 
-  // Solar nebula ambient glow near the sun
+  // Nebula ambient glow near the first planet (sun / Aethon)
+  const [nr, ng, nb] = currentGalaxy === 0 ? [255, 140, 20] : [120, 40, 200];
   const nebGrad = ctx.createRadialGradient(mapLeft, cy, 0, mapLeft, cy, CANVAS_W * 0.38);
-  nebGrad.addColorStop(0,   'rgba(255,140,20,0.13)');
-  nebGrad.addColorStop(0.5, 'rgba(255,60,0,0.05)');
+  nebGrad.addColorStop(0,   `rgba(${nr},${ng},${nb},0.13)`);
+  nebGrad.addColorStop(0.5, `rgba(${nr},${nb < 100 ? 60 : nb * 0.3 | 0},${nb < 100 ? 0 : nb * 0.6 | 0},0.05)`);
   nebGrad.addColorStop(1,   'rgba(0,0,0,0)');
   ctx.fillStyle = nebGrad;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -2327,7 +2551,7 @@ function renderSolarMap() {
   ctx.setLineDash([]);
 
   // Tiny distance tick marks on the orbit line
-  for (let i = 1; i < PLANET_DEFS.length - 1; i++) {
+  for (let i = 1; i < planets.length - 1; i++) {
     const tx = mapLeft + i * step;
     ctx.strokeStyle = 'rgba(255,255,255,0.15)';
     ctx.lineWidth   = 1;
@@ -2338,17 +2562,64 @@ function renderSolarMap() {
   }
 
   // Draw planets
-  for (let i = 0; i < PLANET_DEFS.length; i++) {
-    const p      = PLANET_DEFS[i];
+  for (let i = 0; i < planets.length; i++) {
+    const p      = planets[i];
     const px     = mapLeft + i * step;
     const sz     = p.size;
-    const locked = i > progressUnlocked;
+    const locked = i > unlocked;
     const alpha  = locked ? 0.28 : 1;
 
     ctx.globalAlpha = alpha;
 
-    // ── Sun special rendering ────────────────────────────────────────────────
-    if (i === 0) {
+    // ── Sun / Aethon special rendering ───────────────────────────────────────
+    if (i === 0 && currentGalaxy === 1) {
+      // Aethon — pulsing plasma world in pink/magenta
+      if (!locked) {
+        const pulse1 = 0.5 + 0.5 * Math.sin(now * 2.3);
+        const pulse2 = 0.5 + 0.5 * Math.sin(now * 1.6 + 1.0);
+        const pulse3 = 0.5 + 0.5 * Math.sin(now * 1.9 + 2.2);
+        const cg3 = ctx.createRadialGradient(px, cy, sz * 0.9, px, cy, sz * 2.8);
+        cg3.addColorStop(0, `rgba(220,40,180,${0.12 + pulse3 * 0.06})`);
+        cg3.addColorStop(1, 'rgba(180,0,140,0)');
+        ctx.fillStyle = cg3;
+        ctx.beginPath(); ctx.arc(px, cy, sz * 2.8, 0, Math.PI * 2); ctx.fill();
+        const cg2 = ctx.createRadialGradient(px, cy, sz * 0.85, px, cy, sz * 1.9);
+        cg2.addColorStop(0, `rgba(255,60,200,${0.20 + pulse2 * 0.10})`);
+        cg2.addColorStop(1, 'rgba(200,0,160,0)');
+        ctx.fillStyle = cg2;
+        ctx.beginPath(); ctx.arc(px, cy, sz * 1.9, 0, Math.PI * 2); ctx.fill();
+        const cg1 = ctx.createRadialGradient(px, cy, sz * 0.78, px, cy, sz * 1.38);
+        cg1.addColorStop(0, `rgba(255,120,220,${0.38 + pulse1 * 0.16})`);
+        cg1.addColorStop(1, 'rgba(220,40,180,0)');
+        ctx.fillStyle = cg1;
+        ctx.beginPath(); ctx.arc(px, cy, sz * 1.38, 0, Math.PI * 2); ctx.fill();
+      }
+      const aethonGrad = ctx.createRadialGradient(px - sz * 0.28, cy - sz * 0.28, sz * 0.05, px, cy, sz);
+      aethonGrad.addColorStop(0,   '#ffd0f8');
+      aethonGrad.addColorStop(0.3, '#ff88ee');
+      aethonGrad.addColorStop(0.7, '#cc22aa');
+      aethonGrad.addColorStop(1,   '#660044');
+      ctx.fillStyle = aethonGrad;
+      ctx.beginPath(); ctx.arc(px, cy, sz, 0, Math.PI * 2); ctx.fill();
+      if (!locked) {
+        // Electric field arcs
+        for (let arc = 0; arc < 3; arc++) {
+          const ax = px + Math.sin(now * 1.4 + arc * 2.1) * sz * 0.30;
+          const ay = cy + Math.cos(now * 1.1 + arc * 1.7) * sz * 0.25;
+          const ag = ctx.createRadialGradient(ax, ay, 0, ax, ay, sz * 0.28);
+          ag.addColorStop(0, 'rgba(255,80,220,0.32)');
+          ag.addColorStop(1, 'rgba(255,80,220,0)');
+          ctx.fillStyle = ag;
+          ctx.beginPath(); ctx.arc(ax, ay, sz * 0.28, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      const limb = ctx.createRadialGradient(px, cy, sz * 0.65, px, cy, sz);
+      limb.addColorStop(0, 'rgba(0,0,0,0)');
+      limb.addColorStop(1, 'rgba(40,0,30,0.38)');
+      ctx.fillStyle = limb;
+      ctx.beginPath(); ctx.arc(px, cy, sz, 0, Math.PI * 2); ctx.fill();
+
+    } else if (i === 0) {
       if (!locked) {
         const pulse1 = 0.5 + 0.5 * Math.sin(now * 2.1);
         const pulse2 = 0.5 + 0.5 * Math.sin(now * 1.4 + 1.2);
@@ -2579,8 +2850,8 @@ function renderSolarMap() {
 
   // Info panel
   if (selectedPlanet !== null) {
-    const p      = PLANET_DEFS[selectedPlanet];
-    const locked = selectedPlanet > progressUnlocked;
+    const p      = planets[selectedPlanet];
+    const locked = selectedPlanet > unlocked;
     const pw = Math.min(420, CANVAS_W - 40), ph = 170;
     const ppx = CANVAS_W / 2 - pw / 2, ppy = 68;
 
@@ -3246,7 +3517,7 @@ function renderLevelComplete() {
   ctx.shadowColor = '#0f4';
   ctx.shadowBlur  = 20;
   const completeBanner = gameMode === 'progress'
-    ? `${PLANET_DEFS[currentPlanet]?.name?.toUpperCase() ?? 'PLANET'} COMPLETE!`
+    ? `${(currentGalaxy === 0 ? PLANET_DEFS : VEIL_PLANET_DEFS)[currentPlanet]?.name?.toUpperCase() ?? 'PLANET'} COMPLETE!`
     : `LEVEL ${currentLevel} COMPLETE!`;
   ctx.fillText(completeBanner, CANVAS_W / 2, bannerY + bannerH / 2);
   ctx.shadowBlur  = 0;
@@ -3608,8 +3879,10 @@ try {
     unlockedHulls   = c.unlockedHulls   ?? [0];
     playerEngine    = c.engine          ?? 0;
     unlockedEngines = c.unlockedEngines ?? [0];
-    progressUnlocked = c.progressUnlocked ?? 0;
-    soundMuted       = c.soundMuted       ?? false;
+    progressUnlocked     = c.progressUnlocked     ?? 0;
+    soundMuted           = c.soundMuted           ?? false;
+    currentGalaxy        = c.currentGalaxy        ?? 0;
+    veilProgressUnlocked = c.veilProgressUnlocked ?? 0;
   }
 } catch(e) {}
 requestAnimationFrame(gameLoop);

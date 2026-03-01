@@ -33,8 +33,9 @@ function updateStars(dt) {
 }
 
 function renderStars() {
+  const [sr, sg, sb] = currentGalaxy === 0 ? [255, 255, 255] : [200, 170, 255];
   for (const s of stars) {
-    ctx.fillStyle = `rgba(255,255,255,${s.brightness})`;
+    ctx.fillStyle = `rgba(${sr},${sg},${sb},${s.brightness})`;
     ctx.fillRect(s.x, s.y, s.size, s.size);
   }
 }

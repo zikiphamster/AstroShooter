@@ -68,6 +68,18 @@ let bossDialogueStep         = 0;
 let bossDialogueNextRect     = null;
 let currentBossDialogueLines = [];   // randomly chosen script for the current boss
 
+// ─── Galaxy State ─────────────────────────────────────────────────────────────
+let currentGalaxy        = 0;    // 0 = Solar System | 1 = Veil Expanse
+let veilProgressUnlocked = 0;    // planet unlock counter for Veil Expanse
+
+// ─── Neptune Death Cutscene ────────────────────────────────────────────────────
+let neptuneDeathActive   = false; // true during post-Neptune cross-galaxy cutscene
+let neptuneDeathStep     = 0;    // 0=death-dialogue  1=portal-cinematic  2=arrival-dialogue
+let neptuneDeathLineStep = 0;    // line index within active dialogue array
+let neptuneDeathNextRect = null; // click rect for NEXT/PORTAL/EXPLORE button
+let portalTimer          = 0;    // counts up during portal cinematic (0 → PORTAL_DUR)
+const PORTAL_DUR         = 3.2;
+
 // ─── Tutorial State ───────────────────────────────────────────────────────────
 let tutorialActive    = false;
 let tutorialStep      = 0;
@@ -572,6 +584,353 @@ const PLANET_DEFS = [
 
 let progressUnlocked = 0;   // index of furthest unlocked planet (0 = Sun only)
 
+// ─── Neptune Death Cutscene Scripts ───────────────────────────────────────────
+const NEPTUNE_DEATH_LINES = [
+  { speaker: 'BOSS',  text: 'You think... this ends here. We are more than planets. More than systems. We sent the others. This was only a warning.' },
+  { speaker: 'PILOT', text: 'Who sent you? What\'s behind all of this?' },
+  { speaker: 'BOSS',  text: 'The Veil. Find... the Veil Expanse. That is where we were born. And where you will meet your end.' },
+  { speaker: 'CTRL',  text: 'Pilot — I\'m reading a massive energy spike on your aft sensors! Something is tearing open!' },
+  { speaker: 'PILOT', text: 'I see it — a portal. It\'s pulling me in — I can\'t stop it—!' },
+  { speaker: 'CTRL',  text: 'PILOT! We\'re losing your signal — hold on—!' },
+];
+
+const VEIL_ARRIVAL_LINES = [
+  { speaker: 'CTRL',  text: 'Pilot! Pilot, respond! Are you there?! We lost you for twelve seconds!' },
+  { speaker: 'PILOT', text: 'I\'m... here. Somewhere. The stars are wrong. These colors — I\'ve never seen anything like this.' },
+  { speaker: 'CTRL',  text: 'We\'re reading you, but weakly. You\'ve traveled an impossible distance. Nothing in the charts matches your coordinates.' },
+  { speaker: 'PILOT', text: 'The Veil Expanse. That\'s what the boss called it.' },
+  { speaker: 'CTRL',  text: 'Our sensors picked up nine planetary bodies in your vicinity. All of them heavily defended. This is where it started.' },
+  { speaker: 'PILOT', text: 'Then this is where I finish it. Keep the signal alive and guide me through.' },
+];
+
+// ─── Veil Expanse Planet Definitions ──────────────────────────────────────────
+const VEIL_PLANET_DEFS = [
+  { name: 'Aethon',  color: '#ff44bb', glowColor: null, size: 50, rings: false,
+    desc: 'A plasma world of writhing electric fields. Your first step into the unknown.',
+    lives: 4, spawnMult: 0.82, speedMult: 1.12, largeChance: 0.58, medChance: 0.24,
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Signal... barely holding. Aethon is a plasma world — no solid ground, just raw energy looping for millions of years.' },
+        { speaker: 'PILOT', text: 'Great. Where\'s the enemy?' },
+        { speaker: 'CTRL',  text: 'Everywhere. The Veil\'s defenders are unlike anything from the solar system. We have no data on their tactics.' },
+        { speaker: 'PILOT', text: 'Then I\'ll learn as I go.' },
+        { speaker: 'CTRL',  text: 'Pilot — be careful. If we lose signal out here, you\'re completely alone.' },
+        { speaker: 'PILOT', text: 'Not the first time. Let\'s go.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Aethon. First planet in a galaxy that shouldn\'t exist. Feels like a bad dream.' },
+        { speaker: 'CTRL',  text: 'The readings are off the charts. Energy levels here dwarf anything in our solar system.' },
+        { speaker: 'PILOT', text: 'How long until we understand what we\'re dealing with?' },
+        { speaker: 'CTRL',  text: 'Longer than we have. Just fight your way through and we\'ll figure out the rest together.' },
+        { speaker: 'PILOT', text: 'Copy that. The hard way it is.' },
+        { speaker: 'CTRL',  text: 'We\'re watching the sensor feed. Anything changes, I\'ll warn you.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'You crossed the rift. Few ever do. Fewer survive what comes next.' },
+        { speaker: 'PILOT', text: 'I\'m already past the hard part.' },
+        { speaker: 'BOSS',  text: 'Your solar system prepared you for nothing. The Veil is ancient beyond your comprehension.' },
+        { speaker: 'PILOT', text: 'Ancient doesn\'t mean unbeatable. Prove me wrong.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'The rift spat you out here. It does not send gifts.' },
+        { speaker: 'PILOT', text: 'No? Then what does it send?' },
+        { speaker: 'BOSS',  text: 'Warnings. You are the warning we were not expecting.' },
+        { speaker: 'PILOT', text: 'Good. Pay attention.' },
+      ],
+    ],
+  },
+  { name: 'Dross',   color: '#888888', glowColor: null, size: 13, rings: false,
+    desc: 'A charred metallic world, debris from an ancient war. Still burning.',
+    lives: 4, spawnMult: 0.78, speedMult: 1.16, largeChance: 0.60, medChance: 0.23,
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Dross. Scans suggest it was... manufactured. Built, not formed. Then destroyed.' },
+        { speaker: 'PILOT', text: 'Manufactured by who?' },
+        { speaker: 'CTRL',  text: 'We don\'t know. Whatever built it lost. Or won. Hard to tell from the wreckage.' },
+        { speaker: 'PILOT', text: 'Either way, something\'s defending it. That means it still matters.' },
+        { speaker: 'CTRL',  text: 'Be ready for unusual attack patterns. We have no baseline here.' },
+        { speaker: 'PILOT', text: 'Unusual is fine. Impossible I handle one piece at a time.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Dross looks like a graveyard. A whole world turned to slag.' },
+        { speaker: 'CTRL',  text: 'The war that did this was fought before our sun existed. We\'re walking through history.' },
+        { speaker: 'PILOT', text: 'History with teeth, by the look of those contacts on my scanner.' },
+        { speaker: 'CTRL',  text: 'Stay on target. Whatever guards this place isn\'t interested in a truce.' },
+        { speaker: 'PILOT', text: 'Never is.' },
+        { speaker: 'CTRL',  text: 'Cleared for approach. Make it quick.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'This world was a forge once. Now it is a tomb. You will join what was left behind.' },
+        { speaker: 'PILOT', text: 'I\'ll leave it the way I found it. Smoking ruin.' },
+        { speaker: 'BOSS',  text: 'The architects of the Veil built me from the rubble of a thousand wars. I cannot be broken.' },
+        { speaker: 'PILOT', text: 'I\'ve heard that before.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'You fight in a dead man\'s world. This is not a battlefield. It is a warning.' },
+        { speaker: 'PILOT', text: 'I read the sign. Didn\'t slow me down.' },
+        { speaker: 'BOSS',  text: 'Then you are either very brave or very foolish.' },
+        { speaker: 'PILOT', text: 'Both usually work out.' },
+      ],
+    ],
+  },
+  { name: 'Solace',  color: '#00ddcc', glowColor: null, size: 20, rings: false,
+    desc: 'A bioluminescent ocean world. Eerily calm. Deadly.',
+    lives: 4, spawnMult: 0.74, speedMult: 1.20, largeChance: 0.62, medChance: 0.22,
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Solace. Its surface glows from beneath — bioluminescent organisms covering the entire ocean.' },
+        { speaker: 'PILOT', text: 'Beautiful. Why is it called Solace?' },
+        { speaker: 'CTRL',  text: 'Unknown. The name was already encoded in the Veil\'s data streams when we intercepted them.' },
+        { speaker: 'PILOT', text: 'Something named it. Something that felt the need for comfort.' },
+        { speaker: 'CTRL',  text: 'Whatever it was, it isn\'t here anymore. The defenders are.' },
+        { speaker: 'PILOT', text: 'On approach. Let\'s not linger.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'I wasn\'t expecting anything beautiful in the Veil. Solace caught me off guard.' },
+        { speaker: 'CTRL',  text: 'Don\'t let it. Our sensors are picking up mass movement beneath the surface. It knows you\'re here.' },
+        { speaker: 'PILOT', text: 'The calm before the storm.' },
+        { speaker: 'CTRL',  text: 'The storm is already here. It\'s just underwater.' },
+        { speaker: 'PILOT', text: 'Then let\'s bring it to the surface.' },
+        { speaker: 'CTRL',  text: 'Engaging. Watch your back out there.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'This world is peace. You have brought conflict to a place that has known only stillness.' },
+        { speaker: 'PILOT', text: 'The stillness had a body count. I read the scans.' },
+        { speaker: 'BOSS',  text: 'What you call death, the Veil calls transformation. You cannot understand our purpose.' },
+        { speaker: 'PILOT', text: 'I understand enough to know it needs to stop.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'You should not be here. This world was not made for the living.' },
+        { speaker: 'PILOT', text: 'Neither was the last one. Didn\'t stop me.' },
+        { speaker: 'BOSS',  text: 'The deep does not surrender. It waits. It consumes.' },
+        { speaker: 'PILOT', text: 'Not today.' },
+      ],
+    ],
+  },
+  { name: 'Varix',   color: '#cc88ff', glowColor: null, size: 18, rings: false,
+    desc: 'A crystal shard planet, constantly fracturing. Every piece is a weapon.',
+    lives: 3, spawnMult: 0.70, speedMult: 1.24, largeChance: 0.64, medChance: 0.21,
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Varix is unstable. The entire crust is crystalline and fracturing continuously — fragments orbit it like a permanent debris field.' },
+        { speaker: 'PILOT', text: 'So the asteroids here are literally pieces of the planet.' },
+        { speaker: 'CTRL',  text: 'Correct. And they regrow. Whatever destroyed it keeps destroying it and the planet keeps forming again.' },
+        { speaker: 'PILOT', text: 'That\'s... a lot to think about.' },
+        { speaker: 'CTRL',  text: 'Don\'t think. Dodge. And take out the boss before this gets worse.' },
+        { speaker: 'PILOT', text: 'On it.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Varix. It\'s fracturing as I watch — whole sections breaking off and drifting away.' },
+        { speaker: 'CTRL',  text: 'Signal\'s cutting out. Too much crystal interference. I\'ll be brief: boss is massive, heavily shielded, dangerous.' },
+        { speaker: 'PILOT', text: 'Helpful.' },
+        { speaker: 'CTRL',  text: 'I try. Signal back soon. Don\'t die.' },
+        { speaker: 'PILOT', text: 'Not planning on it.' },
+        { speaker: 'CTRL',  text: 'Good. Go.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'I am born from fracture. Every crack in this world made me stronger.' },
+        { speaker: 'PILOT', text: 'So will shooting you just make more of you?' },
+        { speaker: 'BOSS',  text: 'Try it and find out. The Veil finds your curiosity... amusing.' },
+        { speaker: 'PILOT', text: 'Great. I aim to entertain.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'Nothing whole enters the Veil and leaves intact. You will shatter, like all things.' },
+        { speaker: 'PILOT', text: 'I haven\'t broken yet.' },
+        { speaker: 'BOSS',  text: 'You haven\'t faced something like me yet.' },
+        { speaker: 'PILOT', text: 'There\'s a first time for everything.' },
+      ],
+    ],
+  },
+  { name: 'Quellar', color: '#cc8800', glowColor: null, size: 32, rings: false,
+    desc: 'A gas dwarf wrapped in toxic amber clouds. Nothing lives here — except what kills you.',
+    lives: 3, spawnMult: 0.66, speedMult: 1.28, largeChance: 0.66, medChance: 0.20,
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Quellar. Atmospheric composition is entirely toxic — nothing from our universe could survive there naturally.' },
+        { speaker: 'PILOT', text: 'And yet something does.' },
+        { speaker: 'CTRL',  text: 'Yes. Something that evolved in poison. Or was built for it. We\'re not sure which is worse.' },
+        { speaker: 'PILOT', text: 'Does it matter? Both try to kill me the same way.' },
+        { speaker: 'CTRL',  text: 'Fair point. Signal\'s degrading faster now. The Veil is thickening between us.' },
+        { speaker: 'PILOT', text: 'Stay on as long as you can. I\'ll handle the rest.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'The clouds here move wrong. Everything does. Like the physics are slightly different.' },
+        { speaker: 'CTRL',  text: 'They are. This far into the Veil, spacetime bends differently. Don\'t trust your instruments fully.' },
+        { speaker: 'PILOT', text: 'So fly blind, fight smart. Got it.' },
+        { speaker: 'CTRL',  text: 'Essentially. Half our sensor data is already corrupted.' },
+        { speaker: 'PILOT', text: 'I\'ve fought on instinct before. Let\'s go.' },
+        { speaker: 'CTRL',  text: 'Routing what we can. Watch the amber columns — they move.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'You breathe oxygen. You are a fragile thing made for a fragile universe.' },
+        { speaker: 'PILOT', text: 'Fragile gets the job done.' },
+        { speaker: 'BOSS',  text: 'Here in the Quellar, the strong devour the strong. You are not strong enough.' },
+        { speaker: 'PILOT', text: 'Let\'s test that theory.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'The poison in this air would dissolve your flesh in seconds. Only I thrive here.' },
+        { speaker: 'PILOT', text: 'Good thing I\'m not getting out of the ship.' },
+        { speaker: 'BOSS',  text: 'Your ship will not protect you from me.' },
+        { speaker: 'PILOT', text: 'No. I will.' },
+      ],
+    ],
+  },
+  { name: 'Pyral',   color: '#ff4400', glowColor: null, size: 17, rings: false,
+    desc: 'Magma erupts into open space. The sky is permanently on fire.',
+    lives: 3, spawnMult: 0.62, speedMult: 1.32, largeChance: 0.68, medChance: 0.19,
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Pyral. The tidal forces from surrounding bodies tear it apart continuously — magma vents directly into orbit.' },
+        { speaker: 'PILOT', text: 'The asteroids here are blobs of lava.' },
+        { speaker: 'CTRL',  text: 'Essentially, yes. They cool into rock mid-flight. Your hull sensors should handle the heat — barely.' },
+        { speaker: 'PILOT', text: 'Nothing like flying through a volcano.' },
+        { speaker: 'CTRL',  text: 'Focus. The boss here is aggressive — it controls the eruption patterns. Don\'t give it time to set up.' },
+        { speaker: 'PILOT', text: 'Quick and decisive. Understood.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Pyral. The whole planet is screaming. I can feel the heat through the hull.' },
+        { speaker: 'CTRL',  text: 'Don\'t linger near the vents. The ejecta moves at orbital speed.' },
+        { speaker: 'PILOT', text: 'Right. How\'s the signal holding?' },
+        { speaker: 'CTRL',  text: 'Barely. Plasma interference. If I cut out — trust yourself and come home.' },
+        { speaker: 'PILOT', text: 'Always do.' },
+        { speaker: 'CTRL',  text: 'I know you do. Be fast.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'Fire is the Veil\'s oldest truth. Everything burns. Everything returns to ash.' },
+        { speaker: 'PILOT', text: 'Philosophy from a lava monster. I\'ve seen it all.' },
+        { speaker: 'BOSS',  text: 'You mock what you cannot understand. The Veil was burning before your star was born.' },
+        { speaker: 'PILOT', text: 'And I\'m still here. Let\'s keep it that way.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'You walk into the forge. Do you not feel it? The heat that unmakes?' },
+        { speaker: 'PILOT', text: 'I feel it. Not stopping.' },
+        { speaker: 'BOSS',  text: 'Then you are as stubborn as you are doomed.' },
+        { speaker: 'PILOT', text: 'Two things that keep me alive. Start.' },
+      ],
+    ],
+  },
+  { name: 'Cerune',  color: '#99ccff', glowColor: null, size: 24, rings: false,
+    desc: 'A cracked ice moon, adrift and orbiting nothing. Ancient and alone.',
+    lives: 3, spawnMult: 0.58, speedMult: 1.36, largeChance: 0.70, medChance: 0.18,
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Cerune. It\'s a moon with no parent body. Something ripped it free — or its world was destroyed around it.' },
+        { speaker: 'PILOT', text: 'It\'s just... drifting?' },
+        { speaker: 'CTRL',  text: 'For longer than we can calculate. Whatever memory it has, it\'s been alone with it.' },
+        { speaker: 'PILOT', text: 'And something chose to live here.' },
+        { speaker: 'CTRL',  text: 'Something ancient chose to stay. That\'s more worrying than anything we\'ve faced.' },
+        { speaker: 'PILOT', text: 'I\'ll be respectful. And thorough.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Cerune feels wrong. Not dangerous — just deeply, profoundly alone.' },
+        { speaker: 'CTRL',  text: 'Our psychological profile of the Veil suggests isolation is part of its power. The old ones feed on it.' },
+        { speaker: 'PILOT', text: 'The old ones?' },
+        { speaker: 'CTRL',  text: 'The Veil\'s original builders. Manthos and Novarix hold their last remnants.' },
+        { speaker: 'PILOT', text: 'Then Cerune is preparation. Good to know.' },
+        { speaker: 'CTRL',  text: 'Be steady. This is the last stretch.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'I have watched stars form and collapse. I am older than your concept of time.' },
+        { speaker: 'PILOT', text: 'Age doesn\'t win fights.' },
+        { speaker: 'BOSS',  text: 'No. But patience does. I have been patient for eons.' },
+        { speaker: 'PILOT', text: 'Patience runs out. So will you.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'This moon has no name in your language. Cerune is what the Veil calls forgetting.' },
+        { speaker: 'PILOT', text: 'I\'ll remember it when I\'m done here.' },
+        { speaker: 'BOSS',  text: 'You are confident for something so temporary.' },
+        { speaker: 'PILOT', text: 'Confidence gets me through. Let\'s go.' },
+      ],
+    ],
+  },
+  { name: 'Manthos', color: '#774499', glowColor: null, size: 19, rings: false,
+    desc: 'An obsidian fortress world built by the architects of the Veil. Their final stronghold.',
+    lives: 2, spawnMult: 0.54, speedMult: 1.40, largeChance: 0.72, medChance: 0.17,
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Manthos. We\'re reading structural signatures — this planet was built, not formed. An artificial world.' },
+        { speaker: 'PILOT', text: 'Who builds a planet?' },
+        { speaker: 'CTRL',  text: 'Something that\'s been here long enough to need one. The Veil\'s architects. This is their home.' },
+        { speaker: 'PILOT', text: 'Then this is where we hit them where it hurts.' },
+        { speaker: 'CTRL',  text: 'Signal is at twenty percent. Pilot — after this, we may not be able to help you at all.' },
+        { speaker: 'PILOT', text: 'Then make this one count. I\'m going in.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Manthos. The whole surface is obsidian. Perfect geometry. It was built by something that thinks in perfect angles.' },
+        { speaker: 'CTRL',  text: 'The Veil\'s architects designed it as a command center. Everything in the Veil reports here.' },
+        { speaker: 'PILOT', text: 'If I take it down, does the Veil fall?' },
+        { speaker: 'CTRL',  text: 'No. But it staggers. Novarix holds the core. One more after this.' },
+        { speaker: 'PILOT', text: 'One more after this.' },
+        { speaker: 'CTRL',  text: 'We\'re behind you. Even from this far. Always.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'You have reached the stronghold. You are the first outsider to make it this far in recorded history.' },
+        { speaker: 'PILOT', text: 'What do I win?' },
+        { speaker: 'BOSS',  text: 'A fight worthy of your journey. And then an ending.' },
+        { speaker: 'PILOT', text: 'The ending is mine to choose. Let\'s go.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'Manthos has never fallen. It will not fall to one ship and one pilot.' },
+        { speaker: 'PILOT', text: 'First time for everything.' },
+        { speaker: 'BOSS',  text: 'Pride is a short-lived advantage. I have defended this world for ten thousand years.' },
+        { speaker: 'PILOT', text: 'Year ten thousand and one ends different. Begin.' },
+      ],
+    ],
+  },
+  { name: 'Novarix', color: '#ffcc00', glowColor: null, size: 23, rings: false,
+    desc: 'A collapsing star at the edge of the Veil Expanse. The source of everything.',
+    lives: 2, spawnMult: 0.50, speedMult: 1.44, largeChance: 0.74, medChance: 0.16,
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: '...Pilot. Signal at five percent. Listen carefully — Novarix is the Veil\'s power source. The Architect lives there. It started all of this.' },
+        { speaker: 'PILOT', text: 'The Architect. The one behind the bosses. The whole invasion.' },
+        { speaker: 'CTRL',  text: 'We believe so. Destroy it — and the Veil loses its purpose. Its army loses direction.' },
+        { speaker: 'PILOT', text: 'Then this is it. The real end.' },
+        { speaker: 'CTRL',  text: 'We might lose signal completely when you engage. If we do — you know what to do.' },
+        { speaker: 'PILOT', text: 'I\'ve always known. Go.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Novarix. It\'s collapsing — slowly, but it\'s dying. Maybe that\'s why it sent its army out. To find somewhere else.' },
+        { speaker: 'CTRL',  text: '...Possibly. The Architect may not be evil. Just... desperate. And ancient.' },
+        { speaker: 'PILOT', text: 'Desperate things are the most dangerous.' },
+        { speaker: 'CTRL',  text: 'I know. Pilot — whatever happens in there, come back.' },
+        { speaker: 'PILOT', text: 'I intend to.' },
+        { speaker: 'CTRL',  text: 'End this.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'You have destroyed my children. You have shattered my stronghold. And now you stand before me.' },
+        { speaker: 'PILOT', text: 'I promised someone I\'d finish this. I keep my promises.' },
+        { speaker: 'BOSS',  text: 'I built the Veil from nothing. I sent armies across galaxies to find a new home. And you... you are the answer they sent back.' },
+        { speaker: 'PILOT', text: 'The answer is no. This ends here.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'My star dies. My galaxy dies with it. I only wanted to survive. Is that not what all things want?' },
+        { speaker: 'PILOT', text: 'Not at the cost of everything in mine.' },
+        { speaker: 'BOSS',  text: 'Then we are at an impasse that only violence resolves.' },
+        { speaker: 'PILOT', text: 'I\'ve been resolving impasses all the way from the Sun. One more won\'t stop me.' },
+      ],
+    ],
+  },
+];
+
 // ─── Changelog ────────────────────────────────────────────────────────────────
 // NOTE: Add NEW entries at the END of this array. renderChangelog() reverses it
 //       so the last entry appears at the top (newest first).
@@ -672,6 +1031,7 @@ const CHANGELOG = [
   { v: 'v1.62.1', date: '6:26 PM, 28 Feb 2026',  title: 'Dialogue Upgrade',          desc: 'The destination planet is now displayed large in the upper-center of the screen during dialogue. A 64×64 avatar appears in the panel — the player\'s ship when the Pilot speaks, a space command tower when Control speaks. All planets now have 6 lines of dialogue.' },
   { v: 'v1.63.0', date: '7:38 PM, 28 Feb 2026',  title: 'Dialogue Overhaul',         desc: 'All 9 planets now have 2 randomized pre-launch dialogue scripts picked at random on each visit, with varied speaker order and unique content. The Sun features a special intro from Earth Control Tower explaining the mission and hinting at a larger threat. Each boss encounter now opens with a 4-line exchange between the boss and the pilot, rendered over the live game world with a skull avatar in the boss\'s color. Endless Mode is unaffected.' },
   { v: 'v1.63.1', date: '9:59 AM, 01 Mar 2026',  title: 'Boss Entrance Cinematic',   desc: 'When a boss spawns in Story Mode, the battlefield is instantly cleared, the player\'s ship auto-pilots to the left-center of the screen, and the boss slides fully onto screen before the dialogue panel appears. Stars continue scrolling throughout the cinematic.' },
+  { v: 'v1.64.0', date: '2:00 PM, 01 Mar 2026',  title: 'The Veil Expanse',          desc: 'After defeating Neptune\'s boss, a cinematic plays: the dying boss reveals a larger conspiracy, a portal tears open, and the pilot is pulled into The Veil Expanse — a new galaxy with 9 harder planets, unique bosses, original dialogue, violet-tinted stars, and purple nebula visuals.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

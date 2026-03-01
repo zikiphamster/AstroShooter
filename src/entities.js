@@ -385,10 +385,33 @@ const PROGRESS_BOSS_DEFS = [
   { name: 'Deep Tempest',    color: '#1050ff', variant: 9, cannonCount: 3, maxHp:  98, speed: 188, shootInterval: 1.3,  bulletSpeed: 350, bulletCount: 3, chargeInterval:  6, special: null },
 ];
 
+// ─── Veil Expanse Boss Definitions ────────────────────────────────────────────
+const VEIL_BOSS_DEFS = [
+  // 0 — Aethon
+  { name: 'Pulse Wraith',       color: '#ff44bb', variant: 5, cannonCount: 1, maxHp: 110, speed: 200, shootInterval: 1.20, bulletSpeed: 360, bulletCount: 1, chargeInterval: 14, special: null   },
+  // 1 — Dross
+  { name: 'Scrap Titan',        color: '#aaaaaa', variant: 6, cannonCount: 2, maxHp: 120, speed: 215, shootInterval: 1.10, bulletSpeed: 375, bulletCount: 2, chargeInterval: 12, special: null   },
+  // 2 — Solace
+  { name: 'Depth Sovereign',    color: '#00ddcc', variant: 7, cannonCount: 2, maxHp: 130, speed: 228, shootInterval: 1.00, bulletSpeed: 390, bulletCount: 2, chargeInterval: 11, special: null   },
+  // 3 — Varix
+  { name: 'Shard Colossus',     color: '#cc88ff', variant: 8, cannonCount: 2, maxHp: 140, speed: 240, shootInterval: 0.95, bulletSpeed: 405, bulletCount: 2, chargeInterval: 10, special: null   },
+  // 4 — Quellar
+  { name: 'Smog Giant',         color: '#cc8800', variant: 1, cannonCount: 2, maxHp: 152, speed: 252, shootInterval: 0.90, bulletSpeed: 420, bulletCount: 2, chargeInterval:  9, special: null   },
+  // 5 — Pyral
+  { name: 'Forge Behemoth',     color: '#ff4400', variant: 2, cannonCount: 3, maxHp: 165, speed: 264, shootInterval: 0.85, bulletSpeed: 435, bulletCount: 3, chargeInterval:  8, special: null   },
+  // 6 — Cerune
+  { name: 'Glacial Harbinger',  color: '#99ccff', variant: 3, cannonCount: 3, maxHp: 178, speed: 276, shootInterval: 0.80, bulletSpeed: 450, bulletCount: 3, chargeInterval:  7, special: null   },
+  // 7 — Manthos
+  { name: 'Citadel Prime',      color: '#9955cc', variant: 4, cannonCount: 3, maxHp: 192, speed: 288, shootInterval: 0.75, bulletSpeed: 465, bulletCount: 3, chargeInterval:  6, special: null   },
+  // 8 — Novarix
+  { name: 'The Architect',      color: '#ffcc00', variant: 9, cannonCount: 3, maxHp: 210, speed: 300, shootInterval: 0.70, bulletSpeed: 480, bulletCount: 3, chargeInterval:  5, special: 'corona' },
+];
+
 class Boss {
   constructor(level = 1) {
     if (currentDiff === 'progress') {
-      const def           = PROGRESS_BOSS_DEFS[currentPlanet] ?? PROGRESS_BOSS_DEFS[0];
+      const bossDefs      = currentGalaxy === 0 ? PROGRESS_BOSS_DEFS : VEIL_BOSS_DEFS;
+      const def           = bossDefs[currentPlanet] ?? bossDefs[0];
       this.aiLevel        = currentPlanet / 8;       // 0.0 at Sun → 1.0 at Neptune
       this.name           = def.name;
       this.color          = def.color;
