@@ -404,7 +404,7 @@ const VEIL_BOSS_DEFS = [
   // 7 — Manthos
   { name: 'Citadel Prime',      color: '#9955cc', variant: 4, cannonCount: 3, maxHp: 154, speed: 288, shootInterval: 0.75, bulletSpeed: 465, bulletCount: 3, chargeInterval:  6, special: null   },
   // 8 — Novarix
-  { name: 'The Architect',      color: '#ffcc00', variant: 9, cannonCount: 3, maxHp: 168, speed: 300, shootInterval: 0.70, bulletSpeed: 480, bulletCount: 3, chargeInterval:  5, special: 'corona' },
+  { name: 'The Architect',      color: '#ffcc00', variant: 9, cannonCount: 3, maxHp: 130, speed: 300, shootInterval: 0.70, bulletSpeed: 480, bulletCount: 3, chargeInterval:  5, special: 'corona' },
 ];
 
 class Boss {
