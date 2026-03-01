@@ -163,6 +163,13 @@ window.addEventListener('wheel', e => {
 function handleCanvasClick(mx, my) {
   if (btnAnim.active) return; // block clicks during animation
 
+  // Boss dialogue intercepts all clicks while active (checked before pre-launch dialogue)
+  if (bossDialogueActive) {
+    const hit = (r) => r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
+    if (hit(bossDialogueNextRect)) advanceBossDialogue();
+    return;
+  }
+
   // Dialogue intercepts all clicks while active
   if (dialogueActive) {
     const hit = (r) => r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
@@ -395,13 +402,22 @@ function isDown(...codes) {
 
 // ─── Dialogue Functions ───────────────────────────────────────────────────────
 function advanceDialogue() {
-  const planet = PLANET_DEFS[currentPlanet];
   dialogueStep++;
-  if (dialogueStep >= planet.dialogue.length) {
-    dialogueActive = false;
-    dialogueStep   = 0;
+  if (dialogueStep >= currentDialogueLines.length) {
+    dialogueActive       = false;
+    dialogueStep         = 0;
+    currentDialogueLines = [];
     loadGame();
     gameState = 'PLAYING';
+  }
+}
+
+function advanceBossDialogue() {
+  bossDialogueStep++;
+  if (bossDialogueStep >= currentBossDialogueLines.length) {
+    bossDialogueActive       = false;
+    bossDialogueStep         = 0;
+    currentBossDialogueLines = [];
   }
 }
 

@@ -284,10 +284,12 @@ function update(dt) {
     if (solarMapLaunchTimer > 0) {
       solarMapLaunchTimer -= dt;
       if (solarMapLaunchTimer <= 0) {
-        solarMapLaunchTimer = 0;
-        selectedPlanet      = null;
-        dialogueActive      = true;
-        dialogueStep        = 0;
+        solarMapLaunchTimer  = 0;
+        selectedPlanet       = null;
+        const sets           = PLANET_DEFS[currentPlanet].dialogueSets;
+        currentDialogueLines = sets[Math.floor(Math.random() * sets.length)];
+        dialogueActive       = true;
+        dialogueStep         = 0;
       }
     }
     return;
@@ -351,6 +353,14 @@ function update(dt) {
   }
 
   // ── PLAYING ──────────────────────────────────────────────────────────────
+  if (bossDialogueActive) {
+    if (keys['Space'] || keys['Enter']) {
+      keys['Space'] = keys['Enter'] = false;
+      advanceBossDialogue();
+    }
+    return; // game paused during boss dialogue
+  }
+
   if (IS_TOUCH && touch.pause.active) {
     touch.pause.active = false;
     gameState = 'PAUSED';
@@ -438,9 +448,16 @@ function update(dt) {
 
   // ── Boss spawn ───────────────────────────────────────────────────────────
   if (!bossSpawned && score >= nextBossScore) {
-    bossSpawned      = true;
-    boss             = new Boss(currentLevel);
-    bossWarningTimer = 3.0;
+    bossSpawned = true;
+    boss        = new Boss(currentLevel);
+    const bsets = gameMode === 'progress' && PLANET_DEFS[currentPlanet]?.bossDialogueSets;
+    if (bsets && bsets.length) {
+      currentBossDialogueLines = bsets[Math.floor(Math.random() * bsets.length)];
+      bossDialogueActive       = true;
+      bossDialogueStep         = 0;
+    } else {
+      bossWarningTimer = 3.0; // Endless Mode fallback
+    }
   }
   if (bossWarningTimer > 0) bossWarningTimer -= dt;
 
@@ -614,6 +631,7 @@ function render() {
     renderBossHealthBar();
     renderBossWarning();
     renderPowerupBar();
+    if (bossDialogueActive) renderBossDialogue();
     if (IS_TOUCH) renderTouchControls();
     if (gameState === 'PAUSED') renderPaused();
   }
@@ -1229,7 +1247,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.62.1';
+  const verText = 'v1.63.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1884,8 +1902,8 @@ function drawTowerAvatar(bx, by) {
 
 function renderDialogue() {
   const planet = PLANET_DEFS[currentPlanet];
-  const lines  = planet.dialogue;
-  if (!lines || dialogueStep >= lines.length) return;
+  const lines  = currentDialogueLines;
+  if (!lines || !lines.length || dialogueStep >= lines.length) return;
   const line = lines[dialogueStep];
 
   // ── Planet in upper-center ─────────────────────────────────────────────────
@@ -1970,6 +1988,98 @@ function renderDialogue() {
   ctx.textAlign   = 'center';
   ctx.fillText(isLast ? 'LAUNCH ▶' : 'NEXT ▶', btnX + btnW / 2, btnY + btnH / 2);
 
+  ctx.restore();
+}
+
+// ── Boss avatar ───────────────────────────────────────────────────────────────
+function drawBossAvatar(bx, by) {
+  const bc = boss ? boss.color : '#f44';
+  ctx.save();
+  ctx.fillStyle   = 'rgba(25,0,0,0.9)';
+  ctx.strokeStyle = bc;
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath(); ctx.roundRect(bx, by, 64, 64, 8); ctx.fill(); ctx.stroke();
+  const cx = bx + 32, cy = by + 34;
+  ctx.translate(cx, cy);
+  // Skull shape
+  ctx.fillStyle = '#1e0a0a';
+  ctx.beginPath(); ctx.ellipse(0, -4, 15, 17, 0, 0, Math.PI * 2); ctx.fill();
+  // Glowing eyes
+  ctx.shadowColor = bc; ctx.shadowBlur = 8; ctx.fillStyle = bc;
+  ctx.beginPath(); ctx.ellipse(-6, -7, 4.5, 4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6, -7, 4.5, 4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  // Jaw
+  ctx.fillStyle = '#150505';
+  ctx.beginPath(); ctx.arc(0, 7, 10, 0, Math.PI); ctx.fill();
+  // Teeth
+  ctx.fillStyle = '#c8c8c8';
+  for (let i = 0; i < 3; i++) ctx.fillRect(-8 + i * 7, 5, 5, 8);
+  ctx.restore();
+}
+
+// ── Boss dialogue renderer ────────────────────────────────────────────────────
+function renderBossDialogue() {
+  const line = currentBossDialogueLines[bossDialogueStep];
+  if (!line) return;
+  const bc = boss ? boss.color : '#f44';
+
+  // Semi-transparent overlay — game world remains visible
+  ctx.fillStyle = 'rgba(0,0,0,0.52)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  const panelH = 120, panelX = 20, panelW = CANVAS_W - 40;
+  const panelY = CANVAS_H - panelH - 16;
+  ctx.save();
+  ctx.textBaseline = 'middle';
+
+  // Panel background
+  ctx.fillStyle   = 'rgba(20,0,0,0.95)';
+  ctx.strokeStyle = bc + '88';
+  ctx.lineWidth   = 2;
+  ctx.beginPath(); ctx.roundRect(panelX, panelY, panelW, panelH, 12); ctx.fill(); ctx.stroke();
+
+  // Accent stripe in boss color
+  ctx.shadowColor = bc; ctx.shadowBlur = 14; ctx.fillStyle = bc;
+  ctx.beginPath(); ctx.roundRect(panelX, panelY, panelW, 4, [12, 12, 0, 0]); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Avatar
+  const avX = panelX + 12, avY = panelY + (panelH - 64) / 2;
+  if (line.speaker === 'PILOT') drawShipAvatar(avX, avY);
+  else                          drawBossAvatar(avX, avY);
+
+  // Text area
+  const textX = avX + 64 + 14;
+  const textW  = panelW - (textX - panelX) - 130;
+  const speakerColor = line.speaker === 'PILOT' ? '#8f8' : bc;
+  const label = line.speaker === 'PILOT'
+    ? '[ PILOT ]'
+    : `[ ${boss ? boss.name.toUpperCase() : 'BOSS'} ]`;
+  ctx.shadowColor = speakerColor; ctx.shadowBlur = 8; ctx.fillStyle = speakerColor;
+  ctx.font = 'bold 12px "Courier New", monospace'; ctx.textAlign = 'left';
+  ctx.fillText(label, textX, panelY + 22);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#c8d4ee'; ctx.font = '14px "Courier New", monospace';
+  const wrapped = wrapText(line.text, textW);
+  for (let i = 0; i < wrapped.length; i++)
+    ctx.fillText(wrapped[i], textX, panelY + 44 + i * 22);
+
+  // Progress counter
+  ctx.fillStyle = '#446'; ctx.font = '11px "Courier New", monospace';
+  ctx.fillText(`${bossDialogueStep + 1} / ${currentBossDialogueLines.length}`, panelX + 12, panelY + panelH - 12);
+
+  // NEXT / FIGHT button
+  const isLast = bossDialogueStep === currentBossDialogueLines.length - 1;
+  const btnW = 110, btnH = 34;
+  const btnX = panelX + panelW - btnW - 14, btnY = panelY + (panelH - btnH) / 2;
+  bossDialogueNextRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+  ctx.shadowColor = bc; ctx.shadowBlur = 12; ctx.fillStyle = bc;
+  ctx.beginPath(); ctx.roundRect(btnX, btnY, btnW, btnH, 8); ctx.fill();
+  ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px "Courier New", monospace'; ctx.textAlign = 'center';
+  ctx.fillText(isLast ? 'FIGHT ▶' : 'NEXT ▶', btnX + btnW / 2, btnY + btnH / 2);
   ctx.restore();
 }
 

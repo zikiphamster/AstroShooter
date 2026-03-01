@@ -56,9 +56,16 @@ let planetObstacleTimer = 0;
 const planetDebuffs    = { iceslow: 0 };   // seconds remaining per debuff
 
 // ─── Dialogue State ───────────────────────────────────────────────────────────
-let dialogueActive   = false;
-let dialogueStep     = 0;
-let dialogueNextRect = null;
+let dialogueActive       = false;
+let dialogueStep         = 0;
+let dialogueNextRect     = null;
+let currentDialogueLines = [];   // randomly chosen script for the current launch
+
+// ─── Boss Dialogue State ───────────────────────────────────────────────────────
+let bossDialogueActive       = false;
+let bossDialogueStep         = 0;
+let bossDialogueNextRect     = null;
+let currentBossDialogueLines = [];   // randomly chosen script for the current boss
 
 // ─── Tutorial State ───────────────────────────────────────────────────────────
 let tutorialActive    = false;
@@ -239,109 +246,325 @@ const PLANET_DEFS = [
   { name: 'Sun',     color: '#ff8000', glowColor: '#ff4', size: 56, rings: false,
     desc: 'The blazing heart of the solar system. An easy warm-up.',
     lives: 6, spawnMult: 2.4,  speedMult: 0.50, largeChance: 0.22, medChance: 0.38,
-    dialogue: [
-      { speaker: 'CTRL',  text: 'Solar flares active. Watch yourself out there.' },
-      { speaker: 'PILOT', text: 'Copy. Heading into the Sun\'s orbit now.' },
-      { speaker: 'CTRL',  text: 'Temperature sensors are going off the charts.' },
-      { speaker: 'PILOT', text: 'I can handle the heat.' },
-      { speaker: 'CTRL',  text: 'Solar Tyrant detected on long-range radar.' },
-      { speaker: 'PILOT', text: 'I see it. Engaging.' },
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Earth Control Tower, online. I\'ll be your guide through this mission, Pilot.' },
+        { speaker: 'PILOT', text: 'Good to have someone on comms. What am I dealing with?' },
+        { speaker: 'CTRL',  text: 'Your objective: neutralize every boss terrorizing the solar system. Starting here at the Sun.' },
+        { speaker: 'PILOT', text: 'One at a time. Heading into the Sun\'s orbit now.' },
+        { speaker: 'CTRL',  text: 'Be advised — these threats appear coordinated. Something bigger may be pulling the strings.' },
+        { speaker: 'PILOT', text: 'Then I\'ll find out what it is. One boss at a time.' },
+      ],
+      [
+        { speaker: 'CTRL',  text: 'Pilot, this is Earth Control. We\'ve been waiting for someone like you.' },
+        { speaker: 'PILOT', text: 'Control, I\'m reading you. Brief me.' },
+        { speaker: 'CTRL',  text: 'The solar system is under siege. Bosses everywhere. Your job is to end it.' },
+        { speaker: 'PILOT', text: 'Understood. Starting with the Sun.' },
+        { speaker: 'CTRL',  text: 'One warning — these attacks feel deliberate. Something is orchestrating all of this.' },
+        { speaker: 'PILOT', text: 'I\'ll worry about that after I\'ve dealt with the first one.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'You dare approach the heart of the Sun? You will be ash.' },
+        { speaker: 'PILOT', text: 'Big words from something I can\'t even see yet.' },
+        { speaker: 'BOSS',  text: 'Your ship is nothing. Your courage is nothing. Turn back.' },
+        { speaker: 'PILOT', text: 'I don\'t turn back. Let\'s dance.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'The Tyrant rules this star. Trespassers are incinerated.' },
+        { speaker: 'PILOT', text: 'Good thing I run hot.' },
+        { speaker: 'BOSS',  text: 'I have burned greater pilots than you.' },
+        { speaker: 'PILOT', text: 'Name one.' },
+      ],
     ],
   },
   { name: 'Mercury', color: '#a0a0a0', glowColor: null,   size: 11, rings: false,
     desc: 'Cratered and airless. A gentle step up.',
     lives: 6, spawnMult: 2.1,  speedMult: 0.60, largeChance: 0.28, medChance: 0.38,
-    dialogue: [
-      { speaker: 'CTRL',  text: 'Radiation spikes in your sector. Stay clear.' },
-      { speaker: 'PILOT', text: 'Received. Keeping away from the hot zones.' },
-      { speaker: 'CTRL',  text: 'Asteroid density is higher than predicted.' },
-      { speaker: 'PILOT', text: 'Good. More to shoot.' },
-      { speaker: 'CTRL',  text: 'Iron Revenant has been causing havoc out there.' },
-      { speaker: 'PILOT', text: 'I\'ll take care of it.' },
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Heads up — surface temperature out there will cook unshielded tech.' },
+        { speaker: 'PILOT', text: 'Already accounting for it. What else?' },
+        { speaker: 'CTRL',  text: 'Crater fields make asteroid density unpredictable. Stay mobile.' },
+        { speaker: 'PILOT', text: 'Staying mobile is what I do.' },
+        { speaker: 'PILOT', text: 'Any intel on what\'s running the operation out here?' },
+        { speaker: 'CTRL',  text: 'Not much. Just that it\'s bad. Good luck out there.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Control, approaching Mercury. This place is not exactly welcoming.' },
+        { speaker: 'CTRL',  text: 'Never is. Radiation storms incoming — your shields will hold, barely.' },
+        { speaker: 'PILOT', text: 'Barely is fine.' },
+        { speaker: 'CTRL',  text: 'The asteroids here are fast and dense. Trust your reflexes.' },
+        { speaker: 'PILOT', text: 'That\'s all I\'ve got out here.' },
+        { speaker: 'CTRL',  text: 'Then you\'re better equipped than anyone. Make it count.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'Another pilot chasing ghosts. Mercury will be your graveyard.' },
+        { speaker: 'PILOT', text: 'It hasn\'t been anyone\'s graveyard yet.' },
+        { speaker: 'BOSS',  text: 'You will be the first. The Iron Revenant does not lose.' },
+        { speaker: 'PILOT', text: 'First time for everything.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'I have stood on this wasteland since before you were born. Leave.' },
+        { speaker: 'PILOT', text: 'I\'ve got orders. And they say you have to go.' },
+        { speaker: 'BOSS',  text: 'Orders mean nothing out here. Only iron.' },
+        { speaker: 'PILOT', text: 'Then I\'ll just have to bend it.' },
+      ],
     ],
   },
   { name: 'Venus',   color: '#e8c87a', glowColor: null,   size: 19, rings: false,
     desc: 'Toxic clouds, but nothing too dangerous yet.',
     lives: 5, spawnMult: 1.85, speedMult: 0.68, largeChance: 0.34, medChance: 0.36,
-    dialogue: [
-      { speaker: 'CTRL',  text: 'Heavy cloud cover. Watch for toxic pockets.' },
-      { speaker: 'PILOT', text: 'Navigating by instruments. I\'ve got this.' },
-      { speaker: 'CTRL',  text: 'Visibility near zero. Trust your sensors.' },
-      { speaker: 'PILOT', text: 'I\'ve flown blind before.' },
-      { speaker: 'CTRL',  text: 'Veiled Inferno is lurking in the upper clouds.' },
-      { speaker: 'PILOT', text: 'I\'ll flush it out.' },
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Venus is a nightmare under those clouds. Keep your velocity up.' },
+        { speaker: 'PILOT', text: 'Understood. Flying by the numbers.' },
+        { speaker: 'CTRL',  text: 'Toxic pockets in the upper atmosphere will mess with your readings.' },
+        { speaker: 'PILOT', text: 'I trust my instruments over my eyes anyway.' },
+        { speaker: 'PILOT', text: 'This place feels hostile even before the shooting starts.' },
+        { speaker: 'CTRL',  text: 'Welcome to Venus. Try not to breathe.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Venus on approach. Visibility near zero — using sensors only.' },
+        { speaker: 'CTRL',  text: 'Good. The clouds will hide threats until they\'re close. React fast.' },
+        { speaker: 'PILOT', text: 'Fast is relative in a soup this thick.' },
+        { speaker: 'CTRL',  text: 'Just keep moving. The worst thing you can do out here is stop.' },
+        { speaker: 'CTRL',  text: 'There\'s something big lurking in those upper cloud layers.' },
+        { speaker: 'PILOT', text: 'I\'ll flush it out. One way or another.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'You cannot see me in these clouds. You cannot find me.' },
+        { speaker: 'PILOT', text: 'I don\'t need to see you. I just need to hit you.' },
+        { speaker: 'BOSS',  text: 'Brave. You will burn like all the others.' },
+        { speaker: 'PILOT', text: 'I\'ve heard that before. Still here.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'The clouds are my armor. You will suffocate before you find me.' },
+        { speaker: 'PILOT', text: 'Then I\'ll work fast.' },
+        { speaker: 'BOSS',  text: 'Nothing fast survives Venus.' },
+        { speaker: 'PILOT', text: 'Watch me.' },
+      ],
     ],
   },
   { name: 'Earth',   color: '#4af',    glowColor: null,   size: 21, rings: false,
     desc: 'Home. Keep it safe — things are heating up.',
     lives: 5, spawnMult: 1.65, speedMult: 0.76, largeChance: 0.40, medChance: 0.34,
-    dialogue: [
-      { speaker: 'CTRL',  text: 'Earth Defense here. Orbital debris is a threat.' },
-      { speaker: 'PILOT', text: 'Home turf. Nothing gets through.' },
-      { speaker: 'CTRL',  text: 'Civilian platforms must stay intact.' },
-      { speaker: 'PILOT', text: 'Understood. Surgical strikes only.' },
-      { speaker: 'CTRL',  text: 'Living Bastion approaching from the dark side.' },
-      { speaker: 'PILOT', text: 'Not on my watch.' },
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'We\'re defending our own backyard now. Don\'t let anything through.' },
+        { speaker: 'PILOT', text: 'Nothing\'s getting past me. Not here.' },
+        { speaker: 'CTRL',  text: 'Civilian orbital platforms are active. Collateral damage is not acceptable.' },
+        { speaker: 'PILOT', text: 'Surgical. I know.' },
+        { speaker: 'PILOT', text: 'Something targeting Earth is looking for a fight.' },
+        { speaker: 'CTRL',  text: 'Then give it one. Earth\'s counting on you.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Home. Didn\'t expect my first look at Earth from this angle to be through a combat visor.' },
+        { speaker: 'CTRL',  text: 'Whatever is out there came here to send a message.' },
+        { speaker: 'PILOT', text: 'It\'ll get one. Just not the one it\'s expecting.' },
+        { speaker: 'CTRL',  text: 'Orbital debris fields are active and shifting. Stay sharp.' },
+        { speaker: 'PILOT', text: 'Move fast, clean shots. Platforms stay intact.' },
+        { speaker: 'CTRL',  text: 'We trust you. Don\'t make us regret it.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'Earth was unprotected. It was easy. You... are not.' },
+        { speaker: 'PILOT', text: 'Good observation. Let\'s keep going.' },
+        { speaker: 'BOSS',  text: 'I am a fortress. You are one ship. The math is simple.' },
+        { speaker: 'PILOT', text: 'I\'ve never been good at math.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'This planet is already mine. You are just the last obstacle.' },
+        { speaker: 'PILOT', text: 'I\'m the only obstacle that matters.' },
+        { speaker: 'BOSS',  text: 'Bold claim. Prove it, pilot.' },
+        { speaker: 'PILOT', text: 'That\'s exactly what I\'m about to do.' },
+      ],
     ],
   },
   { name: 'Mars',    color: '#c1440e', glowColor: null,   size: 16, rings: false,
     desc: 'The red planet pushes back. Stay focused.',
     lives: 4, spawnMult: 1.45, speedMult: 0.84, largeChance: 0.46, medChance: 0.32,
-    dialogue: [
-      { speaker: 'CTRL',  text: 'Dust devil activity is off the charts today.' },
-      { speaker: 'PILOT', text: 'Copy. I\'ve fought through worse.' },
-      { speaker: 'CTRL',  text: 'The colony is counting on you. Don\'t slip up.' },
-      { speaker: 'PILOT', text: 'Never do.' },
-      { speaker: 'CTRL',  text: 'Red Warlord is fortifying its position.' },
-      { speaker: 'PILOT', text: 'Already plotting an intercept course.' },
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Colony\'s been dark for six hours. Something\'s jamming their signal.' },
+        { speaker: 'PILOT', text: 'I\'ll find out what. Approaching the red planet now.' },
+        { speaker: 'CTRL',  text: 'Dust storms are active — your radar will be spotty.' },
+        { speaker: 'PILOT', text: 'I don\'t need radar. I need targets.' },
+        { speaker: 'CTRL',  text: 'Careful. Whatever got here before you has dug in.' },
+        { speaker: 'PILOT', text: 'Then I\'ll dig it out.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Mars looks quiet from here. Too quiet.' },
+        { speaker: 'CTRL',  text: 'It\'s not. We\'ve lost three patrols in the last cycle. Watch yourself.' },
+        { speaker: 'PILOT', text: 'Understood. What\'s the surface situation?' },
+        { speaker: 'CTRL',  text: 'Asteroid debris everywhere — dust storms moving it unpredictably.' },
+        { speaker: 'PILOT', text: 'Controlled chaos. I can work with that.' },
+        { speaker: 'CTRL',  text: 'The colony needs you to. No pressure.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'You\'ve come to Mars looking for war. You found the Warlord.' },
+        { speaker: 'PILOT', text: 'Perfect. Saves me the trouble of looking.' },
+        { speaker: 'BOSS',  text: 'You\'re going to regret coming here alone.' },
+        { speaker: 'PILOT', text: 'I\'m not alone. I\'ve got guns.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'Every pilot who challenged me is now part of this dust.' },
+        { speaker: 'PILOT', text: 'I\'m not much for sightseeing. Let\'s get this done.' },
+        { speaker: 'BOSS',  text: 'Mars runs red for a reason. Your ship will add to the color.' },
+        { speaker: 'PILOT', text: 'Poetic. Too bad you won\'t be around to see it.' },
+      ],
     ],
   },
   { name: 'Jupiter', color: '#c8883a', glowColor: null,   size: 36, rings: false,
     desc: 'Massive gravity drags more rocks your way.',
     lives: 4, spawnMult: 1.28, speedMult: 0.90, largeChance: 0.50, medChance: 0.30,
-    dialogue: [
-      { speaker: 'CTRL',  text: 'Jupiter\'s gravity will funnel rocks toward you.' },
-      { speaker: 'PILOT', text: 'Gravity works both ways.' },
-      { speaker: 'CTRL',  text: 'Magnetic interference is scrambling our sensors.' },
-      { speaker: 'PILOT', text: 'I\'ll rely on my eyes then.' },
-      { speaker: 'CTRL',  text: 'Storm Colossus is hiding in the magnetic field.' },
-      { speaker: 'PILOT', text: 'Then I\'ll have to get close.' },
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Jupiter\'s magnetosphere is playing havoc with long-range comms. Stay in range.' },
+        { speaker: 'PILOT', text: 'Copy. Keeping this channel open.' },
+        { speaker: 'CTRL',  text: 'Gravity wells near the cloud bands will pull debris toward you faster than expected.' },
+        { speaker: 'PILOT', text: 'Gravity\'s just another weapon if you use it right.' },
+        { speaker: 'CTRL',  text: 'Something\'s been circling the Great Red Spot for days. No one\'s gone in to check.' },
+        { speaker: 'PILOT', text: 'I\'ll check.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Jupiter looks alive from here. I can see the storm bands rotating.' },
+        { speaker: 'CTRL',  text: 'Don\'t let the view distract you. That system is extremely hostile.' },
+        { speaker: 'PILOT', text: 'I\'m focused. What am I flying into?' },
+        { speaker: 'CTRL',  text: 'A mess. Magnetic interference, dense fields, and something evading our sensors.' },
+        { speaker: 'PILOT', text: 'Evading ends today.' },
+        { speaker: 'CTRL',  text: 'That\'s what we like to hear. Stay sharp.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'The storm has raged here longer than your civilization has existed.' },
+        { speaker: 'PILOT', text: 'And yet here I am. Right in the eye of it.' },
+        { speaker: 'BOSS',  text: 'You are nothing before the Colossus.' },
+        { speaker: 'PILOT', text: 'Funny. You look like a target to me.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'Jupiter\'s fury is mine to command. You fly into your own destruction.' },
+        { speaker: 'PILOT', text: 'The gravity\'s pulling me in anyway. Might as well fight.' },
+        { speaker: 'BOSS',  text: 'You are too small to understand what you face.' },
+        { speaker: 'PILOT', text: 'Small things hit hard when aimed right.' },
+      ],
     ],
   },
   { name: 'Saturn',  color: '#e4d191', glowColor: null,   size: 28, rings: true,
     desc: 'Ring debris in your path. Keep moving.',
     lives: 4, spawnMult: 1.12, speedMult: 0.96, largeChance: 0.54, medChance: 0.28,
-    dialogue: [
-      { speaker: 'CTRL',  text: 'Ring shards incoming from all angles. Stay alert.' },
-      { speaker: 'PILOT', text: 'Cutting through the rings now.' },
-      { speaker: 'CTRL',  text: 'The ring plane is denser than the charts show.' },
-      { speaker: 'PILOT', text: 'I\'ve noticed. Adapting.' },
-      { speaker: 'CTRL',  text: 'Ringed Dominion is using the rings as cover.' },
-      { speaker: 'PILOT', text: 'I\'ll draw it out into open space.' },
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'The ring plane is more dangerous than it looks. Shards move at orbital speed.' },
+        { speaker: 'PILOT', text: 'I\'ll treat every piece like a bullet.' },
+        { speaker: 'PILOT', text: 'Something\'s been using the rings as cover, hasn\'t it.' },
+        { speaker: 'CTRL',  text: 'We think so. It knows the terrain better than we do.' },
+        { speaker: 'CTRL',  text: 'Fly unpredictably. Don\'t give it a pattern to track.' },
+        { speaker: 'PILOT', text: 'Unpredictable is my default setting.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Saturn is beautiful. Shame about the job.' },
+        { speaker: 'CTRL',  text: 'The rings are a minefield. Watch your angles.' },
+        { speaker: 'CTRL',  text: 'We\'ve had ships go silent in there. None came back to say why.' },
+        { speaker: 'PILOT', text: 'They didn\'t have me.' },
+        { speaker: 'PILOT', text: 'I\'ll cut through and draw it into open space. My advantage.' },
+        { speaker: 'CTRL',  text: 'Solid plan. Execute.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'These rings are my domain. You have no advantage here.' },
+        { speaker: 'PILOT', text: 'You\'ve been hiding long enough. Time to come out.' },
+        { speaker: 'BOSS',  text: 'I do not hide. I wait. And you have walked into my trap.' },
+        { speaker: 'PILOT', text: 'Every ring has a crack in it.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'The Dominion has ruled these rings for centuries. Your intrusion is noted.' },
+        { speaker: 'PILOT', text: 'So is your threat level. Medium at best.' },
+        { speaker: 'BOSS',  text: 'You speak carelessly for someone surrounded by shards.' },
+        { speaker: 'PILOT', text: 'I\'ll watch the rocks. You watch for my shots.' },
+      ],
     ],
   },
   { name: 'Uranus',  color: '#7de8e8', glowColor: null,   size: 23, rings: false,
     desc: 'An ice giant with a mean streak. Nearly there.',
     lives: 3, spawnMult: 1.00, speedMult: 1.02, largeChance: 0.57, medChance: 0.26,
-    dialogue: [
-      { speaker: 'CTRL',  text: 'Ice storms ahead. Push through if you slow down.' },
-      { speaker: 'PILOT', text: 'Understood. One more after this.' },
-      { speaker: 'CTRL',  text: 'You\'re almost at the edge of charted space.' },
-      { speaker: 'PILOT', text: 'Doesn\'t feel that far.' },
-      { speaker: 'CTRL',  text: 'Ice Monarch stands between you and Neptune.' },
-      { speaker: 'PILOT', text: 'Let\'s make it quick.' },
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'This far out, we\'re running on the edge of our support range.' },
+        { speaker: 'PILOT', text: 'Understood. I\'ll handle whatever I find.' },
+        { speaker: 'CTRL',  text: 'Ice storm systems are dense out here. Visibility drops fast.' },
+        { speaker: 'PILOT', text: 'I\'ve flown in worse.' },
+        { speaker: 'CTRL',  text: 'Whatever\'s out here doesn\'t want to be followed.' },
+        { speaker: 'PILOT', text: 'Tough. I\'m persistent.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Uranus. Funny name for such a cold, serious place.' },
+        { speaker: 'CTRL',  text: 'Gets colder. Save the chatter — you\'ll need the focus.' },
+        { speaker: 'PILOT', text: 'Fair enough. What do we know about the threat here?' },
+        { speaker: 'CTRL',  text: 'Not much. It went dark after the last recon sweep. Assume hostile.' },
+        { speaker: 'CTRL',  text: 'One more after this and it\'s over. Hold it together.' },
+        { speaker: 'PILOT', text: 'I haven\'t come this far to stop now.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'Ice and silence — that is all that waits for you beyond this point.' },
+        { speaker: 'PILOT', text: 'Not all. There\'s you.' },
+        { speaker: 'BOSS',  text: 'The Monarch has frozen better pilots solid. You are no different.' },
+        { speaker: 'PILOT', text: 'I don\'t freeze. I adapt.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'Turn back, pilot. Neptune is not worth your life.' },
+        { speaker: 'PILOT', text: 'I disagree. Keep moving.' },
+        { speaker: 'BOSS',  text: 'Then you are a fool. A determined one, I\'ll grant you that.' },
+        { speaker: 'PILOT', text: 'Determination\'s free. And I\'m well stocked.' },
+      ],
     ],
   },
   { name: 'Neptune', color: '#5060e0', glowColor: null,   size: 22, rings: false,
     desc: 'The edge of the solar system. A worthy finale.',
     lives: 3, spawnMult: 0.90, speedMult: 1.08, largeChance: 0.60, medChance: 0.25,
-    dialogue: [
-      { speaker: 'CTRL',  text: 'AstroShooter... this is it. Edge of the system.' },
-      { speaker: 'PILOT', text: 'Long way from home.' },
-      { speaker: 'CTRL',  text: 'No rescue if things go wrong out here.' },
-      { speaker: 'PILOT', text: 'They won\'t.' },
-      { speaker: 'CTRL',  text: 'Deep Tempest is the strongest we\'ve ever tracked.' },
-      { speaker: 'PILOT', text: 'No holding back. Let\'s finish this.' },
+    dialogueSets: [
+      [
+        { speaker: 'CTRL',  text: 'Pilot... Neptune. The end of the line.' },
+        { speaker: 'PILOT', text: 'Feels further than I thought.' },
+        { speaker: 'CTRL',  text: 'No backup out here. No second chances. You know what\'s at stake.' },
+        { speaker: 'PILOT', text: 'I\'ve known since the Sun.' },
+        { speaker: 'CTRL',  text: 'Whatever was pulling the strings... we think it ends here.' },
+        { speaker: 'PILOT', text: 'Then let\'s end it. For good.' },
+      ],
+      [
+        { speaker: 'PILOT', text: 'Edge of the solar system. I can almost see the dark.' },
+        { speaker: 'CTRL',  text: 'Don\'t look too long. You\'ve got one more fight in front of you.' },
+        { speaker: 'CTRL',  text: 'If you can finish this, the solar system is safe. That\'s not nothing.' },
+        { speaker: 'PILOT', text: 'It\'s everything.' },
+        { speaker: 'PILOT', text: 'I\'m going in. Whatever\'s waiting — it\'s mine.' },
+        { speaker: 'CTRL',  text: 'We\'ll be cheering from here. All of us. Good luck.' },
+      ],
+    ],
+    bossDialogueSets: [
+      [
+        { speaker: 'BOSS',  text: 'You reached the end. Impressive. Pointless, but impressive.' },
+        { speaker: 'PILOT', text: 'Nothing\'s pointless if it works. And this is going to work.' },
+        { speaker: 'BOSS',  text: 'Behind me is nothing. In front of me — nothing survives.' },
+        { speaker: 'PILOT', text: 'Not true. I will.' },
+      ],
+      [
+        { speaker: 'BOSS',  text: 'The system sends one pilot to face me. How flattering.' },
+        { speaker: 'PILOT', text: 'One was all it took for the others. You\'re no different.' },
+        { speaker: 'BOSS',  text: 'I am nothing like the others. I am the storm that swallows stars.' },
+        { speaker: 'PILOT', text: 'Every storm ends. Starting yours now.' },
+      ],
     ],
   },
 ];
@@ -446,6 +669,7 @@ const CHANGELOG = [
   { v: 'v1.61.1', date: '3:16 PM, 28 Feb 2026',  title: 'Story Mode Lives Fix',      desc: 'Defeating a boss in Story Mode no longer grants +2 lives. The bonus only applies in Endless Mode.' },
   { v: 'v1.62.0', date: '6:16 PM, 28 Feb 2026',  title: 'Planet Launch Dialogue',    desc: 'Each Story Mode planet now opens with a short radio conversation between the Pilot and Earth Control Tower. The dialogue plays over scrolling stars after the warp animation. Press SPACE or click NEXT to advance; the final line launches the level.' },
   { v: 'v1.62.1', date: '6:26 PM, 28 Feb 2026',  title: 'Dialogue Upgrade',          desc: 'The destination planet is now displayed large in the upper-center of the screen during dialogue. A 64×64 avatar appears in the panel — the player\'s ship when the Pilot speaks, a space command tower when Control speaks. All planets now have 6 lines of dialogue.' },
+  { v: 'v1.63.0', date: '7:38 PM, 28 Feb 2026',  title: 'Dialogue Overhaul',         desc: 'All 9 planets now have 2 randomized pre-launch dialogue scripts picked at random on each visit, with varied speaker order and unique content. The Sun features a special intro from Earth Control Tower explaining the mission and hinting at a larger threat. Each boss encounter now opens with a 4-line exchange between the boss and the pilot, rendered over the live game world with a skull avatar in the boss\'s color. Endless Mode is unaffected.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────
