@@ -1039,6 +1039,7 @@ const CHANGELOG = [
   { v: 'v1.64.1', date: '3:00 PM, 01 Mar 2026',  title: 'Neptune Death Polish',      desc: 'The Neptune boss defeat sequence is now fully cinematic: all remaining asteroids explode simultaneously, the boss stays on screen burning with fire particles and screen shake, and the player\'s ship glides back to the left-center before the dialogue panel appears. Galaxy navigation arrows also added to the solar map.' },
   { v: 'v1.64.2', date: '4:00 PM, 01 Mar 2026',  title: 'Difficulty Rebalance',      desc: 'All 18 planets across both galaxies are now easier: asteroids spawn less frequently, move slower, and skew smaller. Planet hazards appear less often and cap at lower simultaneous counts. Several later planets gained an extra life.' },
   { v: 'v1.64.3', date: '5:00 PM, 01 Mar 2026',  title: 'Shop Stat Comparison',      desc: 'Clicking a hull or engine in the shop now enters a preview mode instead of instantly equipping. The attributes panel switches to a side-by-side comparison (current bar vs. preview bar) with colour-coded +/- deltas per stat. A BUY / EQUIP button appears below — click it to confirm, or click the item again to dismiss the preview.' },
+  { v: 'v1.64.4', date: '6:00 PM, 01 Mar 2026',  title: 'Veil Boss HP Rebalance',     desc: 'All 9 Veil Expanse bosses have 20% less HP, making encounters feel more manageable. A minimum floor ensures every Veil boss still has more health than Neptune, the toughest Solar System boss.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

@@ -388,23 +388,23 @@ const PROGRESS_BOSS_DEFS = [
 // ─── Veil Expanse Boss Definitions ────────────────────────────────────────────
 const VEIL_BOSS_DEFS = [
   // 0 — Aethon
-  { name: 'Pulse Wraith',       color: '#ff44bb', variant: 5, cannonCount: 1, maxHp: 110, speed: 200, shootInterval: 1.20, bulletSpeed: 360, bulletCount: 1, chargeInterval: 14, special: null   },
+  { name: 'Pulse Wraith',       color: '#ff44bb', variant: 5, cannonCount: 1, maxHp: 100, speed: 200, shootInterval: 1.20, bulletSpeed: 360, bulletCount: 1, chargeInterval: 14, special: null   },
   // 1 — Dross
-  { name: 'Scrap Titan',        color: '#aaaaaa', variant: 6, cannonCount: 2, maxHp: 120, speed: 215, shootInterval: 1.10, bulletSpeed: 375, bulletCount: 2, chargeInterval: 12, special: null   },
+  { name: 'Scrap Titan',        color: '#aaaaaa', variant: 6, cannonCount: 2, maxHp: 100, speed: 215, shootInterval: 1.10, bulletSpeed: 375, bulletCount: 2, chargeInterval: 12, special: null   },
   // 2 — Solace
-  { name: 'Depth Sovereign',    color: '#00ddcc', variant: 7, cannonCount: 2, maxHp: 130, speed: 228, shootInterval: 1.00, bulletSpeed: 390, bulletCount: 2, chargeInterval: 11, special: null   },
+  { name: 'Depth Sovereign',    color: '#00ddcc', variant: 7, cannonCount: 2, maxHp: 104, speed: 228, shootInterval: 1.00, bulletSpeed: 390, bulletCount: 2, chargeInterval: 11, special: null   },
   // 3 — Varix
-  { name: 'Shard Colossus',     color: '#cc88ff', variant: 8, cannonCount: 2, maxHp: 140, speed: 240, shootInterval: 0.95, bulletSpeed: 405, bulletCount: 2, chargeInterval: 10, special: null   },
+  { name: 'Shard Colossus',     color: '#cc88ff', variant: 8, cannonCount: 2, maxHp: 112, speed: 240, shootInterval: 0.95, bulletSpeed: 405, bulletCount: 2, chargeInterval: 10, special: null   },
   // 4 — Quellar
-  { name: 'Smog Giant',         color: '#cc8800', variant: 1, cannonCount: 2, maxHp: 152, speed: 252, shootInterval: 0.90, bulletSpeed: 420, bulletCount: 2, chargeInterval:  9, special: null   },
+  { name: 'Smog Giant',         color: '#cc8800', variant: 1, cannonCount: 2, maxHp: 122, speed: 252, shootInterval: 0.90, bulletSpeed: 420, bulletCount: 2, chargeInterval:  9, special: null   },
   // 5 — Pyral
-  { name: 'Forge Behemoth',     color: '#ff4400', variant: 2, cannonCount: 3, maxHp: 165, speed: 264, shootInterval: 0.85, bulletSpeed: 435, bulletCount: 3, chargeInterval:  8, special: null   },
+  { name: 'Forge Behemoth',     color: '#ff4400', variant: 2, cannonCount: 3, maxHp: 132, speed: 264, shootInterval: 0.85, bulletSpeed: 435, bulletCount: 3, chargeInterval:  8, special: null   },
   // 6 — Cerune
-  { name: 'Glacial Harbinger',  color: '#99ccff', variant: 3, cannonCount: 3, maxHp: 178, speed: 276, shootInterval: 0.80, bulletSpeed: 450, bulletCount: 3, chargeInterval:  7, special: null   },
+  { name: 'Glacial Harbinger',  color: '#99ccff', variant: 3, cannonCount: 3, maxHp: 142, speed: 276, shootInterval: 0.80, bulletSpeed: 450, bulletCount: 3, chargeInterval:  7, special: null   },
   // 7 — Manthos
-  { name: 'Citadel Prime',      color: '#9955cc', variant: 4, cannonCount: 3, maxHp: 192, speed: 288, shootInterval: 0.75, bulletSpeed: 465, bulletCount: 3, chargeInterval:  6, special: null   },
+  { name: 'Citadel Prime',      color: '#9955cc', variant: 4, cannonCount: 3, maxHp: 154, speed: 288, shootInterval: 0.75, bulletSpeed: 465, bulletCount: 3, chargeInterval:  6, special: null   },
   // 8 — Novarix
-  { name: 'The Architect',      color: '#ffcc00', variant: 9, cannonCount: 3, maxHp: 210, speed: 300, shootInterval: 0.70, bulletSpeed: 480, bulletCount: 3, chargeInterval:  5, special: 'corona' },
+  { name: 'The Architect',      color: '#ffcc00', variant: 9, cannonCount: 3, maxHp: 168, speed: 300, shootInterval: 0.70, bulletSpeed: 480, bulletCount: 3, chargeInterval:  5, special: 'corona' },
 ];
 
 class Boss {
