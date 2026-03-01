@@ -22,7 +22,11 @@ const playModeButtonRects = [];
 const pauseButtonRects = [];
 const shopButtonRects = [];
 const solarMapButtonRects = [];
-let shopScrollY = 0;
+let shopScrollY      = 0;
+let shopPreviewKey   = null;   // 'variant_N' | 'engine_N' | null
+let shopCoinSecret      = false;  // true when the blank secret screen is open
+let shopSecretRect      = null;   // invisible collect button (bottom-right)
+let shopSecretResetRect = null;   // invisible reset button (top-left)
 
 function loadGame() {
   const d    = DIFFICULTIES[currentDiff];
@@ -1379,7 +1383,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.64.2';
+  const verText = 'v1.64.3';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -1418,6 +1422,7 @@ function renderShop() {
 
   // ── SpaceCoins balance (top-right) ────────────────────────────────────────
   const coinBoxW = 120, coinBoxH = 34, coinBoxX = CANVAS_W - coinBoxW - 16, coinBoxY = 16;
+  shopButtonRects.push({ x: coinBoxX, y: coinBoxY, w: coinBoxW, h: coinBoxH, key: 'coin_secret' });
   ctx.fillStyle   = 'rgba(30,25,0,0.85)';
   ctx.strokeStyle = '#fd0';
   ctx.lineWidth   = 1.5;
@@ -1534,9 +1539,15 @@ function renderShop() {
   const attrPanelY = swatchY + swatchR + 28;
   const attrCx     = attrPanelX + attrPanelW / 2;
 
-  ctx.fillStyle = 'rgba(10,0,25,0.85)';
-  ctx.strokeStyle = '#446';
-  ctx.lineWidth = 1;
+  // Resolve what's being previewed
+  const pvIdx = shopPreviewKey && shopPreviewKey.startsWith('variant_') ? +shopPreviewKey.split('_')[1] : -1;
+  const peIdx = shopPreviewKey && shopPreviewKey.startsWith('engine_')  ? +shopPreviewKey.split('_')[1] : -1;
+  const pvVariant = pvIdx >= 0 ? pvIdx : playerVariant;
+  const pvEngine  = peIdx >= 0 ? peIdx : playerEngine;
+
+  ctx.fillStyle   = shopPreviewKey ? 'rgba(30,25,0,0.92)'  : 'rgba(10,0,25,0.85)';
+  ctx.strokeStyle = shopPreviewKey ? '#fd0' : '#446';
+  ctx.lineWidth   = shopPreviewKey ? 1.5   : 1;
   ctx.beginPath();
   ctx.roundRect(attrPanelX, attrPanelY, attrPanelW, attrPanelH, 8);
   ctx.fill();
@@ -1544,62 +1555,163 @@ function renderShop() {
 
   const hs = HULL_STATS[playerVariant] ?? HULL_STATS[0];
   const es = ENGINE_DEFS[playerEngine]  ?? ENGINE_DEFS[0];
+  const phs = HULL_STATS[pvVariant]    ?? HULL_STATS[0];
+  const pes = ENGINE_DEFS[pvEngine]    ?? ENGINE_DEFS[0];
   const clampStat = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
   ctx.font = 'bold 11px "Courier New", monospace';
-  ctx.fillStyle = '#a8f';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`ATTRIBUTES — ${HULL_DEFS[playerVariant].name.toUpperCase()}`, attrCx, attrPanelY + 14);
+  if (shopPreviewKey) {
+    const pvName = pvIdx >= 0 ? HULL_DEFS[pvIdx].name.toUpperCase() : ENGINE_DEFS[peIdx].name.toUpperCase();
+    ctx.fillStyle = '#fd0';
+    ctx.fillText(`PREVIEW — ${pvName}`, attrCx, attrPanelY + 14);
+  } else {
+    ctx.fillStyle = '#a8f';
+    ctx.fillText(`ATTRIBUTES — ${HULL_DEFS[playerVariant].name.toUpperCase()}`, attrCx, attrPanelY + 14);
+  }
 
-  const statRows = [
-    { label: 'SPD',  base: hs.spd,  delta: es.spd  },
-    { label: 'RATE', base: hs.rate, delta: es.rate },
-    { label: 'DEF',  base: hs.def,  delta: es.def  },
-    { label: 'POW',  base: hs.pow,  delta: es.pow  },
-  ];
-  const segW = 16, segH = 13, segGap = 3;
   const barX  = attrPanelX + 52;
   const barY0 = attrPanelY + 32;
   const rowGap = 24;
+  const statKeys   = ['spd', 'rate', 'def', 'pow'];
+  const statLabels = ['SPD', 'RATE', 'DEF', 'POW'];
 
   ctx.font = '10px "Courier New", monospace';
-  for (let si = 0; si < statRows.length; si++) {
-    const s = statRows[si];
-    const ry = barY0 + si * rowGap;
-    const total = clampStat(s.base + s.delta, 1, 7);
 
-    ctx.fillStyle = '#88a';
-    ctx.textAlign = 'right';
-    ctx.fillText(s.label, barX - 8, ry + segH / 2);
+  if (!shopPreviewKey) {
+    // Normal: single bar with engine-delta colouring
+    const segW = 16, segH = 13, segGap = 3;
+    for (let si = 0; si < 4; si++) {
+      const k     = statKeys[si];
+      const ry    = barY0 + si * rowGap;
+      const base  = hs[k];
+      const delta = es[k];
+      const total = clampStat(base + delta, 1, 7);
 
-    for (let seg = 0; seg < 7; seg++) {
-      const sx = barX + seg * (segW + segGap);
-      if (seg < total) {
-        ctx.fillStyle = (s.delta > 0 && seg >= s.base) ? '#4f8' : '#a8f';
-      } else if (s.delta < 0 && seg >= total && seg < s.base) {
-        ctx.fillStyle = '#f44';
-      } else {
-        ctx.fillStyle = 'rgba(50,30,70,0.5)';
+      ctx.fillStyle = '#88a';
+      ctx.textAlign = 'right';
+      ctx.fillText(statLabels[si], barX - 8, ry + segH / 2);
+
+      for (let seg = 0; seg < 7; seg++) {
+        const sx = barX + seg * (segW + segGap);
+        if (seg < total) {
+          ctx.fillStyle = (delta > 0 && seg >= base) ? '#4f8' : '#a8f';
+        } else if (delta < 0 && seg >= total && seg < base) {
+          ctx.fillStyle = '#f44';
+        } else {
+          ctx.fillStyle = 'rgba(50,30,70,0.5)';
+        }
+        ctx.fillRect(sx, ry, segW, segH);
       }
-      ctx.fillRect(sx, ry, segW, segH);
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'left';
+      ctx.fillText(`(${total})`, barX + 7 * (segW + segGap) + 4, ry + segH / 2);
     }
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'left';
-    ctx.fillText(`(${total})`, barX + 7 * (segW + segGap) + 4, ry + segH / 2);
+
+    // Engine summary line
+    const engineDeltas = [];
+    if (es.spd  !== 0) engineDeltas.push(`${es.spd  > 0 ? '+' : ''}${es.spd}SPD`);
+    if (es.rate !== 0) engineDeltas.push(`${es.rate > 0 ? '+' : ''}${es.rate}RATE`);
+    if (es.def  !== 0) engineDeltas.push(`${es.def  > 0 ? '+' : ''}${es.def}DEF`);
+    if (es.pow  !== 0) engineDeltas.push(`${es.pow  > 0 ? '+' : ''}${es.pow}POW`);
+    const deltaStr = engineDeltas.length ? `  ${engineDeltas.join('  ')}` : '  no bonus';
+    ctx.fillStyle = '#8af';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Engine: ${ENGINE_DEFS[playerEngine].name}${deltaStr}`, attrCx, attrPanelY + attrPanelH - 11);
+
+  } else {
+    // Preview: current bar (dimmed) → preview bar (coloured) + delta
+    const pSegW = 10, pSegH = 12, pSegGap = 2;
+    const barTotalW = 7 * (pSegW + pSegGap) - pSegGap;  // 80 px
+    const arrowGap  = 20;
+
+    for (let si = 0; si < 4; si++) {
+      const k       = statKeys[si];
+      const ry      = barY0 + si * rowGap;
+      const curVal  = clampStat(hs[k] + es[k], 1, 7);
+      const prevVal = clampStat(phs[k] + pes[k], 1, 7);
+      const d       = prevVal - curVal;
+
+      ctx.fillStyle = '#88a';
+      ctx.textAlign = 'right';
+      ctx.fillText(statLabels[si], barX - 8, ry + pSegH / 2);
+
+      // Current bar (dimmed purple)
+      for (let seg = 0; seg < 7; seg++) {
+        ctx.fillStyle = seg < curVal ? 'rgba(160,130,255,0.45)' : 'rgba(50,30,70,0.2)';
+        ctx.fillRect(barX + seg * (pSegW + pSegGap), ry, pSegW, pSegH);
+      }
+
+      // Arrow
+      ctx.fillStyle = '#777';
+      ctx.textAlign = 'center';
+      ctx.fillText('→', barX + barTotalW + arrowGap / 2, ry + pSegH / 2);
+
+      // Preview bar
+      const px0    = barX + barTotalW + arrowGap;
+      const barCol = d > 0 ? '#4f8' : (d < 0 ? '#f55' : '#a8f');
+      for (let seg = 0; seg < 7; seg++) {
+        ctx.fillStyle = seg < prevVal ? barCol : 'rgba(50,30,70,0.2)';
+        ctx.fillRect(px0 + seg * (pSegW + pSegGap), ry, pSegW, pSegH);
+      }
+
+      // Delta text
+      const dStr = d > 0 ? `+${d}` : (d === 0 ? '=' : `${d}`);
+      ctx.fillStyle = d > 0 ? '#4f8' : (d < 0 ? '#f44' : '#777');
+      ctx.textAlign = 'left';
+      ctx.fillText(dStr, px0 + barTotalW + 5, ry + pSegH / 2);
+    }
+
+    // Bottom hint
+    const replaceLabel = pvIdx >= 0
+      ? `Hull  ·  replaces ${HULL_DEFS[playerVariant].name}`
+      : `Engine  ·  replaces ${ENGINE_DEFS[playerEngine].name}`;
+    ctx.fillStyle = '#886';
+    ctx.textAlign = 'center';
+    ctx.fillText(replaceLabel, attrCx, attrPanelY + attrPanelH - 11);
   }
 
-  const engineDeltas = [];
-  if (es.spd  !== 0) engineDeltas.push(`${es.spd  > 0 ? '+' : ''}${es.spd}SPD`);
-  if (es.rate !== 0) engineDeltas.push(`${es.rate > 0 ? '+' : ''}${es.rate}RATE`);
-  if (es.def  !== 0) engineDeltas.push(`${es.def  > 0 ? '+' : ''}${es.def}DEF`);
-  if (es.pow  !== 0) engineDeltas.push(`${es.pow  > 0 ? '+' : ''}${es.pow}POW`);
-  const deltaStr = engineDeltas.length ? `  ${engineDeltas.join('  ')}` : '  no bonus';
-  ctx.fillStyle = '#8af';
-  ctx.textAlign = 'center';
-  ctx.fillText(`Engine: ${ENGINE_DEFS[playerEngine].name}${deltaStr}`, attrCx, attrPanelY + attrPanelH - 11);
+  // ── BUY / EQUIP button (shown below attributes panel when preview is active) ─
+  const pvBtnW = 160, pvBtnH = 36;
+  const pvBtnX = attrCx - pvBtnW / 2;
+  const pvBtnY = attrPanelY + attrPanelH + 8;
+  if (shopPreviewKey) {
+    let pvBtnLabel = '', pvBtnColor = '#4af', pvBtnFaded = false;
+    if (pvIdx >= 0) {
+      if (playerVariant === pvIdx)            { pvBtnLabel = 'EQUIPPED';             pvBtnFaded = true; }
+      else if (unlockedHulls.includes(pvIdx)) { pvBtnLabel = 'EQUIP';                pvBtnColor = '#4af'; }
+      else if (spaceCoins >= HULL_DEFS[pvIdx].cost) { pvBtnLabel = `BUY · ${HULL_DEFS[pvIdx].cost} coins`; pvBtnColor = '#fd0'; }
+      else                                    { pvBtnLabel = `Need ${HULL_DEFS[pvIdx].cost} coins`; pvBtnFaded = true; }
+    } else if (peIdx >= 0) {
+      if (playerEngine === peIdx)               { pvBtnLabel = 'EQUIPPED';               pvBtnFaded = true; }
+      else if (unlockedEngines.includes(peIdx)) { pvBtnLabel = 'EQUIP';                  pvBtnColor = '#4af'; }
+      else if (spaceCoins >= ENGINE_DEFS[peIdx].cost) { pvBtnLabel = `BUY · ${ENGINE_DEFS[peIdx].cost} coins`; pvBtnColor = '#fd0'; }
+      else                                      { pvBtnLabel = `Need ${ENGINE_DEFS[peIdx].cost} coins`; pvBtnFaded = true; }
+    }
 
-  const leftColBottom = attrPanelY + attrPanelH;
+    shopButtonRects.push({ x: pvBtnX, y: pvBtnY, w: pvBtnW, h: pvBtnH, key: 'preview_action' });
+
+    ctx.globalAlpha  = pvBtnFaded ? 0.4 : 1;
+    ctx.fillStyle    = 'rgba(20,10,40,0.9)';
+    ctx.strokeStyle  = pvBtnFaded ? '#555' : pvBtnColor;
+    ctx.lineWidth    = 1.5;
+    ctx.shadowColor  = pvBtnFaded ? 'transparent' : pvBtnColor;
+    ctx.shadowBlur   = pvBtnFaded ? 0 : 10;
+    ctx.beginPath();
+    ctx.roundRect(pvBtnX, pvBtnY, pvBtnW, pvBtnH, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur   = 0;
+    ctx.fillStyle    = pvBtnFaded ? '#666' : pvBtnColor;
+    ctx.font         = 'bold 13px "Courier New", monospace';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(pvBtnLabel, pvBtnX + pvBtnW / 2, pvBtnY + pvBtnH / 2);
+    ctx.globalAlpha  = 1;
+  }
+
+  const leftColBottom = shopPreviewKey ? pvBtnY + pvBtnH : attrPanelY + attrPanelH;
 
   // ── RIGHT: Hull grid (5 cols × 4 rows) ────────────────────────────────────
   const hullCols = 5, hullRows = 4;
@@ -1626,10 +1738,11 @@ function renderShop() {
 
     shopButtonRects.push({ x: tx, y: ty, w: thumbW, h: thumbH, key: `variant_${i}` });
 
+    const isPreviewed = shopPreviewKey === `variant_${i}`;
     ctx.globalAlpha = locked ? 0.4 : 1;
-    ctx.fillStyle   = selected ? 'rgba(40,0,80,0.9)' : 'rgba(10,0,20,0.7)';
-    ctx.strokeStyle = selected ? '#a8f' : (locked ? '#334' : '#446');
-    ctx.lineWidth   = selected ? 2 : 1;
+    ctx.fillStyle   = isPreviewed ? 'rgba(50,40,0,0.9)' : (selected ? 'rgba(40,0,80,0.9)' : 'rgba(10,0,20,0.7)');
+    ctx.strokeStyle = isPreviewed ? '#fd0' : (selected ? '#a8f' : (locked ? '#334' : '#446'));
+    ctx.lineWidth   = (isPreviewed || selected) ? 2 : 1;
     ctx.beginPath();
     ctx.roundRect(tx, ty, thumbW, thumbH, 6);
     ctx.fill();
@@ -1684,10 +1797,11 @@ function renderShop() {
 
     shopButtonRects.push({ x: ex, y: ey, w: engW, h: engH, key: `engine_${i}` });
 
+    const isPreviewed = shopPreviewKey === `engine_${i}`;
     ctx.globalAlpha = locked ? 0.4 : 1;
-    ctx.fillStyle   = selected ? 'rgba(0,50,20,0.9)' : 'rgba(10,10,20,0.75)';
-    ctx.strokeStyle = selected ? '#4f8' : (locked ? '#334' : '#446');
-    ctx.lineWidth   = selected ? 2 : 1;
+    ctx.fillStyle   = isPreviewed ? 'rgba(50,40,0,0.9)' : (selected ? 'rgba(0,50,20,0.9)' : 'rgba(10,10,20,0.75)');
+    ctx.strokeStyle = isPreviewed ? '#fd0' : (selected ? '#4f8' : (locked ? '#334' : '#446'));
+    ctx.lineWidth   = (isPreviewed || selected) ? 2 : 1;
     ctx.beginPath();
     ctx.roundRect(ex, ey, engW, engH, 6);
     ctx.fill();
@@ -1762,6 +1876,22 @@ function renderShop() {
   shopScrollY = Math.min(shopScrollY, Math.max(0, totalShopH - CANVAS_H + 40));
 
   ctx.restore();  // scroll translate
+
+  // ── Secret overlay ─────────────────────────────────────────────────────────
+  if (shopCoinSecret) {
+    ctx.fillStyle = 'rgba(0,0,10,0.95)';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Invisible collect button — bottom-right corner (no visual rendering)
+    const sbW = 80, sbH = 80;
+    shopSecretRect      = { x: CANVAS_W - sbW - 10, y: CANVAS_H - sbH - 10, w: sbW, h: sbH };
+    // Invisible reset button — top-left corner (no visual rendering)
+    shopSecretResetRect = { x: 10, y: 10, w: sbW, h: sbH };
+  } else {
+    shopSecretRect      = null;
+    shopSecretResetRect = null;
+  }
+
   ctx.restore();  // outer save
 }
 

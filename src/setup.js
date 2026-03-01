@@ -141,7 +141,7 @@ window.addEventListener('keydown', e => {
     else if (gameState === 'SOLAR_MAP')  { selectedPlanet = null; gameState = 'PLAY_MODE'; }
     else if (gameState === 'CONTROLS')   gameState = 'MENU';
     else if (gameState === 'CHANGELOG')  gameState = 'MENU';
-    else if (gameState === 'SHOP')       { shopScrollY = 0; gameState = 'MENU'; }
+    else if (gameState === 'SHOP')       { shopScrollY = 0; shopPreviewKey = null; shopCoinSecret = false; gameState = 'MENU'; }
     else if (gameState === 'SETTINGS')   gameState = 'MENU';
   }
 
@@ -249,31 +249,66 @@ function handleCanvasClick(mx, my) {
     }
 
   } else if (gameState === 'SHOP') {
+    // Secret overlay intercepts all clicks
+    if (shopCoinSecret) {
+      const r = shopSecretRect;
+      const rr = shopSecretResetRect;
+      if (r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
+        spaceCoins += 1000;
+        saveShop();
+      } else if (rr && mx >= rr.x && mx <= rr.x + rr.w && my >= rr.y && my <= rr.y + rr.h) {
+        unlockedHulls   = [0];
+        unlockedEngines = [0];
+        unlockedColors  = [0];
+        playerVariant   = 0;
+        playerEngine    = 0;
+        playerColor     = SHIP_COLORS[0];
+        shopPreviewKey  = null;
+        saveShop();
+      }
+      shopCoinSecret = false;
+      return;
+    }
+
     const smy = my + shopScrollY;
     for (const btn of shopButtonRects) {
       if (!(mx >= btn.x && mx <= btn.x + btn.w && smy >= btn.y && smy <= btn.y + btn.h)) continue;
-      if (btn.key.startsWith('color_')) {
+      if (btn.key === 'coin_secret') {
+        shopCoinSecret = true;
+      } else if (btn.key.startsWith('color_')) {
         const i = +btn.key.split('_')[1];
+        shopPreviewKey = null;
         if (unlockedColors.includes(i)) {
           startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, SHIP_COLORS[i], () => { playerColor = SHIP_COLORS[i]; saveShop(); });
         } else if (spaceCoins >= COLOR_COSTS[i]) {
           startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#fa0', () => { spaceCoins -= COLOR_COSTS[i]; unlockedColors.push(i); playerColor = SHIP_COLORS[i]; saveShop(); });
         }
       } else if (btn.key.startsWith('variant_')) {
-        const i = +btn.key.split('_')[1];
-        if (unlockedHulls.includes(i)) {
-          startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#4af', () => { playerVariant = i; saveShop(); });
-        } else if (spaceCoins >= HULL_DEFS[i].cost) {
-          startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#fa0', () => { spaceCoins -= HULL_DEFS[i].cost; unlockedHulls.push(i); playerVariant = i; saveShop(); });
-        }
+        // Toggle preview on first click; re-click to deselect
+        shopPreviewKey = shopPreviewKey === btn.key ? null : btn.key;
       } else if (btn.key.startsWith('engine_')) {
-        const i = +btn.key.split('_')[1];
-        if (unlockedEngines.includes(i)) {
-          startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#4af', () => { playerEngine = i; saveShop(); });
-        } else if (spaceCoins >= ENGINE_DEFS[i].cost) {
-          startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#fa0', () => { spaceCoins -= ENGINE_DEFS[i].cost; unlockedEngines.push(i); playerEngine = i; saveShop(); });
+        shopPreviewKey = shopPreviewKey === btn.key ? null : btn.key;
+      } else if (btn.key === 'preview_action') {
+        if (shopPreviewKey) {
+          if (shopPreviewKey.startsWith('variant_')) {
+            const i = +shopPreviewKey.split('_')[1];
+            if (unlockedHulls.includes(i) && playerVariant !== i) {
+              startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#4af', () => { playerVariant = i; shopPreviewKey = null; saveShop(); });
+            } else if (!unlockedHulls.includes(i) && spaceCoins >= HULL_DEFS[i].cost) {
+              startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#fa0', () => { spaceCoins -= HULL_DEFS[i].cost; unlockedHulls.push(i); playerVariant = i; shopPreviewKey = null; saveShop(); });
+            }
+          } else if (shopPreviewKey.startsWith('engine_')) {
+            const i = +shopPreviewKey.split('_')[1];
+            if (unlockedEngines.includes(i) && playerEngine !== i) {
+              startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#4af', () => { playerEngine = i; shopPreviewKey = null; saveShop(); });
+            } else if (!unlockedEngines.includes(i) && spaceCoins >= ENGINE_DEFS[i].cost) {
+              startBtnAnim({ x: btn.x, y: btn.y - shopScrollY, w: btn.w, h: btn.h }, '#fa0', () => { spaceCoins -= ENGINE_DEFS[i].cost; unlockedEngines.push(i); playerEngine = i; shopPreviewKey = null; saveShop(); });
+            }
+          }
         }
       } else if (btn.key === 'back') {
+        shopPreviewKey = null;
+        shopCoinSecret = false;
         startBtnAnim(btn, '#4af', () => { shopScrollY = 0; gameState = 'MENU'; });
       }
       break;
