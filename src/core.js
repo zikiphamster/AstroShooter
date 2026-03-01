@@ -1383,7 +1383,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.64.4';
+  const verText = 'v1.64.5';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -3723,12 +3723,14 @@ function renderLevelComplete() {
   ctx.fillStyle = '#fff';
   ctx.fillText(`Score: ${score}`, CANVAS_W / 2, CANVAS_H / 2 - 60);
 
-  ctx.font      = 'bold 20px "Courier New", monospace';
-  ctx.fillStyle = '#f4f';
-  ctx.shadowColor = '#f0f';
-  ctx.shadowBlur  = 10;
-  ctx.fillText('+2 LIVES BONUS', CANVAS_W / 2, CANVAS_H / 2 - 28);
-  ctx.shadowBlur  = 0;
+  if (gameMode !== 'progress') {
+    ctx.font      = 'bold 20px "Courier New", monospace';
+    ctx.fillStyle = '#f4f';
+    ctx.shadowColor = '#f0f';
+    ctx.shadowBlur  = 10;
+    ctx.fillText('+2 LIVES BONUS', CANVAS_W / 2, CANVAS_H / 2 - 28);
+    ctx.shadowBlur  = 0;
+  }
 
   ctx.font      = '16px "Courier New", monospace';
   ctx.fillStyle = '#aaa';
