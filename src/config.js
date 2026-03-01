@@ -73,6 +73,10 @@ let currentGalaxy        = 0;    // 0 = Solar System | 1 = Veil Expanse
 let veilProgressUnlocked = 0;    // planet unlock counter for Veil Expanse
 
 // ─── Neptune Death Cutscene ────────────────────────────────────────────────────
+let neptuneDeathDying      = false; // true during boss-burning dying phase (before dialogue)
+let neptuneDeathDyingTimer = 0;    // counts up during dying phase
+let dyingBoss              = null; // reference to boss object kept alive for dying render
+const NEPTUNE_DYING_DUR    = 2.5;  // seconds of dying animation before dialogue starts
 let neptuneDeathActive   = false; // true during post-Neptune cross-galaxy cutscene
 let neptuneDeathStep     = 0;    // 0=death-dialogue  1=portal-cinematic  2=arrival-dialogue
 let neptuneDeathLineStep = 0;    // line index within active dialogue array
@@ -258,7 +262,7 @@ let unlockedEngines = [0];
 const PLANET_DEFS = [
   { name: 'Sun',     color: '#ff8000', glowColor: '#ff4', size: 56, rings: false,
     desc: 'The blazing heart of the solar system. An easy warm-up.',
-    lives: 6, spawnMult: 2.4,  speedMult: 0.50, largeChance: 0.22, medChance: 0.38,
+    lives: 6, spawnMult: 2.9,  speedMult: 0.42, largeChance: 0.18, medChance: 0.36,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Earth Control Tower, online. I\'ll be your guide through this mission, Pilot.' },
@@ -294,7 +298,7 @@ const PLANET_DEFS = [
   },
   { name: 'Mercury', color: '#a0a0a0', glowColor: null,   size: 11, rings: false,
     desc: 'Cratered and airless. A gentle step up.',
-    lives: 6, spawnMult: 2.1,  speedMult: 0.60, largeChance: 0.28, medChance: 0.38,
+    lives: 6, spawnMult: 2.55, speedMult: 0.52, largeChance: 0.22, medChance: 0.36,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Heads up — surface temperature out there will cook unshielded tech.' },
@@ -330,7 +334,7 @@ const PLANET_DEFS = [
   },
   { name: 'Venus',   color: '#e8c87a', glowColor: null,   size: 19, rings: false,
     desc: 'Toxic clouds, but nothing too dangerous yet.',
-    lives: 5, spawnMult: 1.85, speedMult: 0.68, largeChance: 0.34, medChance: 0.36,
+    lives: 5, spawnMult: 2.25, speedMult: 0.60, largeChance: 0.27, medChance: 0.34,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Venus is a nightmare under those clouds. Keep your velocity up.' },
@@ -366,7 +370,7 @@ const PLANET_DEFS = [
   },
   { name: 'Earth',   color: '#44aaff', glowColor: null,   size: 21, rings: false,
     desc: 'Home. Keep it safe — things are heating up.',
-    lives: 5, spawnMult: 1.65, speedMult: 0.76, largeChance: 0.40, medChance: 0.34,
+    lives: 5, spawnMult: 2.05, speedMult: 0.67, largeChance: 0.33, medChance: 0.32,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'We\'re defending our own backyard now. Don\'t let anything through.' },
@@ -402,7 +406,7 @@ const PLANET_DEFS = [
   },
   { name: 'Mars',    color: '#c1440e', glowColor: null,   size: 16, rings: false,
     desc: 'The red planet pushes back. Stay focused.',
-    lives: 4, spawnMult: 1.45, speedMult: 0.84, largeChance: 0.46, medChance: 0.32,
+    lives: 5, spawnMult: 1.82, speedMult: 0.74, largeChance: 0.38, medChance: 0.30,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Colony\'s been dark for six hours. Something\'s jamming their signal.' },
@@ -438,7 +442,7 @@ const PLANET_DEFS = [
   },
   { name: 'Jupiter', color: '#c8883a', glowColor: null,   size: 36, rings: false,
     desc: 'Massive gravity drags more rocks your way.',
-    lives: 4, spawnMult: 1.28, speedMult: 0.90, largeChance: 0.50, medChance: 0.30,
+    lives: 4, spawnMult: 1.62, speedMult: 0.80, largeChance: 0.42, medChance: 0.28,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Jupiter\'s magnetosphere is playing havoc with long-range comms. Stay in range.' },
@@ -474,7 +478,7 @@ const PLANET_DEFS = [
   },
   { name: 'Saturn',  color: '#e4d191', glowColor: null,   size: 28, rings: true,
     desc: 'Ring debris in your path. Keep moving.',
-    lives: 4, spawnMult: 1.12, speedMult: 0.96, largeChance: 0.54, medChance: 0.28,
+    lives: 4, spawnMult: 1.46, speedMult: 0.85, largeChance: 0.46, medChance: 0.26,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'The ring plane is more dangerous than it looks. Shards move at orbital speed.' },
@@ -510,7 +514,7 @@ const PLANET_DEFS = [
   },
   { name: 'Uranus',  color: '#7de8e8', glowColor: null,   size: 23, rings: false,
     desc: 'An ice giant with a mean streak. Nearly there.',
-    lives: 3, spawnMult: 1.00, speedMult: 1.02, largeChance: 0.57, medChance: 0.26,
+    lives: 4, spawnMult: 1.32, speedMult: 0.91, largeChance: 0.50, medChance: 0.24,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'This far out, we\'re running on the edge of our support range.' },
@@ -546,7 +550,7 @@ const PLANET_DEFS = [
   },
   { name: 'Neptune', color: '#5060e0', glowColor: null,   size: 22, rings: false,
     desc: 'The edge of the solar system. A worthy finale.',
-    lives: 3, spawnMult: 0.90, speedMult: 1.08, largeChance: 0.60, medChance: 0.25,
+    lives: 4, spawnMult: 1.20, speedMult: 0.97, largeChance: 0.52, medChance: 0.23,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Pilot... Neptune. The end of the line.' },
@@ -607,7 +611,7 @@ const VEIL_ARRIVAL_LINES = [
 const VEIL_PLANET_DEFS = [
   { name: 'Aethon',  color: '#ff44bb', glowColor: null, size: 50, rings: false,
     desc: 'A plasma world of writhing electric fields. Your first step into the unknown.',
-    lives: 4, spawnMult: 0.82, speedMult: 1.12, largeChance: 0.58, medChance: 0.24,
+    lives: 5, spawnMult: 1.08, speedMult: 1.00, largeChance: 0.50, medChance: 0.23,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Signal... barely holding. Aethon is a plasma world — no solid ground, just raw energy looping for millions of years.' },
@@ -643,7 +647,7 @@ const VEIL_PLANET_DEFS = [
   },
   { name: 'Dross',   color: '#888888', glowColor: null, size: 13, rings: false,
     desc: 'A charred metallic world, debris from an ancient war. Still burning.',
-    lives: 4, spawnMult: 0.78, speedMult: 1.16, largeChance: 0.60, medChance: 0.23,
+    lives: 5, spawnMult: 1.02, speedMult: 1.04, largeChance: 0.52, medChance: 0.22,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Dross. Scans suggest it was... manufactured. Built, not formed. Then destroyed.' },
@@ -679,7 +683,7 @@ const VEIL_PLANET_DEFS = [
   },
   { name: 'Solace',  color: '#00ddcc', glowColor: null, size: 20, rings: false,
     desc: 'A bioluminescent ocean world. Eerily calm. Deadly.',
-    lives: 4, spawnMult: 0.74, speedMult: 1.20, largeChance: 0.62, medChance: 0.22,
+    lives: 5, spawnMult: 0.97, speedMult: 1.08, largeChance: 0.54, medChance: 0.21,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Solace. Its surface glows from beneath — bioluminescent organisms covering the entire ocean.' },
@@ -715,7 +719,7 @@ const VEIL_PLANET_DEFS = [
   },
   { name: 'Varix',   color: '#cc88ff', glowColor: null, size: 18, rings: false,
     desc: 'A crystal shard planet, constantly fracturing. Every piece is a weapon.',
-    lives: 3, spawnMult: 0.70, speedMult: 1.24, largeChance: 0.64, medChance: 0.21,
+    lives: 4, spawnMult: 0.92, speedMult: 1.12, largeChance: 0.56, medChance: 0.20,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Varix is unstable. The entire crust is crystalline and fracturing continuously — fragments orbit it like a permanent debris field.' },
@@ -751,7 +755,7 @@ const VEIL_PLANET_DEFS = [
   },
   { name: 'Quellar', color: '#cc8800', glowColor: null, size: 32, rings: false,
     desc: 'A gas dwarf wrapped in toxic amber clouds. Nothing lives here — except what kills you.',
-    lives: 3, spawnMult: 0.66, speedMult: 1.28, largeChance: 0.66, medChance: 0.20,
+    lives: 4, spawnMult: 0.88, speedMult: 1.16, largeChance: 0.58, medChance: 0.19,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Quellar. Atmospheric composition is entirely toxic — nothing from our universe could survive there naturally.' },
@@ -787,7 +791,7 @@ const VEIL_PLANET_DEFS = [
   },
   { name: 'Pyral',   color: '#ff4400', glowColor: null, size: 17, rings: false,
     desc: 'Magma erupts into open space. The sky is permanently on fire.',
-    lives: 3, spawnMult: 0.62, speedMult: 1.32, largeChance: 0.68, medChance: 0.19,
+    lives: 4, spawnMult: 0.84, speedMult: 1.20, largeChance: 0.60, medChance: 0.18,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Pyral. The tidal forces from surrounding bodies tear it apart continuously — magma vents directly into orbit.' },
@@ -823,7 +827,7 @@ const VEIL_PLANET_DEFS = [
   },
   { name: 'Cerune',  color: '#99ccff', glowColor: null, size: 24, rings: false,
     desc: 'A cracked ice moon, adrift and orbiting nothing. Ancient and alone.',
-    lives: 3, spawnMult: 0.58, speedMult: 1.36, largeChance: 0.70, medChance: 0.18,
+    lives: 4, spawnMult: 0.80, speedMult: 1.24, largeChance: 0.62, medChance: 0.17,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Cerune. It\'s a moon with no parent body. Something ripped it free — or its world was destroyed around it.' },
@@ -859,7 +863,7 @@ const VEIL_PLANET_DEFS = [
   },
   { name: 'Manthos', color: '#774499', glowColor: null, size: 19, rings: false,
     desc: 'An obsidian fortress world built by the architects of the Veil. Their final stronghold.',
-    lives: 2, spawnMult: 0.54, speedMult: 1.40, largeChance: 0.72, medChance: 0.17,
+    lives: 3, spawnMult: 0.76, speedMult: 1.28, largeChance: 0.64, medChance: 0.16,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: 'Manthos. We\'re reading structural signatures — this planet was built, not formed. An artificial world.' },
@@ -895,7 +899,7 @@ const VEIL_PLANET_DEFS = [
   },
   { name: 'Novarix', color: '#ffcc00', glowColor: null, size: 23, rings: false,
     desc: 'A collapsing star at the edge of the Veil Expanse. The source of everything.',
-    lives: 2, spawnMult: 0.50, speedMult: 1.44, largeChance: 0.74, medChance: 0.16,
+    lives: 3, spawnMult: 0.72, speedMult: 1.32, largeChance: 0.66, medChance: 0.15,
     dialogueSets: [
       [
         { speaker: 'CTRL',  text: '...Pilot. Signal at five percent. Listen carefully — Novarix is the Veil\'s power source. The Architect lives there. It started all of this.' },
@@ -1032,6 +1036,8 @@ const CHANGELOG = [
   { v: 'v1.63.0', date: '7:38 PM, 28 Feb 2026',  title: 'Dialogue Overhaul',         desc: 'All 9 planets now have 2 randomized pre-launch dialogue scripts picked at random on each visit, with varied speaker order and unique content. The Sun features a special intro from Earth Control Tower explaining the mission and hinting at a larger threat. Each boss encounter now opens with a 4-line exchange between the boss and the pilot, rendered over the live game world with a skull avatar in the boss\'s color. Endless Mode is unaffected.' },
   { v: 'v1.63.1', date: '9:59 AM, 01 Mar 2026',  title: 'Boss Entrance Cinematic',   desc: 'When a boss spawns in Story Mode, the battlefield is instantly cleared, the player\'s ship auto-pilots to the left-center of the screen, and the boss slides fully onto screen before the dialogue panel appears. Stars continue scrolling throughout the cinematic.' },
   { v: 'v1.64.0', date: '2:00 PM, 01 Mar 2026',  title: 'The Veil Expanse',          desc: 'After defeating Neptune\'s boss, a cinematic plays: the dying boss reveals a larger conspiracy, a portal tears open, and the pilot is pulled into The Veil Expanse — a new galaxy with 9 harder planets, unique bosses, original dialogue, violet-tinted stars, and purple nebula visuals.' },
+  { v: 'v1.64.1', date: '3:00 PM, 01 Mar 2026',  title: 'Neptune Death Polish',      desc: 'The Neptune boss defeat sequence is now fully cinematic: all remaining asteroids explode simultaneously, the boss stays on screen burning with fire particles and screen shake, and the player\'s ship glides back to the left-center before the dialogue panel appears. Galaxy navigation arrows also added to the solar map.' },
+  { v: 'v1.64.2', date: '4:00 PM, 01 Mar 2026',  title: 'Difficulty Rebalance',      desc: 'All 18 planets across both galaxies are now easier: asteroids spawn less frequently, move slower, and skew smaller. Planet hazards appear less often and cap at lower simultaneous counts. Several later planets gained an extra life.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

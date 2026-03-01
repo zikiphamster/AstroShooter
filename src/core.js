@@ -54,6 +54,9 @@ function loadGame() {
   planetObstacles.length = 0;
   planetObstacleTimer    = 3.0;
   planetDebuffs.iceslow  = 0;
+  neptuneDeathDying      = false;
+  neptuneDeathDyingTimer = 0;
+  dyingBoss              = null;
   neptuneDeathActive     = false;
   neptuneDeathStep       = 0;
   neptuneDeathLineStep   = 0;
@@ -360,6 +363,54 @@ function update(dt) {
 
   // ── PLAYING ──────────────────────────────────────────────────────────────
 
+  // ── Neptune dying phase (boss burns before dialogue) ──────────────────────
+  if (neptuneDeathDying) {
+    neptuneDeathDyingTimer += dt;
+
+    // Manually update + prune particles so fire animates
+    for (const p of particles) p.update(dt);
+    particles = particles.filter(p => p.active);
+
+    // Player glides to left-centre
+    player.x += (CANVAS_W * 0.14 - player.w / 2 - player.x) * 3 * dt;
+    player.y += (CANVAS_H / 2    - player.h / 2 - player.y) * 3 * dt;
+    player.thrusterAnim += dt * 8;
+
+    if (dyingBoss) {
+      dyingBoss.anim = (dyingBoss.anim || 0) + dt;
+
+      // Continuous trickle of fire particles
+      spawnParticles(
+        dyingBoss.x + Math.random() * dyingBoss.w,
+        dyingBoss.y + Math.random() * dyingBoss.h,
+        Math.ceil(rand(2, 5)),
+        ['#f44', '#f84', '#ff0', '#ffa000', '#fff']
+      );
+
+      // Big burst every ~0.3 s
+      const burstIdx = Math.floor(neptuneDeathDyingTimer / 0.3);
+      const prevIdx  = Math.floor((neptuneDeathDyingTimer - dt) / 0.3);
+      if (burstIdx > prevIdx) {
+        spawnParticles(
+          dyingBoss.x + Math.random() * dyingBoss.w,
+          dyingBoss.y + Math.random() * dyingBoss.h,
+          16, ['#f44', '#f84', '#ff0', '#fff', '#f00']
+        );
+        playExplosion(0);
+      }
+    }
+
+    // Transition to dialogue once timer expires
+    if (neptuneDeathDyingTimer >= NEPTUNE_DYING_DUR) {
+      neptuneDeathDying    = false;
+      dyingBoss            = null;
+      neptuneDeathActive   = true;
+      neptuneDeathStep     = 0;
+      neptuneDeathLineStep = 0;
+    }
+    return;
+  }
+
   // ── Neptune death cutscene ─────────────────────────────────────────────────
   if (neptuneDeathActive) {
     if (neptuneDeathStep === 0 || neptuneDeathStep === 2) {
@@ -538,15 +589,23 @@ function update(dt) {
             );
           }
           playBossDefeat();
-          boss = null;
           if (gameMode === 'progress' && currentPlanet === 8 && currentGalaxy === 0) {
-            // Neptune defeated — trigger cross-galaxy cutscene instead of LEVEL_COMPLETE
-            progressUnlocked   = 9;
+            // Neptune defeated — explode asteroids, then start dying phase
+            for (const a of asteroids) {
+              if (!a.active) continue;
+              spawnParticles(a.x, a.y, 8, ['#fa0', '#f60', '#ff0', '#fff']);
+              playExplosion(a.tier);
+              a.active = false;
+            }
+            bossBullets.length   = 0;
+            progressUnlocked     = 9;
             saveShop();
-            neptuneDeathActive   = true;
-            neptuneDeathStep     = 0;
-            neptuneDeathLineStep = 0;
+            dyingBoss            = boss;
+            boss                 = null;
+            neptuneDeathDying      = true;
+            neptuneDeathDyingTimer = 0;
           } else {
+            boss = null;
             gameState = 'LEVEL_COMPLETE';
             if (gameMode === 'progress') {
               if (currentGalaxy === 0) progressUnlocked     = Math.max(progressUnlocked,     currentPlanet + 1);
@@ -690,6 +749,13 @@ function render() {
     for (const c  of coinPickups) c.draw();
     for (const bb of bossBullets) bb.draw();
     if (boss && boss.active) boss.draw();
+    if (dyingBoss) {
+      ctx.save();
+      const shake = (Math.random() - 0.5) * 6;
+      ctx.translate(shake, shake * 0.5);
+      dyingBoss.draw();
+      ctx.restore();
+    }
     if (gameMode === 'progress') renderPlanetObstacles();
 
     renderHUD();
@@ -709,15 +775,15 @@ function render() {
 // ─── Planet Obstacle System ───────────────────────────────────────────────────
 // One themed hazard type per planet, active only in progress mode.
 const PLANET_OBSTACLE_CONFIG = [
-  { type: 'solar_flare',  interval: 13, maxActive: 2 },  // 0 Sun
-  { type: 'radiation',    interval:  9, maxActive: 3 },  // 1 Mercury
-  { type: 'toxic_cloud',  interval:  7, maxActive: 3 },  // 2 Venus
-  { type: 'debris',       interval:  5, maxActive: 4 },  // 3 Earth
-  { type: 'dust_devil',   interval: 15, maxActive: 2 },  // 4 Mars
-  { type: 'gravity_well', interval: 18, maxActive: 1 },  // 5 Jupiter
-  { type: 'ring_shard',   interval:  4, maxActive: 6 },  // 6 Saturn
-  { type: 'ice_shard',    interval:  7, maxActive: 3 },  // 7 Uranus
-  { type: 'wind_gust',    interval: 11, maxActive: 1 },  // 8 Neptune
+  { type: 'solar_flare',  interval: 20, maxActive: 2 },  // 0 Sun
+  { type: 'radiation',    interval: 15, maxActive: 2 },  // 1 Mercury
+  { type: 'toxic_cloud',  interval: 12, maxActive: 2 },  // 2 Venus
+  { type: 'debris',       interval:  9, maxActive: 3 },  // 3 Earth
+  { type: 'dust_devil',   interval: 22, maxActive: 2 },  // 4 Mars
+  { type: 'gravity_well', interval: 26, maxActive: 1 },  // 5 Jupiter
+  { type: 'ring_shard',   interval:  8, maxActive: 4 },  // 6 Saturn
+  { type: 'ice_shard',    interval: 12, maxActive: 2 },  // 7 Uranus
+  { type: 'wind_gust',    interval: 17, maxActive: 1 },  // 8 Neptune
 ];
 
 function hurtPlayer(particleColors) {
@@ -1313,7 +1379,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.64.0';
+  const verText = 'v1.64.2';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
