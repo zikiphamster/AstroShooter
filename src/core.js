@@ -790,15 +790,15 @@ const PLANET_OBSTACLE_CONFIG = [
 
 // Veil Expanse — each planet gets a unique danger distinct from its Solar System counterpart.
 const VEIL_OBSTACLE_CONFIG = [
-  { type: 'radiation',    interval: 12, maxActive: 2 },  // 0 Aethon  — intense energy field
-  { type: 'debris',       interval:  7, maxActive: 3 },  // 1 Dross   — scrap-world wreckage
-  { type: 'wind_gust',    interval: 14, maxActive: 1 },  // 2 Solace  — alien atmospheric currents
-  { type: 'ice_shard',    interval: 10, maxActive: 2 },  // 3 Varix   — crystal shards
-  { type: 'toxic_cloud',  interval: 10, maxActive: 2 },  // 4 Quellar — dense smog atmosphere
-  { type: 'solar_flare',  interval: 16, maxActive: 2 },  // 5 Pyral   — fire-planet energy bursts
-  { type: 'dust_devil',   interval: 18, maxActive: 2 },  // 6 Cerune  — ice-dust vortices
-  { type: 'gravity_well', interval: 22, maxActive: 1 },  // 7 Manthos — crushing gravity
-  { type: 'ring_shard',   interval:  6, maxActive: 4 },  // 8 Novarix — explosive shrapnel
+  { type: 'void_pulse',     interval: 10, maxActive: 2 },  // 0 Aethon  — expanding energy ring
+  { type: 'shock_mine',     interval: 12, maxActive: 2 },  // 1 Dross   — periodic electric burst
+  { type: 'phase_rift',     interval: 11, maxActive: 2 },  // 2 Solace  — moving vertical rift
+  { type: 'crystal_spike',  interval:  7, maxActive: 3 },  // 3 Varix   — fast horizontal spike
+  { type: 'plasma_ball',    interval: 14, maxActive: 2 },  // 4 Quellar — bouncing orb
+  { type: 'heat_wave',      interval: 16, maxActive: 1 },  // 5 Pyral   — sweeping heat column
+  { type: 'freeze_field',   interval: 14, maxActive: 1 },  // 6 Cerune  — slow + damage zone
+  { type: 'shadow_tendril', interval:  9, maxActive: 2 },  // 7 Manthos — homing dark orb
+  { type: 'nova_flash',     interval: 12, maxActive: 2 },  // 8 Novarix — warning → explosion ring
 ];
 
 function hurtPlayer(particleColors) {
@@ -886,6 +886,93 @@ function spawnPlanetObstacle() {
     case 'wind_gust': {
       const dir = Math.random() < 0.5 ? 1 : -1;
       Object.assign(o, { x: 0, y: 0, dir, force: 360, life: 4.0, maxLife: 4.0 });
+      break;
+    }
+    case 'void_pulse': {
+      Object.assign(o, {
+        x: 150 + Math.random() * (CANVAS_W - 300),
+        y: 100 + Math.random() * (CANVAS_H - 200),
+        r: 0, maxR: 280, expandSpeed: 210, ringW: 20,
+        life: 3.0, maxLife: 3.0,
+      });
+      break;
+    }
+    case 'shock_mine': {
+      Object.assign(o, {
+        x: 200 + Math.random() * (CANVAS_W - 350),
+        y:  80 + Math.random() * (CANVAS_H - 160),
+        r: 24, pulseTimer: 2.8, maxPulse: 2.8,
+        pulseActive: false, pulseR: 0, maxPulseR: 110,
+        life: 14, maxLife: 14,
+      });
+      break;
+    }
+    case 'phase_rift': {
+      Object.assign(o, {
+        x: CANVAS_W + 30,
+        y: 80 + Math.random() * (CANVAS_H - 160),
+        w: 20, h: 130 + Math.random() * 80,
+        vx: -(60 + Math.random() * 30),
+        life: 15, maxLife: 15,
+      });
+      break;
+    }
+    case 'crystal_spike': {
+      const spd = 340 + Math.random() * 140;
+      Object.assign(o, {
+        x: CANVAS_W + 30,
+        y: 60 + Math.random() * (CANVAS_H - 120),
+        len: 55 + Math.random() * 30, w: 12, vx: -spd,
+        life: (CANVAS_W + 60) / spd, maxLife: (CANVAS_W + 60) / spd,
+      });
+      break;
+    }
+    case 'plasma_ball': {
+      const vy = (Math.random() < 0.5 ? 1 : -1) * (80 + Math.random() * 60);
+      Object.assign(o, {
+        x: CANVAS_W + 30,
+        y: 100 + Math.random() * (CANVAS_H - 200),
+        r: 20, vx: -(90 + Math.random() * 50), vy,
+        life: 18, maxLife: 18,
+      });
+      break;
+    }
+    case 'heat_wave': {
+      const spd = 170 + Math.random() * 80;
+      Object.assign(o, {
+        x: -70, y: 0, w: 62, vx: spd,
+        life: (CANVAS_W + 140) / spd, maxLife: (CANVAS_W + 140) / spd,
+      });
+      break;
+    }
+    case 'freeze_field': {
+      Object.assign(o, {
+        x: 200 + Math.random() * (CANVAS_W - 400),
+        y:  80 + Math.random() * (CANVAS_H - 160),
+        r: 60, life: 14, maxLife: 14,
+      });
+      break;
+    }
+    case 'shadow_tendril': {
+      const spd = 240 + Math.random() * 100;
+      const ty  = 60 + Math.random() * (CANVAS_H - 120);
+      Object.assign(o, {
+        x: CANVAS_W + 30, y: ty,
+        r: 22, vx: -spd,
+        vy: (player.cy - ty) * 0.4,
+        life: 5.0, maxLife: 5.0,
+      });
+      break;
+    }
+    case 'nova_flash': {
+      Object.assign(o, {
+        x: 120 + Math.random() * (CANVAS_W - 240),
+        y:  80 + Math.random() * (CANVAS_H - 160),
+        r: 0, maxR: 150,
+        phase: 'warning', warningDur: 1.6,
+        expandSpeed: 280, pushForce: 340,
+        life: 4.2, maxLife: 4.2,
+      });
       break;
     }
   }
@@ -1016,6 +1103,109 @@ function updatePlanetObstacles(dt) {
         const gustProg = o.life / o.maxLife;
         const force    = o.force * Math.sin((1 - gustProg) * Math.PI);
         player.x = Math.max(0, Math.min(CANVAS_W - player.w, player.x + o.dir * force * dt));
+        break;
+      }
+      case 'void_pulse': {
+        o.r += o.expandSpeed * dt;
+        if (o.r > o.maxR) { o.active = false; break; }
+        const vdx = pcx - o.x, vdy = pcy - o.y;
+        const vdist = Math.sqrt(vdx * vdx + vdy * vdy);
+        if (Math.abs(vdist - o.r) < o.ringW / 2 + 14) {
+          o.dmgTimer -= dt;
+          if (o.dmgTimer <= 0) { o.dmgTimer = 0.5; hurtPlayer(['#ff44bb', '#ff88dd', '#fff']); }
+        }
+        break;
+      }
+      case 'shock_mine': {
+        if (o.pulseActive) {
+          o.pulseR += 380 * dt;
+          const smdx = pcx - o.x, smdy = pcy - o.y, smd2 = smdx*smdx + smdy*smdy;
+          if (smd2 < o.pulseR * o.pulseR && smd2 > (o.pulseR - 30) * (o.pulseR - 30))
+            hurtPlayer(['#aaffee', '#55ffcc', '#fff']);
+          if (o.pulseR >= o.maxPulseR) { o.pulseActive = false; o.pulseR = 0; }
+        } else {
+          o.pulseTimer -= dt;
+          if (o.pulseTimer <= 0) { o.pulseActive = true; o.pulseTimer = o.maxPulse; }
+        }
+        break;
+      }
+      case 'phase_rift': {
+        o.x += o.vx * dt;
+        if (o.x < -o.w - 40) { o.active = false; break; }
+        if (o.x < player.x + player.w && o.x + o.w > player.x &&
+            o.y - o.h/2 < player.y + player.h && o.y + o.h/2 > player.y) {
+          o.dmgTimer += dt;
+          if (o.dmgTimer >= 4.0) { o.dmgTimer = 0; hurtPlayer(['#00ddcc', '#88ffee', '#fff']); }
+        } else { o.dmgTimer = Math.max(0, o.dmgTimer - dt * 0.5); }
+        break;
+      }
+      case 'crystal_spike': {
+        o.x += o.vx * dt;
+        if (o.x + o.len < -20) { o.active = false; break; }
+        if (o.x < player.x + player.w && o.x + o.len > player.x &&
+            Math.abs(pcy - o.y) < o.w / 2 + player.h / 2) {
+          hurtPlayer(['#cc88ff', '#eeccff', '#fff']); o.active = false;
+        }
+        break;
+      }
+      case 'plasma_ball': {
+        o.x += o.vx * dt; o.y += o.vy * dt;
+        if (o.y - o.r < 55)             { o.y = 55 + o.r;            o.vy =  Math.abs(o.vy); }
+        if (o.y + o.r > CANVAS_H - 10)  { o.y = CANVAS_H - 10 - o.r; o.vy = -Math.abs(o.vy); }
+        if (o.x + o.r < -20) { o.active = false; break; }
+        const pbdx = pcx - o.x, pbdy = pcy - o.y;
+        if (pbdx*pbdx + pbdy*pbdy < (o.r + 14) * (o.r + 14)) {
+          hurtPlayer(['#ff8800', '#ffcc44', '#fff']); o.active = false;
+        }
+        break;
+      }
+      case 'heat_wave': {
+        o.x += o.vx * dt;
+        if (o.x > CANVAS_W + o.w + 10) { o.active = false; break; }
+        if (o.x < player.x + player.w && o.x + o.w > player.x) {
+          o.dmgTimer -= dt;
+          if (o.dmgTimer <= 0) { o.dmgTimer = 0.55; hurtPlayer(['#ff4400', '#ff8822', '#fff']); }
+          player.x = Math.min(CANVAS_W - player.w, player.x + 70 * dt);
+        }
+        break;
+      }
+      case 'freeze_field': {
+        const ffdx = pcx - o.x, ffdy = pcy - o.y;
+        if (ffdx*ffdx + ffdy*ffdy < o.r * o.r) {
+          planetDebuffs.iceslow = Math.max(planetDebuffs.iceslow, 3.0);
+          o.dmgTimer += dt;
+          if (o.dmgTimer >= 5.0) { o.dmgTimer = 0; hurtPlayer(['#99ccff', '#cceeff', '#fff']); }
+        } else { o.dmgTimer = Math.max(0, o.dmgTimer - dt * 0.5); }
+        break;
+      }
+      case 'shadow_tendril': {
+        o.x += o.vx * dt; o.y += o.vy * dt;
+        o.vy *= Math.pow(0.92, dt * 60);
+        if (o.x + o.r < -20) { o.active = false; break; }
+        const stdx = pcx - o.x, stdy = pcy - o.y;
+        if (stdx*stdx + stdy*stdy < (o.r + 14) * (o.r + 14)) {
+          hurtPlayer(['#553366', '#9955cc', '#fff']); o.active = false;
+        }
+        break;
+      }
+      case 'nova_flash': {
+        const nfElapsed = o.maxLife - o.life;
+        if (o.phase === 'warning' && nfElapsed >= o.warningDur) o.phase = 'blast';
+        if (o.phase === 'blast') {
+          o.r += o.expandSpeed * dt;
+          const nfdx = pcx - o.x, nfdy = pcy - o.y;
+          const nfdist = Math.sqrt(nfdx*nfdx + nfdy*nfdy);
+          if (nfdist < o.r + 20 && nfdist > 1) {
+            if (Math.abs(nfdist - o.r) < 40) {
+              o.dmgTimer -= dt;
+              if (o.dmgTimer <= 0) { o.dmgTimer = 0.4; hurtPlayer(['#ffcc00', '#ffee88', '#fff']); }
+            }
+            const push = o.pushForce * Math.max(0, 1 - nfdist / (o.maxR + 20));
+            player.x = Math.max(0, Math.min(CANVAS_W - player.w, player.x + (nfdx/nfdist) * push * dt));
+            player.y = Math.max(0, Math.min(CANVAS_H - player.h, player.y + (nfdy/nfdist) * push * dt));
+          }
+          if (o.r >= o.maxR) { o.active = false; }
+        }
         break;
       }
     }
@@ -1201,6 +1391,165 @@ function renderPlanetObstacles() {
         }
         ctx.fillStyle = `rgba(40,60,200,${wa * 0.22})`;
         ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        break;
+      }
+      case 'void_pulse': {
+        const ringAlpha = alpha * Math.max(0, 1 - o.r / o.maxR);
+        ctx.shadowColor = '#ff44bb'; ctx.shadowBlur = 18;
+        ctx.strokeStyle = `rgba(255,80,200,${ringAlpha})`;
+        ctx.lineWidth   = Math.max(2, o.ringW * (1 - o.r / o.maxR));
+        ctx.beginPath(); ctx.arc(o.x, o.y, Math.max(1, o.r), 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur  = 0;
+        break;
+      }
+      case 'shock_mine': {
+        const smp = 0.6 + 0.4 * Math.sin(now * 5.5);
+        const smcg = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r);
+        smcg.addColorStop(0,   `rgba(180,255,220,${0.8 * alpha})`);
+        smcg.addColorStop(0.5, `rgba(40,200,140,${0.5 * alpha})`);
+        smcg.addColorStop(1,   'rgba(10,120,80,0)');
+        ctx.fillStyle = smcg;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
+        if (!o.pulseActive) {
+          const warn = 1 - o.pulseTimer / o.maxPulse;
+          ctx.strokeStyle = `rgba(100,255,200,${0.35 * warn * smp})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(o.x, o.y, o.maxPulseR * warn, 0, Math.PI * 2); ctx.stroke();
+        }
+        if (o.pulseActive) {
+          ctx.shadowColor = '#55ffcc'; ctx.shadowBlur = 22;
+          ctx.strokeStyle = `rgba(150,255,220,${0.9 * alpha})`;
+          ctx.lineWidth   = 3;
+          ctx.beginPath(); ctx.arc(o.x, o.y, o.pulseR, 0, Math.PI * 2); ctx.stroke();
+          ctx.shadowBlur  = 0;
+        }
+        break;
+      }
+      case 'phase_rift': {
+        const prShimmer = 0.7 + 0.3 * Math.sin(now * 7.5);
+        const prg = ctx.createLinearGradient(o.x, 0, o.x + o.w, 0);
+        prg.addColorStop(0,   'rgba(0,220,200,0)');
+        prg.addColorStop(0.4, `rgba(0,220,200,${0.55 * alpha * prShimmer})`);
+        prg.addColorStop(0.6, `rgba(180,100,255,${0.7 * alpha * prShimmer})`);
+        prg.addColorStop(1,   'rgba(180,100,255,0)');
+        ctx.fillStyle = prg;
+        ctx.fillRect(o.x, o.y - o.h / 2, o.w, o.h);
+        ctx.shadowColor = '#00ddcc'; ctx.shadowBlur = 14;
+        ctx.strokeStyle = `rgba(0,240,220,${0.6 * alpha * prShimmer})`;
+        ctx.lineWidth   = 1.5;
+        ctx.beginPath(); ctx.moveTo(o.x + o.w / 2, o.y - o.h / 2);
+        ctx.lineTo(o.x + o.w / 2, o.y + o.h / 2); ctx.stroke();
+        ctx.shadowBlur  = 0;
+        break;
+      }
+      case 'crystal_spike': {
+        ctx.save();
+        ctx.translate(o.x + o.len / 2, o.y);
+        const csg = ctx.createLinearGradient(-o.len / 2, 0, o.len / 2, 0);
+        csg.addColorStop(0,    'rgba(180,100,255,0)');
+        csg.addColorStop(0.15, `rgba(220,160,255,${alpha})`);
+        csg.addColorStop(0.5,  `rgba(255,220,255,${alpha})`);
+        csg.addColorStop(0.85, `rgba(220,160,255,${alpha})`);
+        csg.addColorStop(1,    'rgba(180,100,255,0)');
+        ctx.fillStyle = csg;
+        ctx.shadowColor = '#cc88ff'; ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(-o.len/2, 0); ctx.lineTo(0, -o.w/2);
+        ctx.lineTo( o.len/2, 0); ctx.lineTo(0,  o.w/2);
+        ctx.closePath(); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+        break;
+      }
+      case 'plasma_ball': {
+        const pbp = 0.7 + 0.3 * Math.sin(now * 6.8);
+        const pbcg = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r);
+        pbcg.addColorStop(0,    `rgba(255,230,80,${0.9 * alpha})`);
+        pbcg.addColorStop(0.55, `rgba(255,130,20,${0.65 * alpha})`);
+        pbcg.addColorStop(1,    'rgba(200,60,0,0)');
+        ctx.fillStyle = pbcg;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 16 * pbp;
+        ctx.strokeStyle = `rgba(255,200,60,${0.9 * alpha * pbp})`;
+        ctx.lineWidth   = 2;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur  = 0;
+        break;
+      }
+      case 'heat_wave': {
+        const hwg = ctx.createLinearGradient(o.x, 0, o.x + o.w, 0);
+        hwg.addColorStop(0,   'rgba(255,80,0,0)');
+        hwg.addColorStop(0.4, `rgba(255,120,20,${0.55 * alpha})`);
+        hwg.addColorStop(0.6, `rgba(255,200,60,${0.7 * alpha})`);
+        hwg.addColorStop(1,   'rgba(255,80,0,0)');
+        ctx.fillStyle = hwg;
+        ctx.fillRect(o.x, 0, o.w, CANVAS_H);
+        ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 20;
+        ctx.strokeStyle = `rgba(255,160,40,${0.55 * alpha * (0.6 + 0.4 * Math.sin(now * 14))})`;
+        ctx.lineWidth   = 2;
+        ctx.beginPath(); ctx.moveTo(o.x + o.w/2, 0); ctx.lineTo(o.x + o.w/2, CANVAS_H); ctx.stroke();
+        ctx.shadowBlur  = 0;
+        break;
+      }
+      case 'freeze_field': {
+        const ffp = 0.65 + 0.35 * Math.sin(now * 2.8);
+        const ffcg = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r);
+        ffcg.addColorStop(0,    `rgba(140,220,255,${0.22 * alpha})`);
+        ffcg.addColorStop(0.65, `rgba(80,160,255,${0.13 * alpha})`);
+        ffcg.addColorStop(1,    'rgba(40,100,220,0)');
+        ctx.fillStyle = ffcg;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowColor = '#88ccff'; ctx.shadowBlur = 14 * ffp;
+        ctx.strokeStyle = `rgba(160,230,255,${0.75 * alpha * ffp})`;
+        ctx.lineWidth   = 2;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur  = 0;
+        ctx.strokeStyle = `rgba(200,240,255,${0.3 * alpha * ffp})`;
+        ctx.lineWidth   = 1;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r * 0.55, 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case 'shadow_tendril': {
+        const stp = 0.6 + 0.4 * Math.sin(now * 8);
+        const stcg = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r * 2);
+        stcg.addColorStop(0,   `rgba(100,40,160,${0.9 * alpha})`);
+        stcg.addColorStop(0.5, `rgba(50,15,90,${0.55 * alpha})`);
+        stcg.addColorStop(1,   'rgba(20,0,40,0)');
+        ctx.fillStyle = stcg;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowColor = '#7722cc'; ctx.shadowBlur = 18 * stp;
+        ctx.strokeStyle = `rgba(160,80,255,${0.7 * alpha * stp})`;
+        ctx.lineWidth   = 2;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur  = 0;
+        break;
+      }
+      case 'nova_flash': {
+        const nfElapsed2 = o.maxLife - o.life;
+        if (o.phase === 'warning') {
+          const nfWarn = nfElapsed2 / o.warningDur;
+          const nfp    = 0.5 + 0.5 * Math.sin(now * 12);
+          ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 20 * nfp;
+          ctx.fillStyle   = `rgba(255,220,80,${0.8 * nfWarn * nfp * alpha})`;
+          ctx.beginPath(); ctx.arc(o.x, o.y, 8 + 6 * nfWarn, 0, Math.PI * 2); ctx.fill();
+          ctx.shadowBlur  = 0;
+          ctx.strokeStyle = `rgba(255,200,60,${0.4 * nfWarn * nfp})`;
+          ctx.lineWidth   = 1.5; ctx.setLineDash([6, 6]);
+          ctx.beginPath(); ctx.arc(o.x, o.y, 30 + 20 * nfWarn, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+        } else {
+          const nfba = Math.max(0, 1 - o.r / o.maxR);
+          ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 24;
+          ctx.strokeStyle = `rgba(255,240,120,${nfba * alpha})`;
+          ctx.lineWidth   = 6 * nfba + 1;
+          ctx.beginPath(); ctx.arc(o.x, o.y, Math.max(1, o.r), 0, Math.PI * 2); ctx.stroke();
+          const nfrg = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r * 0.6);
+          nfrg.addColorStop(0, `rgba(255,240,100,${0.35 * nfba * alpha})`);
+          nfrg.addColorStop(1, 'rgba(255,180,0,0)');
+          ctx.fillStyle = nfrg;
+          ctx.beginPath(); ctx.arc(o.x, o.y, Math.max(1, o.r * 0.6), 0, Math.PI * 2); ctx.fill();
+          ctx.shadowBlur = 0;
+        }
         break;
       }
     }
@@ -1394,7 +1743,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.64.6';
+  const verText = 'v1.64.7';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
