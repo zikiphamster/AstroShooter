@@ -316,15 +316,8 @@ function update(dt) {
           keys[code]  = false;
           currentDiff = diff;
           const rect  = diffButtonRects.find(b => b.key === diff);
-          if (rect) {
-            startBtnAnim(rect, DIFFICULTIES[diff]?.color ?? '#fff', () => {
-              gameState = 'PLAYING';
-              loadGame();
-            });
-          } else {
-            gameState = 'PLAYING';
-            loadGame();
-          }
+          const go = () => { gameState = 'PLAYING'; loadGame(); };
+          rect ? startBtnAnim(rect, DIFFICULTIES[diff]?.color ?? '#fff', go) : go();
         }
       }
     }
@@ -4092,9 +4085,10 @@ function renderLevelComplete() {
     ctx.shadowBlur  = 0;
   }
 
+  const livesY = gameMode === 'progress' ? CANVAS_H / 2 - 28 : CANVAS_H / 2 + 4;
   ctx.font      = '16px "Courier New", monospace';
   ctx.fillStyle = '#aaa';
-  ctx.fillText(`Lives: ${'♥ '.repeat(lives).trim()}`, CANVAS_W / 2, CANVAS_H / 2 + 4);
+  ctx.fillText(`Lives: ${'♥ '.repeat(lives).trim()}`, CANVAS_W / 2, livesY);
 
   // Buttons
   levelCompleteButtonRects.length = 0;
