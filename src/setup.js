@@ -583,7 +583,7 @@ if (IS_TOUCH) {
         }
       }
 
-      if (gameState === 'PLAYING') {
+      if (gameState === 'PLAYING' && !dialogueActive && !bossDialogueActive && !neptuneDeathActive && !tutorialActive) {
         // ── Joystick zone: left half, bottom 40% ─────────────────────────
         if (tx < CANVAS_W / 2 && ty > CANVAS_H * 0.60) {
           if (!touch.joystick.active) {
@@ -676,8 +676,8 @@ if (IS_TOUCH) {
         // touch.pause.active stays true — consumed in update()
       }
 
-      // Non-PLAYING states: treat lift as a click
-      if (gameState !== 'PLAYING') {
+      // Non-PLAYING states, OR PLAYING with an active overlay: treat lift as a click
+      if (gameState !== 'PLAYING' || dialogueActive || bossDialogueActive || neptuneDeathActive || tutorialActive) {
         handleCanvasClick(tx, ty);
       }
     }

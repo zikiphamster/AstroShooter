@@ -1736,7 +1736,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.64.8';
+  const verText = 'v1.65.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -2459,6 +2459,191 @@ function drawDialoguePlanet(cx, cy, planet) {
     grad.addColorStop(0, c0); grad.addColorStop(0.5, c1); grad.addColorStop(1, c2);
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.arc(cx, cy, sz, 0, Math.PI * 2); ctx.fill();
+
+    // ── Surface details (clipped to planet circle) ──────────────────────────
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, sz, 0, Math.PI * 2); ctx.clip();
+    switch (planet.name) {
+      case 'Earth': {
+        ctx.fillStyle = 'rgba(34,120,50,0.72)';
+        ctx.beginPath(); ctx.ellipse(cx - sz*0.34, cy - sz*0.14, sz*0.25, sz*0.31, -0.50, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx - sz*0.20, cy + sz*0.36, sz*0.13, sz*0.27, 0.22, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx + sz*0.12, cy - sz*0.22, sz*0.36, sz*0.21, 0.12, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx + sz*0.18, cy + sz*0.14, sz*0.16, sz*0.26, 0.08, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx + sz*0.46, cy + sz*0.36, sz*0.11, sz*0.08, -0.28, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(228,242,255,0.82)';
+        ctx.beginPath(); ctx.ellipse(cx, cy - sz*0.82, sz*0.42, sz*0.19, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx, cy + sz*0.88, sz*0.30, sz*0.11, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.beginPath(); ctx.ellipse(cx - sz*0.05, cy + sz*0.02, sz*0.55, sz*0.10, 0.25, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Mercury': {
+        ctx.fillStyle = 'rgba(0,0,0,0.30)';
+        ctx.beginPath(); ctx.arc(cx - sz*0.28, cy - sz*0.15, sz*0.19, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + sz*0.20, cy + sz*0.30, sz*0.13, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + sz*0.06, cy - sz*0.38, sz*0.10, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx - sz*0.42, cy + sz*0.22, sz*0.08, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.beginPath(); ctx.arc(cx - sz*0.28, cy - sz*0.15, sz*0.20, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Venus': {
+        ctx.fillStyle = 'rgba(255,245,185,0.32)';
+        ctx.fillRect(cx - sz, cy - sz*0.14, sz*2, sz*0.26);
+        ctx.fillStyle = 'rgba(210,180,80,0.22)';
+        ctx.fillRect(cx - sz, cy + sz*0.28, sz*2, sz*0.18);
+        ctx.fillRect(cx - sz, cy - sz*0.46, sz*2, sz*0.13);
+        ctx.fillStyle = 'rgba(255,240,160,0.15)';
+        ctx.beginPath(); ctx.ellipse(cx + sz*0.15, cy - sz*0.05, sz*0.38, sz*0.12, 0.30, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Mars': {
+        ctx.fillStyle = 'rgba(215,228,240,0.75)';
+        ctx.beginPath(); ctx.ellipse(cx, cy - sz*0.80, sz*0.38, sz*0.18, 0, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(60,10,0,0.55)';
+        ctx.lineWidth = sz * 0.07;
+        ctx.beginPath(); ctx.moveTo(cx - sz*0.42, cy + sz*0.04); ctx.lineTo(cx + sz*0.30, cy + sz*0.10); ctx.stroke();
+        ctx.fillStyle = 'rgba(80,20,5,0.28)';
+        ctx.beginPath(); ctx.ellipse(cx - sz*0.15, cy + sz*0.22, sz*0.30, sz*0.18, -0.3, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.beginPath(); ctx.arc(cx + sz*0.22, cy - sz*0.12, sz*0.13, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Jupiter': {
+        ctx.fillStyle = 'rgba(130,65,12,0.42)';
+        ctx.fillRect(cx - sz, cy - sz*0.11, sz*2, sz*0.22);
+        ctx.fillStyle = 'rgba(220,155,75,0.36)';
+        ctx.fillRect(cx - sz, cy + sz*0.25, sz*2, sz*0.18);
+        ctx.fillStyle = 'rgba(85,35,6,0.30)';
+        ctx.fillRect(cx - sz, cy - sz*0.44, sz*2, sz*0.15);
+        ctx.fillStyle = 'rgba(200,160,80,0.28)';
+        ctx.fillRect(cx - sz, cy - sz*0.66, sz*2, sz*0.12);
+        ctx.fillStyle = 'rgba(80,30,5,0.24)';
+        ctx.fillRect(cx - sz, cy + sz*0.52, sz*2, sz*0.10);
+        ctx.fillStyle = 'rgba(195,55,25,0.65)';
+        ctx.beginPath(); ctx.ellipse(cx + sz*0.26, cy + sz*0.07, sz*0.21, sz*0.13, 0, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Saturn': {
+        ctx.fillStyle = 'rgba(175,138,50,0.32)';
+        ctx.fillRect(cx - sz, cy - sz*0.11, sz*2, sz*0.22);
+        ctx.fillStyle = 'rgba(135,98,22,0.24)';
+        ctx.fillRect(cx - sz, cy + sz*0.25, sz*2, sz*0.15);
+        ctx.fillStyle = 'rgba(200,165,75,0.20)';
+        ctx.fillRect(cx - sz, cy - sz*0.40, sz*2, sz*0.12);
+        break;
+      }
+      case 'Uranus': {
+        ctx.fillStyle = 'rgba(130,250,250,0.18)';
+        ctx.fillRect(cx - sz, cy - sz*0.09, sz*2, sz*0.18);
+        ctx.fillStyle = 'rgba(80,210,210,0.12)';
+        ctx.fillRect(cx - sz, cy + sz*0.30, sz*2, sz*0.13);
+        break;
+      }
+      case 'Neptune': {
+        ctx.fillStyle = 'rgba(20,20,195,0.40)';
+        ctx.fillRect(cx - sz, cy - sz*0.10, sz*2, sz*0.20);
+        ctx.fillStyle = 'rgba(15,15,160,0.28)';
+        ctx.fillRect(cx - sz, cy + sz*0.30, sz*2, sz*0.16);
+        ctx.fillStyle = 'rgba(50,70,205,0.35)';
+        ctx.beginPath(); ctx.arc(cx - sz*0.22, cy + sz*0.02, sz*0.18, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Dross': {
+        ctx.fillStyle = 'rgba(0,0,0,0.32)';
+        ctx.beginPath(); ctx.arc(cx - sz*0.30, cy - sz*0.20, sz*0.18, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + sz*0.18, cy + sz*0.28, sz*0.14, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + sz*0.04, cy - sz*0.40, sz*0.10, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx - sz*0.44, cy + sz*0.18, sz*0.09, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(180,180,180,0.18)';
+        ctx.fillRect(cx - sz, cy - sz*0.06, sz*2, sz*0.12);
+        break;
+      }
+      case 'Solace': {
+        ctx.fillStyle = 'rgba(0,200,190,0.28)';
+        ctx.beginPath(); ctx.ellipse(cx - sz*0.05, cy + sz*0.08, sz*0.55, sz*0.11, 0.22, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx + sz*0.10, cy - sz*0.25, sz*0.48, sz*0.09, -0.18, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(34,160,140,0.22)';
+        ctx.beginPath(); ctx.ellipse(cx - sz*0.18, cy - sz*0.10, sz*0.14, sz*0.09, 0.6, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(228,245,255,0.70)';
+        ctx.beginPath(); ctx.ellipse(cx, cy - sz*0.80, sz*0.36, sz*0.15, 0, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Varix': {
+        ctx.strokeStyle = 'rgba(220,160,255,0.45)';
+        ctx.lineWidth   = sz * 0.04;
+        ctx.beginPath(); ctx.moveTo(cx - sz*0.6, cy - sz*0.3); ctx.lineTo(cx + sz*0.4, cy + sz*0.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx + sz*0.1, cy - sz*0.7); ctx.lineTo(cx - sz*0.2, cy + sz*0.6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - sz*0.7, cy + sz*0.1); ctx.lineTo(cx + sz*0.6, cy - sz*0.2); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,240,255,0.70)';
+        ctx.beginPath(); ctx.arc(cx - sz*0.18, cy - sz*0.22, sz*0.06, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + sz*0.30, cy + sz*0.14, sz*0.04, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Quellar': {
+        ctx.fillStyle = 'rgba(120,70,0,0.38)';
+        ctx.fillRect(cx - sz, cy - sz*0.12, sz*2, sz*0.22);
+        ctx.fillStyle = 'rgba(180,110,15,0.28)';
+        ctx.fillRect(cx - sz, cy + sz*0.28, sz*2, sz*0.16);
+        ctx.fillStyle = 'rgba(80,40,0,0.22)';
+        ctx.fillRect(cx - sz, cy - sz*0.44, sz*2, sz*0.13);
+        ctx.fillStyle = 'rgba(160,90,10,0.55)';
+        ctx.beginPath(); ctx.ellipse(cx - sz*0.20, cy + sz*0.08, sz*0.26, sz*0.16, 0, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Pyral': {
+        ctx.strokeStyle = 'rgba(20,5,0,0.55)';
+        ctx.lineWidth   = sz * 0.06;
+        ctx.beginPath(); ctx.moveTo(cx - sz*0.5, cy - sz*0.2); ctx.bezierCurveTo(cx, cy - sz*0.1, cx + sz*0.1, cy + sz*0.3, cx + sz*0.55, cy + sz*0.1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - sz*0.2, cy - sz*0.6); ctx.bezierCurveTo(cx - sz*0.1, cy - sz*0.1, cx + sz*0.2, cy + sz*0.1, cx + sz*0.1, cy + sz*0.5); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,160,20,0.65)';
+        ctx.beginPath(); ctx.arc(cx - sz*0.12, cy + sz*0.22, sz*0.10, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + sz*0.30, cy - sz*0.18, sz*0.07, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx - sz*0.36, cy - sz*0.35, sz*0.06, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Cerune': {
+        ctx.fillStyle = 'rgba(228,245,255,0.80)';
+        ctx.beginPath(); ctx.ellipse(cx, cy - sz*0.80, sz*0.40, sz*0.18, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx, cy + sz*0.84, sz*0.30, sz*0.12, 0, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(140,190,230,0.40)';
+        ctx.lineWidth   = sz * 0.025;
+        ctx.beginPath(); ctx.moveTo(cx - sz*0.10, cy - sz*0.65); ctx.lineTo(cx - sz*0.40, cy + sz*0.20); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx + sz*0.15, cy - sz*0.60); ctx.lineTo(cx + sz*0.45, cy + sz*0.30); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - sz*0.55, cy - sz*0.10); ctx.lineTo(cx + sz*0.35, cy + sz*0.12); ctx.stroke();
+        break;
+      }
+      case 'Manthos': {
+        ctx.fillStyle = 'rgba(30,5,50,0.38)';
+        ctx.beginPath(); ctx.ellipse(cx - sz*0.22, cy - sz*0.15, sz*0.30, sz*0.20, -0.4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx + sz*0.20, cy + sz*0.25, sz*0.24, sz*0.16, 0.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(180,80,255,0.30)';
+        ctx.beginPath(); ctx.arc(cx - sz*0.12, cy + sz*0.08, sz*0.08, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + sz*0.28, cy - sz*0.24, sz*0.05, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx - sz*0.38, cy + sz*0.32, sz*0.04, 0, Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'Novarix': {
+        const nvg = ctx.createRadialGradient(cx, cy, 0, cx, cy, sz * 0.55);
+        nvg.addColorStop(0,   'rgba(255,255,220,0.60)');
+        nvg.addColorStop(0.5, 'rgba(255,220,80,0.25)');
+        nvg.addColorStop(1,   'rgba(255,180,0,0)');
+        ctx.fillStyle = nvg;
+        ctx.beginPath(); ctx.arc(cx, cy, sz * 0.55, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,240,120,0.30)';
+        ctx.lineWidth   = sz * 0.025;
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(a) * sz * 0.25, cy + Math.sin(a) * sz * 0.25);
+          ctx.lineTo(cx + Math.cos(a) * sz * 0.80, cy + Math.sin(a) * sz * 0.80);
+          ctx.stroke();
+        }
+        break;
+      }
+    }
+    ctx.restore(); // end clip
 
     const shad = ctx.createRadialGradient(cx + sz * 0.4, cy + sz * 0.1, 0, cx + sz * 0.3, cy, sz * 1.1);
     shad.addColorStop(0,    'rgba(0,0,0,0)');
@@ -3279,11 +3464,15 @@ function renderSolarMap() {
       ctx.save();
       ctx.beginPath(); ctx.arc(px, cy, sz, 0, Math.PI * 2); ctx.clip();
       if (p.name === 'Earth') {
-        ctx.fillStyle = 'rgba(35,130,55,0.65)';
-        ctx.beginPath(); ctx.ellipse(px - sz * 0.10, cy - sz * 0.10, sz * 0.36, sz * 0.26, -0.5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(px + sz * 0.28, cy + sz * 0.18, sz * 0.22, sz * 0.30, 0.4, 0, Math.PI * 2);  ctx.fill();
-        ctx.fillStyle = 'rgba(230,242,255,0.78)';
-        ctx.beginPath(); ctx.ellipse(px, cy - sz * 0.82, sz * 0.44, sz * 0.20, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(34,120,50,0.72)';
+        ctx.beginPath(); ctx.ellipse(px - sz*0.34, cy - sz*0.14, sz*0.25, sz*0.31, -0.50, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px - sz*0.20, cy + sz*0.36, sz*0.13, sz*0.27, 0.22, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px + sz*0.12, cy - sz*0.22, sz*0.36, sz*0.21, 0.12, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px + sz*0.18, cy + sz*0.14, sz*0.16, sz*0.26, 0.08, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px + sz*0.46, cy + sz*0.36, sz*0.11, sz*0.08, -0.28, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(228,242,255,0.82)';
+        ctx.beginPath(); ctx.ellipse(px, cy - sz*0.82, sz*0.42, sz*0.19, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px, cy + sz*0.88, sz*0.30, sz*0.11, 0, 0, Math.PI*2); ctx.fill();
       } else if (p.name === 'Jupiter') {
         ctx.fillStyle = 'rgba(140,70,15,0.38)';
         ctx.fillRect(px - sz, cy - sz * 0.12, sz * 2, sz * 0.24);
@@ -3322,6 +3511,76 @@ function renderSolarMap() {
         ctx.fillRect(px - sz, cy - sz * 0.10, sz * 2, sz * 0.20);
         ctx.fillStyle = 'rgba(50,70,200,0.32)';
         ctx.beginPath(); ctx.arc(px - sz * 0.22, cy, sz * 0.17, 0, Math.PI * 2); ctx.fill();
+      } else if (p.name === 'Dross') {
+        ctx.fillStyle = 'rgba(0,0,0,0.32)';
+        ctx.beginPath(); ctx.arc(px - sz*0.30, cy - sz*0.20, sz*0.20, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + sz*0.18, cy + sz*0.28, sz*0.14, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + sz*0.04, cy - sz*0.40, sz*0.10, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(175,175,175,0.18)';
+        ctx.fillRect(px - sz, cy - sz*0.07, sz*2, sz*0.13);
+      } else if (p.name === 'Solace') {
+        ctx.fillStyle = 'rgba(0,200,190,0.28)';
+        ctx.beginPath(); ctx.ellipse(px - sz*0.05, cy + sz*0.08, sz*0.55, sz*0.11, 0.22, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px + sz*0.10, cy - sz*0.25, sz*0.48, sz*0.09, -0.18, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(34,160,140,0.25)';
+        ctx.beginPath(); ctx.ellipse(px - sz*0.18, cy - sz*0.10, sz*0.14, sz*0.09, 0.6, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(228,245,255,0.72)';
+        ctx.beginPath(); ctx.ellipse(px, cy - sz*0.80, sz*0.36, sz*0.15, 0, 0, Math.PI*2); ctx.fill();
+      } else if (p.name === 'Varix') {
+        ctx.strokeStyle = 'rgba(220,160,255,0.48)';
+        ctx.lineWidth   = sz * 0.05;
+        ctx.beginPath(); ctx.moveTo(px - sz*0.6, cy - sz*0.3); ctx.lineTo(px + sz*0.4, cy + sz*0.5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px + sz*0.1, cy - sz*0.7); ctx.lineTo(px - sz*0.2, cy + sz*0.6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px - sz*0.7, cy + sz*0.1); ctx.lineTo(px + sz*0.6, cy - sz*0.2); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,240,255,0.72)';
+        ctx.beginPath(); ctx.arc(px - sz*0.18, cy - sz*0.22, sz*0.07, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + sz*0.30, cy + sz*0.14, sz*0.05, 0, Math.PI*2); ctx.fill();
+      } else if (p.name === 'Quellar') {
+        ctx.fillStyle = 'rgba(120,70,0,0.38)';
+        ctx.fillRect(px - sz, cy - sz*0.12, sz*2, sz*0.22);
+        ctx.fillStyle = 'rgba(175,108,12,0.28)';
+        ctx.fillRect(px - sz, cy + sz*0.28, sz*2, sz*0.16);
+        ctx.fillStyle = 'rgba(160,88,8,0.55)';
+        ctx.beginPath(); ctx.ellipse(px - sz*0.20, cy + sz*0.08, sz*0.26, sz*0.16, 0, 0, Math.PI*2); ctx.fill();
+      } else if (p.name === 'Pyral') {
+        ctx.strokeStyle = 'rgba(20,5,0,0.55)';
+        ctx.lineWidth   = sz * 0.07;
+        ctx.beginPath(); ctx.moveTo(px - sz*0.5, cy - sz*0.2); ctx.bezierCurveTo(px, cy - sz*0.1, px + sz*0.1, cy + sz*0.3, px + sz*0.55, cy + sz*0.1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px - sz*0.2, cy - sz*0.6); ctx.bezierCurveTo(px - sz*0.1, cy - sz*0.1, px + sz*0.2, cy + sz*0.1, px + sz*0.1, cy + sz*0.5); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,160,20,0.65)';
+        ctx.beginPath(); ctx.arc(px - sz*0.12, cy + sz*0.22, sz*0.11, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + sz*0.30, cy - sz*0.18, sz*0.07, 0, Math.PI*2); ctx.fill();
+      } else if (p.name === 'Cerune') {
+        ctx.fillStyle = 'rgba(228,245,255,0.82)';
+        ctx.beginPath(); ctx.ellipse(px, cy - sz*0.80, sz*0.40, sz*0.18, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px, cy + sz*0.84, sz*0.30, sz*0.12, 0, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(140,190,230,0.40)';
+        ctx.lineWidth   = sz * 0.03;
+        ctx.beginPath(); ctx.moveTo(px - sz*0.10, cy - sz*0.65); ctx.lineTo(px - sz*0.40, cy + sz*0.20); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px + sz*0.15, cy - sz*0.60); ctx.lineTo(px + sz*0.45, cy + sz*0.30); ctx.stroke();
+      } else if (p.name === 'Manthos') {
+        ctx.fillStyle = 'rgba(30,5,50,0.40)';
+        ctx.beginPath(); ctx.ellipse(px - sz*0.22, cy - sz*0.15, sz*0.30, sz*0.20, -0.4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(px + sz*0.20, cy + sz*0.25, sz*0.24, sz*0.16, 0.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(180,80,255,0.32)';
+        ctx.beginPath(); ctx.arc(px - sz*0.12, cy + sz*0.08, sz*0.09, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + sz*0.28, cy - sz*0.24, sz*0.06, 0, Math.PI*2); ctx.fill();
+      } else if (p.name === 'Novarix') {
+        const nvmg = ctx.createRadialGradient(px, cy, 0, px, cy, sz * 0.55);
+        nvmg.addColorStop(0,   'rgba(255,255,220,0.60)');
+        nvmg.addColorStop(0.5, 'rgba(255,220,80,0.25)');
+        nvmg.addColorStop(1,   'rgba(255,180,0,0)');
+        ctx.fillStyle = nvmg;
+        ctx.beginPath(); ctx.arc(px, cy, sz * 0.55, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,240,120,0.30)';
+        ctx.lineWidth   = sz * 0.03;
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(px + Math.cos(a) * sz*0.25, cy + Math.sin(a) * sz*0.25);
+          ctx.lineTo(px + Math.cos(a) * sz*0.80, cy + Math.sin(a) * sz*0.80);
+          ctx.stroke();
+        }
       }
       ctx.restore(); // end clip
 
