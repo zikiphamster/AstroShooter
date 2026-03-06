@@ -366,8 +366,26 @@ function handleCanvasClick(mx, my) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
         if (btn.key === 'continue')
           startBtnAnim(btn, '#4f8', () => {
-            if (gameMode === 'progress') { selectedPlanet = null; gameState = 'SOLAR_MAP'; }
-            else { loadLevel(currentLevel + 1); }
+            if (gameMode === 'progress') {
+              const activePlanets = currentGalaxy === 0 ? PLANET_DEFS : VEIL_PLANET_DEFS;
+              const nextPlanet = currentPlanet + 1;
+              if (nextPlanet < activePlanets.length) {
+                const p = activePlanets[nextPlanet];
+                DIFFICULTIES['progress'] = {
+                  label: p.name.toUpperCase(), color: p.color,
+                  lives: p.lives, spawnMult: p.spawnMult, speedMult: p.speedMult,
+                  largeChance: p.largeChance, medChance: p.medChance,
+                };
+                currentPlanet       = nextPlanet;
+                currentDiff         = 'progress';
+                selectedPlanet      = null;
+                gameState           = 'SOLAR_MAP';
+                solarMapLaunchTimer = 1.6;
+              } else {
+                selectedPlanet = null;
+                gameState      = 'SOLAR_MAP';
+              }
+            } else { loadLevel(currentLevel + 1); }
           });
         else if (btn.key === 'menu')
           startBtnAnim(btn, '#4af', () => { gameMode = 'endless'; gameState = 'MENU'; });
