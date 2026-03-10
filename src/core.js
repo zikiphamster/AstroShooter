@@ -508,13 +508,29 @@ function update(dt) {
         spawnParticles(a.x, a.y, 10, ['#fa0', '#f60', '#ff0', '#fff']);
         playExplosion(a.tier);
 
-        // Split into smaller asteroids
+        // Split into shard-shaped smaller asteroids
         if (a.tier < 2) {
           for (let s = 0; s < 2; s++) {
             const child = new Asteroid(a.x, a.y, a.tier + 1);
             const spread = rand(0.5, 1.5) * BASE_AST_SPEED * astSpeedMult;
             child.vx = a.vx + rand(-30, 30);
             child.vy = s === 0 ? -spread * 0.5 : spread * 0.5;
+            child.rotSpeed = s === 0 ? Math.abs(child.rotSpeed) : -Math.abs(child.rotSpeed);
+            // Overwrite points with a jagged shard half — each child is one crescent wedge
+            const r = child.radius;
+            const halfStart = s === 0 ? -Math.PI : 0;
+            const halfEnd   = s === 0 ? 0 : Math.PI;
+            const shardPts  = [];
+            for (let k = 0; k <= 10; k++) {
+              const ang = halfStart + (halfEnd - halfStart) * (k / 10);
+              const jag = k % 2 === 0 ? 1.0 : 0.68;
+              shardPts.push({ angle: ang, r: r * (0.78 + Math.random() * 0.30) * jag });
+            }
+            for (let k = 3; k >= 1; k--) {
+              const ang = halfStart + (halfEnd - halfStart) * (k / 4);
+              shardPts.push({ angle: ang, r: r * (0.08 + Math.random() * 0.22) });
+            }
+            child.points = shardPts;
             asteroids.push(child);
           }
         }
@@ -1736,7 +1752,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.65.0';
+  const verText = 'v1.68.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -2415,6 +2431,30 @@ function renderDifficulty() {
 }
 
 // ── Dialogue planet preview ───────────────────────────────────────────────────
+// Animated cloud layer — call after surface details, before shadow, with planet clipped
+function drawPlanetClouds(cx, cy, sz, cloudDefs, color) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, sz, 0, Math.PI * 2); ctx.clip();
+  ctx.fillStyle = color ?? 'rgba(255,255,255,0.88)';
+  const t = performance.now() / 1000;
+  for (const c of cloudDefs) {
+    const a  = c.a + t * c.spd;
+    const wx = cx + Math.cos(a) * sz * c.d;
+    const wy = cy + Math.sin(a) * sz * c.d * 0.44;
+    ctx.globalAlpha = c.alpha ?? 0.35;
+    ctx.beginPath();
+    ctx.ellipse(wx, wy, sz * c.rx, sz * c.ry, a * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+    if (c.rx > 0.18) {
+      ctx.beginPath();
+      ctx.ellipse(wx + sz * 0.07, wy - sz * 0.04, sz * c.rx * 0.62, sz * c.ry * 0.78, a * 0.22 + 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
 function drawDialoguePlanet(cx, cy, planet) {
   const sz = 90;
   ctx.save();
@@ -2465,15 +2505,50 @@ function drawDialoguePlanet(cx, cy, planet) {
     ctx.beginPath(); ctx.arc(cx, cy, sz, 0, Math.PI * 2); ctx.clip();
     switch (planet.name) {
       case 'Earth': {
-        ctx.fillStyle = 'rgba(34,120,50,0.72)';
-        ctx.beginPath(); ctx.ellipse(cx - sz*0.34, cy - sz*0.14, sz*0.25, sz*0.31, -0.50, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(cx - sz*0.20, cy + sz*0.36, sz*0.13, sz*0.27, 0.22, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(cx + sz*0.12, cy - sz*0.22, sz*0.36, sz*0.21, 0.12, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(cx + sz*0.18, cy + sz*0.14, sz*0.16, sz*0.26, 0.08, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(cx + sz*0.46, cy + sz*0.36, sz*0.11, sz*0.08, -0.28, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(34,120,50,0.76)';
+        // North America
+        ctx.beginPath();
+        ctx.moveTo(cx - sz*0.52, cy - sz*0.52);
+        ctx.bezierCurveTo(cx - sz*0.15, cy - sz*0.68, cx + sz*0.12, cy - sz*0.55, cx + sz*0.08, cy - sz*0.28);
+        ctx.bezierCurveTo(cx + sz*0.05, cy - sz*0.05, cx - sz*0.08, cy + sz*0.05, cx - sz*0.18, cy + sz*0.18);
+        ctx.bezierCurveTo(cx - sz*0.28, cy + sz*0.32, cx - sz*0.20, cy + sz*0.38, cx - sz*0.32, cy + sz*0.28);
+        ctx.bezierCurveTo(cx - sz*0.50, cy + sz*0.10, cx - sz*0.60, cy - sz*0.20, cx - sz*0.52, cy - sz*0.52);
+        ctx.fill();
+        // South America
+        ctx.beginPath();
+        ctx.moveTo(cx - sz*0.14, cy + sz*0.22);
+        ctx.bezierCurveTo(cx + sz*0.04, cy + sz*0.16, cx + sz*0.10, cy + sz*0.32, cx + sz*0.06, cy + sz*0.50);
+        ctx.bezierCurveTo(cx + sz*0.02, cy + sz*0.70, cx - sz*0.08, cy + sz*0.78, cx - sz*0.12, cy + sz*0.65);
+        ctx.bezierCurveTo(cx - sz*0.18, cy + sz*0.45, cx - sz*0.22, cy + sz*0.30, cx - sz*0.14, cy + sz*0.22);
+        ctx.fill();
+        // Eurasia
+        ctx.beginPath();
+        ctx.moveTo(cx - sz*0.05, cy - sz*0.60);
+        ctx.bezierCurveTo(cx + sz*0.20, cy - sz*0.72, cx + sz*0.55, cy - sz*0.62, cx + sz*0.72, cy - sz*0.38);
+        ctx.bezierCurveTo(cx + sz*0.80, cy - sz*0.12, cx + sz*0.65, cy + sz*0.08, cx + sz*0.42, cy + sz*0.12);
+        ctx.bezierCurveTo(cx + sz*0.22, cy + sz*0.18, cx + sz*0.10, cy + sz*0.05, cx + sz*0.05, cy - sz*0.12);
+        ctx.bezierCurveTo(cx - sz*0.05, cy - sz*0.28, cx - sz*0.18, cy - sz*0.35, cx - sz*0.05, cy - sz*0.60);
+        ctx.fill();
+        // Africa
+        ctx.beginPath();
+        ctx.moveTo(cx + sz*0.08, cy - sz*0.28);
+        ctx.bezierCurveTo(cx + sz*0.22, cy - sz*0.18, cx + sz*0.28, cy + sz*0.10, cx + sz*0.22, cy + sz*0.38);
+        ctx.bezierCurveTo(cx + sz*0.16, cy + sz*0.58, cx + sz*0.05, cy + sz*0.62, cx - sz*0.02, cy + sz*0.48);
+        ctx.bezierCurveTo(cx - sz*0.10, cy + sz*0.28, cx - sz*0.05, cy + sz*0.10, cx + sz*0.05, cy - sz*0.05);
+        ctx.bezierCurveTo(cx + sz*0.06, cy - sz*0.18, cx + sz*0.04, cy - sz*0.25, cx + sz*0.08, cy - sz*0.28);
+        ctx.fill();
+        // Australia
+        ctx.beginPath();
+        ctx.moveTo(cx + sz*0.44, cy + sz*0.28);
+        ctx.bezierCurveTo(cx + sz*0.62, cy + sz*0.22, cx + sz*0.72, cy + sz*0.38, cx + sz*0.65, cy + sz*0.52);
+        ctx.bezierCurveTo(cx + sz*0.56, cy + sz*0.62, cx + sz*0.40, cy + sz*0.60, cx + sz*0.36, cy + sz*0.48);
+        ctx.bezierCurveTo(cx + sz*0.32, cy + sz*0.36, cx + sz*0.36, cy + sz*0.30, cx + sz*0.44, cy + sz*0.28);
+        ctx.fill();
+        // Polar ice caps
         ctx.fillStyle = 'rgba(228,242,255,0.82)';
         ctx.beginPath(); ctx.ellipse(cx, cy - sz*0.82, sz*0.42, sz*0.19, 0, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.ellipse(cx, cy + sz*0.88, sz*0.30, sz*0.11, 0, 0, Math.PI*2); ctx.fill();
+        // Cloud wisp
         ctx.fillStyle = 'rgba(255,255,255,0.18)';
         ctx.beginPath(); ctx.ellipse(cx - sz*0.05, cy + sz*0.02, sz*0.55, sz*0.10, 0.25, 0, Math.PI*2); ctx.fill();
         break;
@@ -2644,6 +2719,58 @@ function drawDialoguePlanet(cx, cy, planet) {
       }
     }
     ctx.restore(); // end clip
+
+    // ── Animated cloud layers ──────────────────────────────────────────────────
+    if (planet.name === 'Earth') {
+      drawPlanetClouds(cx, cy, sz, [
+        { a: 0.4,  d: 0.50, rx: 0.30, ry: 0.09, spd: 0.04, alpha: 0.40 },
+        { a: 1.9,  d: 0.60, rx: 0.25, ry: 0.08, spd: 0.04, alpha: 0.35 },
+        { a: 3.3,  d: 0.45, rx: 0.32, ry: 0.10, spd: 0.04, alpha: 0.38 },
+        { a: 4.8,  d: 0.55, rx: 0.22, ry: 0.07, spd: 0.04, alpha: 0.32 },
+        { a: 6.0,  d: 0.48, rx: 0.28, ry: 0.09, spd: 0.04, alpha: 0.36 },
+      ]);
+    } else if (planet.name === 'Venus') {
+      drawPlanetClouds(cx, cy, sz, [
+        { a: 0.2,  d: 0.55, rx: 0.38, ry: 0.12, spd: 0.015, alpha: 0.44 },
+        { a: 2.2,  d: 0.52, rx: 0.42, ry: 0.13, spd: 0.015, alpha: 0.42 },
+        { a: 4.0,  d: 0.58, rx: 0.35, ry: 0.11, spd: 0.015, alpha: 0.46 },
+        { a: 5.5,  d: 0.50, rx: 0.40, ry: 0.12, spd: 0.015, alpha: 0.40 },
+      ], 'rgba(255,248,200,0.92)');
+    } else if (planet.name === 'Jupiter') {
+      drawPlanetClouds(cx, cy, sz, [
+        { a: 0.8,  d: 0.52, rx: 0.40, ry: 0.08, spd: 0.06, alpha: 0.18 },
+        { a: 2.6,  d: 0.62, rx: 0.36, ry: 0.07, spd: 0.06, alpha: 0.14 },
+        { a: 4.5,  d: 0.48, rx: 0.42, ry: 0.08, spd: 0.06, alpha: 0.16 },
+      ], 'rgba(240,200,140,0.85)');
+    } else if (planet.name === 'Saturn') {
+      drawPlanetClouds(cx, cy, sz, [
+        { a: 1.0,  d: 0.50, rx: 0.38, ry: 0.07, spd: 0.03, alpha: 0.14 },
+        { a: 3.5,  d: 0.60, rx: 0.34, ry: 0.06, spd: 0.03, alpha: 0.12 },
+      ], 'rgba(240,220,160,0.85)');
+    } else if (planet.name === 'Uranus') {
+      drawPlanetClouds(cx, cy, sz, [
+        { a: 1.5,  d: 0.52, rx: 0.32, ry: 0.06, spd: 0.025, alpha: 0.12 },
+        { a: 4.2,  d: 0.58, rx: 0.28, ry: 0.06, spd: 0.025, alpha: 0.10 },
+      ], 'rgba(200,250,250,0.85)');
+    } else if (planet.name === 'Neptune') {
+      drawPlanetClouds(cx, cy, sz, [
+        { a: 0.5,  d: 0.54, rx: 0.35, ry: 0.08, spd: 0.05, alpha: 0.25 },
+        { a: 2.8,  d: 0.58, rx: 0.30, ry: 0.07, spd: 0.05, alpha: 0.20 },
+        { a: 5.0,  d: 0.50, rx: 0.32, ry: 0.08, spd: 0.05, alpha: 0.22 },
+      ], 'rgba(180,210,255,0.85)');
+    } else if (planet.name === 'Solace') {
+      drawPlanetClouds(cx, cy, sz, [
+        { a: 0.6,  d: 0.50, rx: 0.28, ry: 0.09, spd: 0.04, alpha: 0.38 },
+        { a: 2.4,  d: 0.58, rx: 0.24, ry: 0.08, spd: 0.04, alpha: 0.32 },
+        { a: 4.6,  d: 0.48, rx: 0.30, ry: 0.09, spd: 0.04, alpha: 0.36 },
+      ]);
+    } else if (planet.name === 'Quellar') {
+      drawPlanetClouds(cx, cy, sz, [
+        { a: 0.3,  d: 0.52, rx: 0.38, ry: 0.10, spd: 0.06, alpha: 0.28 },
+        { a: 2.1,  d: 0.58, rx: 0.34, ry: 0.09, spd: 0.06, alpha: 0.24 },
+        { a: 4.2,  d: 0.48, rx: 0.36, ry: 0.10, spd: 0.06, alpha: 0.26 },
+      ], 'rgba(200,160,100,0.85)');
+    }
 
     const shad = ctx.createRadialGradient(cx + sz * 0.4, cy + sz * 0.1, 0, cx + sz * 0.3, cy, sz * 1.1);
     shad.addColorStop(0,    'rgba(0,0,0,0)');
@@ -3583,6 +3710,60 @@ function renderSolarMap() {
         }
       }
       ctx.restore(); // end clip
+
+      // ── Animated cloud layers ────────────────────────────────────────────────
+      if (!locked) {
+        if (p.name === 'Earth') {
+          drawPlanetClouds(px, cy, sz, [
+            { a: 0.4,  d: 0.50, rx: 0.30, ry: 0.09, spd: 0.04, alpha: 0.40 },
+            { a: 1.9,  d: 0.60, rx: 0.25, ry: 0.08, spd: 0.04, alpha: 0.35 },
+            { a: 3.3,  d: 0.45, rx: 0.32, ry: 0.10, spd: 0.04, alpha: 0.38 },
+            { a: 4.8,  d: 0.55, rx: 0.22, ry: 0.07, spd: 0.04, alpha: 0.32 },
+            { a: 6.0,  d: 0.48, rx: 0.28, ry: 0.09, spd: 0.04, alpha: 0.36 },
+          ]);
+        } else if (p.name === 'Venus') {
+          drawPlanetClouds(px, cy, sz, [
+            { a: 0.2,  d: 0.55, rx: 0.38, ry: 0.12, spd: 0.015, alpha: 0.44 },
+            { a: 2.2,  d: 0.52, rx: 0.42, ry: 0.13, spd: 0.015, alpha: 0.42 },
+            { a: 4.0,  d: 0.58, rx: 0.35, ry: 0.11, spd: 0.015, alpha: 0.46 },
+            { a: 5.5,  d: 0.50, rx: 0.40, ry: 0.12, spd: 0.015, alpha: 0.40 },
+          ], 'rgba(255,248,200,0.92)');
+        } else if (p.name === 'Jupiter') {
+          drawPlanetClouds(px, cy, sz, [
+            { a: 0.8,  d: 0.52, rx: 0.40, ry: 0.08, spd: 0.06, alpha: 0.18 },
+            { a: 2.6,  d: 0.62, rx: 0.36, ry: 0.07, spd: 0.06, alpha: 0.14 },
+            { a: 4.5,  d: 0.48, rx: 0.42, ry: 0.08, spd: 0.06, alpha: 0.16 },
+          ], 'rgba(240,200,140,0.85)');
+        } else if (p.name === 'Saturn') {
+          drawPlanetClouds(px, cy, sz, [
+            { a: 1.0,  d: 0.50, rx: 0.38, ry: 0.07, spd: 0.03, alpha: 0.14 },
+            { a: 3.5,  d: 0.60, rx: 0.34, ry: 0.06, spd: 0.03, alpha: 0.12 },
+          ], 'rgba(240,220,160,0.85)');
+        } else if (p.name === 'Uranus') {
+          drawPlanetClouds(px, cy, sz, [
+            { a: 1.5,  d: 0.52, rx: 0.32, ry: 0.06, spd: 0.025, alpha: 0.12 },
+            { a: 4.2,  d: 0.58, rx: 0.28, ry: 0.06, spd: 0.025, alpha: 0.10 },
+          ], 'rgba(200,250,250,0.85)');
+        } else if (p.name === 'Neptune') {
+          drawPlanetClouds(px, cy, sz, [
+            { a: 0.5,  d: 0.54, rx: 0.35, ry: 0.08, spd: 0.05, alpha: 0.25 },
+            { a: 2.8,  d: 0.58, rx: 0.30, ry: 0.07, spd: 0.05, alpha: 0.20 },
+            { a: 5.0,  d: 0.50, rx: 0.32, ry: 0.08, spd: 0.05, alpha: 0.22 },
+          ], 'rgba(180,210,255,0.85)');
+        } else if (p.name === 'Solace') {
+          drawPlanetClouds(px, cy, sz, [
+            { a: 0.6,  d: 0.50, rx: 0.28, ry: 0.09, spd: 0.04, alpha: 0.38 },
+            { a: 2.4,  d: 0.58, rx: 0.24, ry: 0.08, spd: 0.04, alpha: 0.32 },
+            { a: 4.6,  d: 0.48, rx: 0.30, ry: 0.09, spd: 0.04, alpha: 0.36 },
+          ]);
+        } else if (p.name === 'Quellar') {
+          drawPlanetClouds(px, cy, sz, [
+            { a: 0.3,  d: 0.52, rx: 0.38, ry: 0.10, spd: 0.06, alpha: 0.28 },
+            { a: 2.1,  d: 0.58, rx: 0.34, ry: 0.09, spd: 0.06, alpha: 0.24 },
+            { a: 4.2,  d: 0.48, rx: 0.36, ry: 0.10, spd: 0.06, alpha: 0.26 },
+          ], 'rgba(200,160,100,0.85)');
+        }
+      }
 
       // Shadow overlay (sun is left → shadow falls on right side)
       const shade = ctx.createRadialGradient(px + sz * 0.28, cy + sz * 0.18, 0, px, cy, sz * 1.05);

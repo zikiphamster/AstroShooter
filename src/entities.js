@@ -5,30 +5,39 @@
 // ─── Player ───────────────────────────────────────────────────────────────────
 
 function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
-  // Thruster flame
-  const flameLen = 14 + Math.sin(thrusterAnim ?? 0) * 6;
-  const gradient = ctx.createLinearGradient(x, y, x - flameLen, y + h / 2);
-  gradient.addColorStop(0, 'rgba(0,180,255,0.9)');
-  gradient.addColorStop(0.4, 'rgba(255,120,0,0.7)');
-  gradient.addColorStop(1, 'rgba(255,60,0,0)');
-  ctx.beginPath();
-  ctx.moveTo(x + 4, y + h * 0.35);
-  ctx.lineTo(x - flameLen, y + h / 2);
-  ctx.lineTo(x + 4, y + h * 0.65);
-  ctx.closePath();
-  ctx.fillStyle = gradient;
-  ctx.fill();
+  // Engine-tier nozzle count: Standard=1, Afterburner/Pulse=2, Bulwark/Ion=3, Quantum=4
+  const nozzleCount = [1, 2, 2, 3, 3, 4][playerEngine ?? 0] ?? 1;
+  const cy    = y + h * 0.5;
+  const bodyH = h * 0.27;   // half-height of the narrow central fuselage
 
-  // Hull shape
-  ctx.fillStyle = color;
+  // Nozzle Y positions — evenly spaced, centered on cy
+  const nozSpan = nozzleCount > 1 ? Math.min(h * 0.22 * (nozzleCount - 1), h * 0.56) : 0;
+  const nozStep = nozzleCount > 1 ? nozSpan / (nozzleCount - 1) : 0;
+  const nozYs   = Array.from({length: nozzleCount}, (_, i) => cy - nozSpan / 2 + i * nozStep);
+
+  // ── 1. Thruster flames (behind everything) ────────────────────────────────────
+  const flameLen = 14 + Math.sin(thrusterAnim ?? 0) * 6;
+  for (const fy of nozYs) {
+    const fg = ctx.createRadialGradient(x + 2, fy, 0, x - flameLen * 0.45, fy, flameLen * 0.65);
+    fg.addColorStop(0,    'rgba(210,240,255,0.95)');
+    fg.addColorStop(0.25, 'rgba(255,160,30,0.85)');
+    fg.addColorStop(1,    'rgba(255,50,0,0)');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.ellipse(x - flameLen * 0.28, fy, flameLen * 0.65, h * 0.065, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── 2. Wings — variant polygon defines the wing silhouette ───────────────────
+  ctx.fillStyle = '#181e2e';
   ctx.beginPath();
-  if (variant === 1) {        // Wedge — wide flat rear
+  if (variant === 1) {        // Wedge
     ctx.moveTo(x + w,       y + h / 2);
     ctx.lineTo(x + w * 0.7, y);
     ctx.lineTo(x,           y + h * 0.1);
     ctx.lineTo(x,           y + h * 0.9);
     ctx.lineTo(x + w * 0.7, y + h);
-  } else if (variant === 2) { // Dart — swept wings, narrow body
+  } else if (variant === 2) { // Dart
     ctx.moveTo(x + w,       y + h / 2);
     ctx.lineTo(x + w * 0.3, y);
     ctx.lineTo(x + w * 0.5, y + h * 0.35);
@@ -36,7 +45,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x,           y + h * 0.6);
     ctx.lineTo(x + w * 0.5, y + h * 0.65);
     ctx.lineTo(x + w * 0.3, y + h);
-  } else if (variant === 3) { // Cruiser — boxy, chunky wings
+  } else if (variant === 3) { // Cruiser
     ctx.moveTo(x + w,       y + h / 2);
     ctx.lineTo(x + w * 0.6, y + h * 0.15);
     ctx.lineTo(x + w * 0.2, y + h * 0.15);
@@ -44,17 +53,17 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x,           y + h);
     ctx.lineTo(x + w * 0.2, y + h * 0.85);
     ctx.lineTo(x + w * 0.6, y + h * 0.85);
-  } else if (variant === 4) { // Delta — pure triangle
+  } else if (variant === 4) { // Delta
     ctx.moveTo(x + w,       y + h / 2);
     ctx.lineTo(x,           y);
     ctx.lineTo(x,           y + h);
-  } else if (variant === 5) { // Razor — ultra-thin swept
+  } else if (variant === 5) { // Razor
     ctx.moveTo(x + w,       y + h / 2);
     ctx.lineTo(x + w * 0.4, y + h * 0.2);
     ctx.lineTo(x,           y + h * 0.35);
     ctx.lineTo(x,           y + h * 0.65);
     ctx.lineTo(x + w * 0.4, y + h * 0.8);
-  } else if (variant === 6) { // Stealth — flat B-2 style
+  } else if (variant === 6) { // Stealth
     ctx.moveTo(x + w,       y + h / 2);
     ctx.lineTo(x + w * 0.8, y + h * 0.1);
     ctx.lineTo(x + w * 0.5, y + h * 0.15);
@@ -62,7 +71,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x,           y + h * 0.7);
     ctx.lineTo(x + w * 0.5, y + h * 0.85);
     ctx.lineTo(x + w * 0.8, y + h * 0.9);
-  } else if (variant === 7) { // Bomber — wide boxy full-height
+  } else if (variant === 7) { // Bomber
     ctx.moveTo(x + w,       y + h / 2);
     ctx.lineTo(x + w * 0.7, y);
     ctx.lineTo(x + w * 0.1, y);
@@ -70,14 +79,14 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x,           y + h * 0.7);
     ctx.lineTo(x + w * 0.1, y + h);
     ctx.lineTo(x + w * 0.7, y + h);
-  } else if (variant === 8) { // Scout — compact rounded
+  } else if (variant === 8) { // Scout
     ctx.moveTo(x + w,       y + h / 2);
     ctx.lineTo(x + w * 0.5, y + h * 0.05);
     ctx.lineTo(x + w * 0.1, y + h * 0.2);
     ctx.lineTo(x,           y + h * 0.5);
     ctx.lineTo(x + w * 0.1, y + h * 0.8);
     ctx.lineTo(x + w * 0.5, y + h * 0.95);
-  } else if (variant === 9) { // Interceptor — twin-boom flanking fins
+  } else if (variant === 9) { // Interceptor
     ctx.moveTo(x + w,       y + h / 2);
     ctx.lineTo(x + w * 0.4, y + h * 0.3);
     ctx.lineTo(x + w * 0.6, y + h * 0.1);
@@ -85,7 +94,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x,           y + h * 0.75);
     ctx.lineTo(x + w * 0.6, y + h * 0.9);
     ctx.lineTo(x + w * 0.4, y + h * 0.7);
-  } else if (variant === 10) { // Hawk — forward-swept wings
+  } else if (variant === 10) { // Hawk
     ctx.moveTo(x + w,        y + h / 2);
     ctx.lineTo(x + w * 0.3,  y);
     ctx.lineTo(x + w * 0.5,  y + h * 0.3);
@@ -93,7 +102,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x,            y + h * 0.55);
     ctx.lineTo(x + w * 0.5,  y + h * 0.7);
     ctx.lineTo(x + w * 0.3,  y + h);
-  } else if (variant === 11) { // X-Fighter — notched wing tips
+  } else if (variant === 11) { // X-Fighter
     ctx.moveTo(x + w,        y + h / 2);
     ctx.lineTo(x + w * 0.5,  y);
     ctx.lineTo(x + w * 0.4,  y + h * 0.25);
@@ -104,7 +113,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x,            y + h * 0.9);
     ctx.lineTo(x + w * 0.4,  y + h * 0.75);
     ctx.lineTo(x + w * 0.5,  y + h);
-  } else if (variant === 12) { // Mantis — rear spikes
+  } else if (variant === 12) { // Mantis
     ctx.moveTo(x + w,        y + h / 2);
     ctx.lineTo(x + w * 0.6,  y + h * 0.2);
     ctx.lineTo(x + w * 0.3,  y + h * 0.2);
@@ -114,7 +123,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x + w * 0.3,  y + h);
     ctx.lineTo(x + w * 0.3,  y + h * 0.8);
     ctx.lineTo(x + w * 0.6,  y + h * 0.8);
-  } else if (variant === 13) { // Phantom — notched upper hull
+  } else if (variant === 13) { // Phantom
     ctx.moveTo(x + w,        y + h / 2);
     ctx.lineTo(x + w * 0.6,  y);
     ctx.lineTo(x + w * 0.45, y + h * 0.25);
@@ -122,7 +131,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x,            y + h * 0.3);
     ctx.lineTo(x,            y + h * 0.7);
     ctx.lineTo(x + w * 0.6,  y + h);
-  } else if (variant === 14) { // Titan — maximum blockiness
+  } else if (variant === 14) { // Titan
     ctx.moveTo(x + w,        y + h / 2);
     ctx.lineTo(x + w * 0.75, y + h * 0.05);
     ctx.lineTo(x + w * 0.1,  y + h * 0.05);
@@ -130,7 +139,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x,            y + h * 0.8);
     ctx.lineTo(x + w * 0.1,  y + h * 0.95);
     ctx.lineTo(x + w * 0.75, y + h * 0.95);
-  } else if (variant === 15) { // Viper — S-curve profile
+  } else if (variant === 15) { // Viper
     ctx.moveTo(x + w,        y + h / 2);
     ctx.lineTo(x + w * 0.6,  y + h * 0.05);
     ctx.lineTo(x + w * 0.4,  y + h * 0.25);
@@ -139,7 +148,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x + w * 0.35, y + h * 0.6);
     ctx.lineTo(x + w * 0.35, y + h * 0.9);
     ctx.lineTo(x + w * 0.7,  y + h * 0.95);
-  } else if (variant === 16) { // Raptor — spine ridge + swept wings
+  } else if (variant === 16) { // Raptor
     ctx.moveTo(x + w,        y + h / 2);
     ctx.lineTo(x + w * 0.7,  y + h * 0.25);
     ctx.lineTo(x + w * 0.5,  y + h * 0.3);
@@ -150,13 +159,13 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x + w * 0.2,  y + h);
     ctx.lineTo(x + w * 0.5,  y + h * 0.7);
     ctx.lineTo(x + w * 0.7,  y + h * 0.75);
-  } else if (variant === 17) { // Javelin — ultra-long needle
+  } else if (variant === 17) { // Javelin
     ctx.moveTo(x + w,        y + h / 2);
     ctx.lineTo(x + w * 0.15, y + h * 0.3);
     ctx.lineTo(x,            y + h * 0.4);
     ctx.lineTo(x,            y + h * 0.6);
     ctx.lineTo(x + w * 0.15, y + h * 0.7);
-  } else if (variant === 18) { // Cobra — hooded flared rear
+  } else if (variant === 18) { // Cobra
     ctx.moveTo(x + w,        y + h / 2);
     ctx.lineTo(x + w * 0.65, y + h * 0.1);
     ctx.lineTo(x + w * 0.4,  y + h * 0.2);
@@ -167,7 +176,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x + w * 0.2,  y + h);
     ctx.lineTo(x + w * 0.4,  y + h * 0.8);
     ctx.lineTo(x + w * 0.65, y + h * 0.9);
-  } else if (variant === 19) { // Omega — starburst rear + long nose
+  } else if (variant === 19) { // Omega
     ctx.moveTo(x + w,        y + h / 2);
     ctx.lineTo(x + w * 0.55, y + h * 0.1);
     ctx.lineTo(x + w * 0.4,  y);
@@ -182,7 +191,7 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
     ctx.lineTo(x + w * 0.35, y + h * 0.8);
     ctx.lineTo(x + w * 0.4,  y + h);
     ctx.lineTo(x + w * 0.55, y + h * 0.9);
-  } else {                      // variant 0 — Arrowhead (default)
+  } else {                      // variant 0 — Arrowhead
     ctx.moveTo(x + w,       y + h / 2);
     ctx.lineTo(x,           y);
     ctx.lineTo(x + w * 0.2, y + h / 2);
@@ -190,21 +199,109 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
   }
   ctx.closePath();
   ctx.fill();
-
-  // Cockpit — frosted glass
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.beginPath();
-  ctx.ellipse(x + w * 0.55, y + h / 2, w * 0.18, h * 0.22, 0, 0, Math.PI * 2);
+  // Wing lighting gradient (reuses wing path)
+  const wingGrad = ctx.createLinearGradient(x, y, x, y + h);
+  wingGrad.addColorStop(0,   'rgba(255,255,255,0.15)');
+  wingGrad.addColorStop(0.4, 'rgba(255,255,255,0.03)');
+  wingGrad.addColorStop(0.6, 'rgba(0,0,0,0.03)');
+  wingGrad.addColorStop(1,   'rgba(0,0,0,0.22)');
+  ctx.fillStyle = wingGrad;
   ctx.fill();
 
-  // Wing accent stripe
-  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-  ctx.lineWidth = 1.5;
+  // ── 3. Color accent stripes on visible wing surfaces ─────────────────────────
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = h * 0.10;
+  ctx.lineCap     = 'round';
   ctx.beginPath();
-  ctx.moveTo(x + w * 0.3, y + h * 0.3);
-  ctx.lineTo(x + w * 0.7, y + h * 0.5);
-  ctx.lineTo(x + w * 0.3, y + h * 0.7);
+  ctx.moveTo(x + w * 0.07, y + h * 0.07);   // upper wing rear
+  ctx.lineTo(x + w * 0.42, y + h * 0.27);   // toward fuselage
+  ctx.moveTo(x + w * 0.07, y + h * 0.93);   // lower wing rear
+  ctx.lineTo(x + w * 0.42, y + h * 0.73);
   ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth   = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.07, y + h * 0.062);
+  ctx.lineTo(x + w * 0.42, y + h * 0.260);
+  ctx.moveTo(x + w * 0.07, y + h * 0.920);
+  ctx.lineTo(x + w * 0.42, y + h * 0.720);
+  ctx.stroke();
+  ctx.restore();
+
+  // ── 4. Central fuselage body (drawn over wings) ───────────────────────────────
+  ctx.fillStyle = '#2a3350';
+  ctx.beginPath();
+  ctx.moveTo(x + w,            cy);
+  ctx.bezierCurveTo(x + w*0.88, cy - bodyH*0.90, x + w*0.62, cy - bodyH, x + w*0.38, cy - bodyH);
+  ctx.lineTo(x + w*0.08,       cy - bodyH * 0.80);
+  ctx.lineTo(x,                cy - bodyH * 0.60);
+  ctx.lineTo(x,                cy + bodyH * 0.60);
+  ctx.lineTo(x + w*0.08,       cy + bodyH * 0.80);
+  ctx.bezierCurveTo(x + w*0.62, cy + bodyH, x + w*0.88, cy + bodyH*0.90, x + w, cy);
+  ctx.closePath();
+  ctx.fill();
+  // Body 3D shading (reuses body path)
+  const bodyGrad = ctx.createLinearGradient(x, cy - bodyH, x, cy + bodyH);
+  bodyGrad.addColorStop(0,    'rgba(255,255,255,0.24)');
+  bodyGrad.addColorStop(0.35, 'rgba(255,255,255,0.06)');
+  bodyGrad.addColorStop(0.65, 'rgba(0,0,0,0.06)');
+  bodyGrad.addColorStop(1,    'rgba(0,0,0,0.30)');
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+
+  // ── 5. Panel seams on fuselage ────────────────────────────────────────────────
+  ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+  ctx.lineWidth = 0.6;
+  ctx.beginPath();
+  ctx.moveTo(x + w*0.28, cy - bodyH*0.80);
+  ctx.lineTo(x + w*0.65, cy - bodyH*0.60);
+  ctx.moveTo(x + w*0.28, cy + bodyH*0.80);
+  ctx.lineTo(x + w*0.65, cy + bodyH*0.60);
+  ctx.moveTo(x + w*0.55, cy - bodyH*0.45);
+  ctx.lineTo(x + w*0.82, cy);
+  ctx.lineTo(x + w*0.55, cy + bodyH*0.45);
+  ctx.stroke();
+
+  // ── 6. Engine nozzle rings (at rear of fuselage) ──────────────────────────────
+  const nozR = h * 0.068;
+  for (const ny of nozYs) {
+    ctx.fillStyle = '#0b0e1a';
+    ctx.beginPath(); ctx.arc(x + 4, ny, nozR, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur  = 7;
+    ctx.fillStyle   = color;
+    ctx.beginPath(); ctx.arc(x + 4, ny, nozR * 0.50, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ── 7. Cockpit dome ───────────────────────────────────────────────────────────
+  const cpX = x + w * 0.60;
+  const cpY = cy;
+  const cpW = w * 0.13;
+  const cpH = bodyH * 0.88;
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = 6;
+  const cpGrad = ctx.createLinearGradient(cpX, cpY - cpH, cpX, cpY + cpH);
+  cpGrad.addColorStop(0,   'rgba(200,240,255,0.88)');
+  cpGrad.addColorStop(0.5, 'rgba(70,140,225,0.68)');
+  cpGrad.addColorStop(1,   'rgba(18,48,128,0.58)');
+  ctx.fillStyle = cpGrad;
+  ctx.beginPath(); ctx.ellipse(cpX, cpY, cpW, cpH, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // Glass reflection highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.50)';
+  ctx.beginPath();
+  ctx.ellipse(cpX - cpW*0.22, cpY - cpH*0.26, cpW*0.38, cpH*0.26, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── 8. Rivet dots at body/wing junction ───────────────────────────────────────
+  ctx.fillStyle = 'rgba(175,188,205,0.68)';
+  for (const [rx, ry] of [[0.38, 0.50 - bodyH/h], [0.38, 0.50 + bodyH/h], [0.65, 0.50 - bodyH*0.62/h], [0.65, 0.50 + bodyH*0.62/h]]) {
+    ctx.beginPath(); ctx.arc(x + w*rx, y + h*ry, 1.1, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 class Player {
@@ -810,6 +907,7 @@ class Asteroid {
     this.rotation  = Math.random() * Math.PI * 2;
     this.rotSpeed  = rand(-1.5, 1.5);
     this.active    = true;
+    this.seed      = Math.floor(Math.random() * 1000);
 
     // Pre-generate irregular polygon points
     const pts = 10;
@@ -847,9 +945,20 @@ class Asteroid {
     }
     ctx.closePath();
 
-    // Fill
+    // Base fill
     const shade = this.tier === 0 ? '#888' : this.tier === 1 ? '#999' : '#aaa';
     ctx.fillStyle = shade;
+    ctx.fill();
+
+    // 3D shading gradient — reuses same path (valid until next beginPath)
+    const sg = ctx.createRadialGradient(
+      -this.radius * 0.30, -this.radius * 0.35, 0,
+       0, 0, this.radius
+    );
+    sg.addColorStop(0,   'rgba(255,255,255,0.20)');
+    sg.addColorStop(0.45,'rgba(0,0,0,0)');
+    sg.addColorStop(1,   'rgba(0,0,0,0.42)');
+    ctx.fillStyle = sg;
     ctx.fill();
 
     // Edge highlight
@@ -857,14 +966,37 @@ class Asteroid {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Surface crack lines
+    // Craters — deterministic per asteroid using seed
+    const s = this.seed;
+    const craterCount = this.tier === 0 ? 3 : this.tier === 1 ? 2 : 1;
+    for (let c = 0; c < craterCount; c++) {
+      const ca  = ((s * 2.1 + c * 2.3) % (Math.PI * 2));
+      const cd  = this.radius * (0.28 + ((s * (c + 1) * 17) % 100) / 230);
+      const cr  = this.radius * (0.07 + ((s * (c + 2) * 11) % 100) / 450);
+      const cxc = Math.cos(ca) * cd;
+      const cyc = Math.sin(ca) * cd;
+      ctx.fillStyle = 'rgba(0,0,0,0.30)';
+      ctx.beginPath(); ctx.arc(cxc, cyc, cr, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(200,200,200,0.22)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.arc(cxc, cyc, cr, -Math.PI * 0.8, Math.PI * 0.1); ctx.stroke();
+    }
+
+    // Randomized surface cracks
+    const crk1 = ((s * 0.013) % (Math.PI * 2));
+    const crk2 = crk1 + Math.PI * 0.72;
     ctx.strokeStyle = '#555';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(-this.radius * 0.2, -this.radius * 0.3);
-    ctx.lineTo( this.radius * 0.1,  this.radius * 0.1);
-    ctx.moveTo( this.radius * 0.1, -this.radius * 0.1);
-    ctx.lineTo(-this.radius * 0.1,  this.radius * 0.2);
+    ctx.moveTo(Math.cos(crk1) * this.radius * 0.22, Math.sin(crk1) * this.radius * 0.22);
+    ctx.lineTo(Math.cos(crk1 + 2.0) * this.radius * 0.55, Math.sin(crk1 + 2.0) * this.radius * 0.55);
+    ctx.moveTo(Math.cos(crk2) * this.radius * 0.14, Math.sin(crk2) * this.radius * 0.14);
+    ctx.lineTo(Math.cos(crk2 + 1.7) * this.radius * 0.48, Math.sin(crk2 + 1.7) * this.radius * 0.48);
+    if (this.tier === 0) {
+      const crk3 = crk1 + Math.PI * 1.4;
+      ctx.moveTo(Math.cos(crk3) * this.radius * 0.18, Math.sin(crk3) * this.radius * 0.18);
+      ctx.lineTo(Math.cos(crk3 + 1.5) * this.radius * 0.42, Math.sin(crk3 + 1.5) * this.radius * 0.42);
+    }
     ctx.stroke();
 
     ctx.restore();
