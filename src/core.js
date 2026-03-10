@@ -1752,7 +1752,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.68.0';
+  const verText = 'v1.69.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;

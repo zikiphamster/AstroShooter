@@ -8,28 +8,74 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
   // Engine-tier nozzle count: Standard=1, Afterburner/Pulse=2, Bulwark/Ion=3, Quantum=4
   const nozzleCount = [1, 2, 2, 3, 3, 4][playerEngine ?? 0] ?? 1;
   const cy    = y + h * 0.5;
-  const bodyH = h * 0.27;   // half-height of the narrow central fuselage
+  const bodyH = h * 0.27;
 
   // Nozzle Y positions — evenly spaced, centered on cy
   const nozSpan = nozzleCount > 1 ? Math.min(h * 0.22 * (nozzleCount - 1), h * 0.56) : 0;
   const nozStep = nozzleCount > 1 ? nozSpan / (nozzleCount - 1) : 0;
   const nozYs   = Array.from({length: nozzleCount}, (_, i) => cy - nozSpan / 2 + i * nozStep);
 
+  // Pod geometry (used in steps 2 and 9)
+  const podRX = h * 0.195;
+  const podRY = h * 0.078;
+  const podCX = x + podRX + 1;
+
   // ── 1. Thruster flames (behind everything) ────────────────────────────────────
   const flameLen = 14 + Math.sin(thrusterAnim ?? 0) * 6;
   for (const fy of nozYs) {
     const fg = ctx.createRadialGradient(x + 2, fy, 0, x - flameLen * 0.45, fy, flameLen * 0.65);
-    fg.addColorStop(0,    'rgba(210,240,255,0.95)');
-    fg.addColorStop(0.25, 'rgba(255,160,30,0.85)');
-    fg.addColorStop(1,    'rgba(255,50,0,0)');
+    fg.addColorStop(0,    'rgba(240,255,255,1.0)');
+    fg.addColorStop(0.12, 'rgba(255,220,80,0.95)');
+    fg.addColorStop(0.40, 'rgba(255,100,20,0.70)');
+    fg.addColorStop(1,    'rgba(255,40,0,0)');
     ctx.fillStyle = fg;
     ctx.beginPath();
-    ctx.ellipse(x - flameLen * 0.28, fy, flameLen * 0.65, h * 0.065, 0, 0, Math.PI * 2);
+    ctx.ellipse(x - flameLen * 0.28, fy, flameLen * 0.65, h * 0.068, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // ── 2. Wings — variant polygon defines the wing silhouette ───────────────────
-  ctx.fillStyle = '#181e2e';
+  // ── 2. Engine pods — 3D elongated cylinders ───────────────────────────────────
+  for (const ny of nozYs) {
+    // Drop shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(podCX + 1.5, ny + 2, podRX, podRY, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Pod base
+    ctx.fillStyle = '#141a2d';
+    ctx.beginPath();
+    ctx.ellipse(podCX, ny, podRX, podRY, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Pod 3D gradient (top-lit)
+    const podG = ctx.createLinearGradient(podCX, ny - podRY, podCX, ny + podRY);
+    podG.addColorStop(0,    'rgba(140,165,220,0.62)');
+    podG.addColorStop(0.38, 'rgba(50,70,120,0.22)');
+    podG.addColorStop(0.65, 'rgba(10,15,35,0.15)');
+    podG.addColorStop(1,    'rgba(0,0,10,0.58)');
+    ctx.fillStyle = podG;
+    ctx.fill();
+    // Arc highlight (top edge glint)
+    ctx.strokeStyle = 'rgba(180,205,255,0.58)';
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.ellipse(podCX, ny, podRX * 0.85, podRY * 0.68, 0, Math.PI * 1.15, Math.PI * 2.02);
+    ctx.stroke();
+    // Pod edge outline
+    ctx.strokeStyle = 'rgba(35,50,95,0.68)';
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.ellipse(podCX, ny, podRX, podRY, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // Decorative groove band
+    ctx.strokeStyle = 'rgba(15,22,52,0.82)';
+    ctx.lineWidth = 1.0;
+    ctx.beginPath();
+    ctx.ellipse(podCX - podRX * 0.35, ny, podRY * 0.55, podRY, Math.PI / 2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // ── 3. Wings — variant polygon defines the wing silhouette ───────────────────
+  ctx.fillStyle = '#181e2c';
   ctx.beginPath();
   if (variant === 1) {        // Wedge
     ctx.moveTo(x + w,       y + h / 2);
@@ -199,108 +245,234 @@ function drawPlayerShip(x, y, w, h, color, variant, thrusterAnim) {
   }
   ctx.closePath();
   ctx.fill();
-  // Wing lighting gradient (reuses wing path)
+  // Wing lighting gradient (stronger contrast, reuses wing path)
   const wingGrad = ctx.createLinearGradient(x, y, x, y + h);
-  wingGrad.addColorStop(0,   'rgba(255,255,255,0.15)');
-  wingGrad.addColorStop(0.4, 'rgba(255,255,255,0.03)');
-  wingGrad.addColorStop(0.6, 'rgba(0,0,0,0.03)');
-  wingGrad.addColorStop(1,   'rgba(0,0,0,0.22)');
+  wingGrad.addColorStop(0,    'rgba(100,125,182,0.32)');
+  wingGrad.addColorStop(0.32, 'rgba(50,70,120,0.14)');
+  wingGrad.addColorStop(0.68, 'rgba(0,0,0,0.08)');
+  wingGrad.addColorStop(1,    'rgba(0,0,15,0.46)');
   ctx.fillStyle = wingGrad;
   ctx.fill();
-
-  // ── 3. Color accent stripes on visible wing surfaces ─────────────────────────
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth   = h * 0.10;
-  ctx.lineCap     = 'round';
-  ctx.beginPath();
-  ctx.moveTo(x + w * 0.07, y + h * 0.07);   // upper wing rear
-  ctx.lineTo(x + w * 0.42, y + h * 0.27);   // toward fuselage
-  ctx.moveTo(x + w * 0.07, y + h * 0.93);   // lower wing rear
-  ctx.lineTo(x + w * 0.42, y + h * 0.73);
+  // Wing edge outline (clean panel border)
+  ctx.strokeStyle = 'rgba(55,75,130,0.65)';
+  ctx.lineWidth = 0.9;
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
-  ctx.lineWidth   = 0.7;
+
+  // ── 4. Wing panel seam lines ──────────────────────────────────────────────────
+  ctx.strokeStyle = 'rgba(10,15,35,0.80)';
+  ctx.lineWidth = 0.9;
   ctx.beginPath();
-  ctx.moveTo(x + w * 0.07, y + h * 0.062);
-  ctx.lineTo(x + w * 0.42, y + h * 0.260);
-  ctx.moveTo(x + w * 0.07, y + h * 0.920);
-  ctx.lineTo(x + w * 0.42, y + h * 0.720);
+  ctx.moveTo(x + w * 0.12, y + h * 0.18);
+  ctx.lineTo(x + w * 0.44, y + h * 0.37);
+  ctx.moveTo(x + w * 0.12, y + h * 0.82);
+  ctx.lineTo(x + w * 0.44, y + h * 0.63);
+  ctx.stroke();
+  // Panel seam highlight (bright edge above dark seam)
+  ctx.strokeStyle = 'rgba(110,140,200,0.28)';
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.12, y + h * 0.165);
+  ctx.lineTo(x + w * 0.44, y + h * 0.355);
+  ctx.moveTo(x + w * 0.12, y + h * 0.835);
+  ctx.lineTo(x + w * 0.44, y + h * 0.645);
+  ctx.stroke();
+
+  // ── 5. Color accent fills on wings (filled panels, not just stripes) ──────────
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = color;
+  // Upper wing accent panel
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.04, y + h * 0.05);
+  ctx.lineTo(x + w * 0.40, y + h * 0.24);
+  ctx.lineTo(x + w * 0.32, y + h * 0.36);
+  ctx.lineTo(x + w * 0.03, y + h * 0.18);
+  ctx.closePath();
+  ctx.fill();
+  // Lower wing accent panel (mirror)
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.04, y + h * 0.95);
+  ctx.lineTo(x + w * 0.40, y + h * 0.76);
+  ctx.lineTo(x + w * 0.32, y + h * 0.64);
+  ctx.lineTo(x + w * 0.03, y + h * 0.82);
+  ctx.closePath();
+  ctx.fill();
+  // Accent leading edge (brighter line)
+  ctx.globalAlpha = 0.88;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.04, y + h * 0.05);
+  ctx.lineTo(x + w * 0.40, y + h * 0.24);
+  ctx.moveTo(x + w * 0.04, y + h * 0.95);
+  ctx.lineTo(x + w * 0.40, y + h * 0.76);
   ctx.stroke();
   ctx.restore();
 
-  // ── 4. Central fuselage body (drawn over wings) ───────────────────────────────
-  ctx.fillStyle = '#2a3350';
+  // ── 6. Central fuselage body (drawn over wings) ───────────────────────────────
+  ctx.fillStyle = '#232d46';
   ctx.beginPath();
-  ctx.moveTo(x + w,            cy);
-  ctx.bezierCurveTo(x + w*0.88, cy - bodyH*0.90, x + w*0.62, cy - bodyH, x + w*0.38, cy - bodyH);
-  ctx.lineTo(x + w*0.08,       cy - bodyH * 0.80);
-  ctx.lineTo(x,                cy - bodyH * 0.60);
-  ctx.lineTo(x,                cy + bodyH * 0.60);
-  ctx.lineTo(x + w*0.08,       cy + bodyH * 0.80);
-  ctx.bezierCurveTo(x + w*0.62, cy + bodyH, x + w*0.88, cy + bodyH*0.90, x + w, cy);
+  ctx.moveTo(x + w,         cy);
+  ctx.bezierCurveTo(x + w*0.88, cy - bodyH*0.95, x + w*0.60, cy - bodyH, x + w*0.36, cy - bodyH);
+  ctx.lineTo(x + w*0.08,   cy - bodyH*0.78);
+  ctx.lineTo(x,             cy - bodyH*0.55);
+  ctx.lineTo(x,             cy + bodyH*0.55);
+  ctx.lineTo(x + w*0.08,   cy + bodyH*0.78);
+  ctx.bezierCurveTo(x + w*0.60, cy + bodyH, x + w*0.88, cy + bodyH*0.95, x + w, cy);
   ctx.closePath();
   ctx.fill();
-  // Body 3D shading (reuses body path)
+  // Body 3D shading (top-lit, reuses body path)
   const bodyGrad = ctx.createLinearGradient(x, cy - bodyH, x, cy + bodyH);
-  bodyGrad.addColorStop(0,    'rgba(255,255,255,0.24)');
-  bodyGrad.addColorStop(0.35, 'rgba(255,255,255,0.06)');
-  bodyGrad.addColorStop(0.65, 'rgba(0,0,0,0.06)');
-  bodyGrad.addColorStop(1,    'rgba(0,0,0,0.30)');
+  bodyGrad.addColorStop(0,    'rgba(170,195,240,0.38)');
+  bodyGrad.addColorStop(0.28, 'rgba(80,105,165,0.14)');
+  bodyGrad.addColorStop(0.52, 'rgba(30,45,90,0.05)');
+  bodyGrad.addColorStop(0.72, 'rgba(0,0,10,0.14)');
+  bodyGrad.addColorStop(1,    'rgba(0,0,20,0.48)');
   ctx.fillStyle = bodyGrad;
   ctx.fill();
-
-  // ── 5. Panel seams on fuselage ────────────────────────────────────────────────
-  ctx.strokeStyle = 'rgba(255,255,255,0.13)';
-  ctx.lineWidth = 0.6;
-  ctx.beginPath();
-  ctx.moveTo(x + w*0.28, cy - bodyH*0.80);
-  ctx.lineTo(x + w*0.65, cy - bodyH*0.60);
-  ctx.moveTo(x + w*0.28, cy + bodyH*0.80);
-  ctx.lineTo(x + w*0.65, cy + bodyH*0.60);
-  ctx.moveTo(x + w*0.55, cy - bodyH*0.45);
-  ctx.lineTo(x + w*0.82, cy);
-  ctx.lineTo(x + w*0.55, cy + bodyH*0.45);
+  // Body edge outline
+  ctx.strokeStyle = 'rgba(65,90,155,0.60)';
+  ctx.lineWidth = 0.9;
   ctx.stroke();
 
-  // ── 6. Engine nozzle rings (at rear of fuselage) ──────────────────────────────
-  const nozR = h * 0.068;
+  // Inner fuselage panel (inset darker area for depth)
+  ctx.fillStyle = '#1c2438';
+  ctx.beginPath();
+  ctx.moveTo(x + w*0.90,   cy);
+  ctx.bezierCurveTo(x + w*0.78, cy - bodyH*0.62, x + w*0.58, cy - bodyH*0.70, x + w*0.36, cy - bodyH*0.68);
+  ctx.lineTo(x + w*0.18,   cy - bodyH*0.52);
+  ctx.lineTo(x + w*0.12,   cy);
+  ctx.lineTo(x + w*0.18,   cy + bodyH*0.52);
+  ctx.bezierCurveTo(x + w*0.58, cy + bodyH*0.70, x + w*0.78, cy + bodyH*0.62, x + w*0.90, cy);
+  ctx.closePath();
+  ctx.fill();
+  // Inner panel edge
+  ctx.strokeStyle = 'rgba(90,115,175,0.35)';
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+
+  // Body top highlight curve (edge that catches light)
+  ctx.strokeStyle = 'rgba(190,210,255,0.42)';
+  ctx.lineWidth = 1.1;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x + w*0.10,   cy - bodyH*0.70);
+  ctx.bezierCurveTo(x + w*0.38, cy - bodyH*0.90, x + w*0.63, cy - bodyH*0.88, x + w*0.84, cy - bodyH*0.56);
+  ctx.lineTo(x + w, cy);
+  ctx.stroke();
+
+  // ── 7. Panel seams on fuselage ────────────────────────────────────────────────
+  ctx.strokeStyle = 'rgba(10,15,40,0.78)';
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(x + w*0.26, cy - bodyH*0.78);
+  ctx.lineTo(x + w*0.62, cy - bodyH*0.60);
+  ctx.moveTo(x + w*0.26, cy + bodyH*0.78);
+  ctx.lineTo(x + w*0.62, cy + bodyH*0.60);
+  ctx.moveTo(x + w*0.54, cy - bodyH*0.46);
+  ctx.lineTo(x + w*0.80, cy);
+  ctx.lineTo(x + w*0.54, cy + bodyH*0.46);
+  ctx.stroke();
+  // Panel seam highlights
+  ctx.strokeStyle = 'rgba(140,165,215,0.20)';
+  ctx.lineWidth = 0.6;
+  ctx.beginPath();
+  ctx.moveTo(x + w*0.26, cy - bodyH*0.80);
+  ctx.lineTo(x + w*0.62, cy - bodyH*0.62);
+  ctx.moveTo(x + w*0.26, cy + bodyH*0.76);
+  ctx.lineTo(x + w*0.62, cy + bodyH*0.58);
+  ctx.stroke();
+
+  // ── 8. Gun barrels (protrude from nose toward front) ─────────────────────────
+  const gunBH  = h * 0.048;
+  const gunOff = nozzleCount >= 3 ? h * 0.160 : nozzleCount >= 2 ? h * 0.110 : h * 0.070;
+  for (const gy of [cy - gunOff, cy + gunOff]) {
+    // Barrel body
+    ctx.fillStyle = '#131826';
+    ctx.fillRect(x + w * 0.62, gy - gunBH * 0.5, w * 0.38, gunBH);
+    // Barrel top highlight
+    ctx.fillStyle = 'rgba(90,115,175,0.38)';
+    ctx.fillRect(x + w * 0.62, gy - gunBH * 0.5, w * 0.38, gunBH * 0.28);
+    // Barrel bottom shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.30)';
+    ctx.fillRect(x + w * 0.62, gy + gunBH * 0.24, w * 0.38, gunBH * 0.26);
+    // Barrel outline
+    ctx.strokeStyle = 'rgba(40,55,105,0.60)';
+    ctx.lineWidth = 0.7;
+    ctx.strokeRect(x + w * 0.62, gy - gunBH * 0.5, w * 0.38, gunBH);
+    // Muzzle tip flash
+    ctx.fillStyle = 'rgba(180,200,255,0.40)';
+    ctx.fillRect(x + w - 1.5, gy - gunBH * 0.32, 1.5, gunBH * 0.64);
+  }
+
+  // ── 9. Engine nozzle glows (inside pods) ─────────────────────────────────────
+  const nozR = podRY * 0.72;
   for (const ny of nozYs) {
-    ctx.fillStyle = '#0b0e1a';
+    ctx.fillStyle = '#080c18';
     ctx.beginPath(); ctx.arc(x + 4, ny, nozR, 0, Math.PI * 2); ctx.fill();
     ctx.save();
     ctx.shadowColor = color;
-    ctx.shadowBlur  = 7;
+    ctx.shadowBlur  = 9;
     ctx.fillStyle   = color;
     ctx.beginPath(); ctx.arc(x + 4, ny, nozR * 0.50, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
+    // Bright inner core
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.beginPath(); ctx.arc(x + 4, ny, nozR * 0.22, 0, Math.PI * 2); ctx.fill();
   }
 
-  // ── 7. Cockpit dome ───────────────────────────────────────────────────────────
+  // ── 10. Cockpit dome ──────────────────────────────────────────────────────────
   const cpX = x + w * 0.60;
   const cpY = cy;
   const cpW = w * 0.13;
   const cpH = bodyH * 0.88;
+  // Dark frame ring
+  ctx.fillStyle = '#0a0d1e';
+  ctx.beginPath(); ctx.ellipse(cpX, cpY, cpW + 1.8, cpH + 1.8, 0, 0, Math.PI * 2); ctx.fill();
+  // Glass dome
   ctx.save();
   ctx.shadowColor = color;
-  ctx.shadowBlur  = 6;
+  ctx.shadowBlur  = 7;
   const cpGrad = ctx.createLinearGradient(cpX, cpY - cpH, cpX, cpY + cpH);
-  cpGrad.addColorStop(0,   'rgba(200,240,255,0.88)');
-  cpGrad.addColorStop(0.5, 'rgba(70,140,225,0.68)');
-  cpGrad.addColorStop(1,   'rgba(18,48,128,0.58)');
+  cpGrad.addColorStop(0,    'rgba(195,235,255,0.92)');
+  cpGrad.addColorStop(0.40, 'rgba(55,125,225,0.72)');
+  cpGrad.addColorStop(1,    'rgba(12,32,108,0.62)');
   ctx.fillStyle = cpGrad;
   ctx.beginPath(); ctx.ellipse(cpX, cpY, cpW, cpH, 0, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
-  // Glass reflection highlight
-  ctx.fillStyle = 'rgba(255,255,255,0.50)';
+  // Glass main reflection
+  ctx.fillStyle = 'rgba(255,255,255,0.58)';
   ctx.beginPath();
-  ctx.ellipse(cpX - cpW*0.22, cpY - cpH*0.26, cpW*0.38, cpH*0.26, -0.3, 0, Math.PI * 2);
+  ctx.ellipse(cpX - cpW*0.20, cpY - cpH*0.26, cpW*0.38, cpH*0.26, -0.3, 0, Math.PI * 2);
   ctx.fill();
+  // Secondary glint
+  ctx.fillStyle = 'rgba(255,255,255,0.30)';
+  ctx.beginPath();
+  ctx.arc(cpX + cpW*0.15, cpY + cpH*0.30, cpW*0.12, 0, Math.PI * 2);
+  ctx.fill();
+  // Cockpit outline ring
+  ctx.strokeStyle = 'rgba(80,130,210,0.55)';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.ellipse(cpX, cpY, cpW, cpH, 0, 0, Math.PI * 2); ctx.stroke();
 
-  // ── 8. Rivet dots at body/wing junction ───────────────────────────────────────
-  ctx.fillStyle = 'rgba(175,188,205,0.68)';
-  for (const [rx, ry] of [[0.38, 0.50 - bodyH/h], [0.38, 0.50 + bodyH/h], [0.65, 0.50 - bodyH*0.62/h], [0.65, 0.50 + bodyH*0.62/h]]) {
-    ctx.beginPath(); ctx.arc(x + w*rx, y + h*ry, 1.1, 0, Math.PI * 2); ctx.fill();
+  // ── 11. Rivet / bolt details ──────────────────────────────────────────────────
+  const rivetPts = [
+    [0.36, 0.50 - bodyH/h],        [0.36, 0.50 + bodyH/h],
+    [0.53, 0.50 - bodyH*0.68/h],   [0.53, 0.50 + bodyH*0.68/h],
+    [0.70, 0.50 - bodyH*0.46/h],   [0.70, 0.50 + bodyH*0.46/h],
+  ];
+  for (const [rx, ry] of rivetPts) {
+    const rx2 = x + w * rx, ry2 = y + h * ry;
+    // Dark shadow ring
+    ctx.fillStyle = 'rgba(20,30,60,0.70)';
+    ctx.beginPath(); ctx.arc(rx2, ry2, 1.5, 0, Math.PI * 2); ctx.fill();
+    // Metal cap
+    ctx.fillStyle = 'rgba(185,200,225,0.72)';
+    ctx.beginPath(); ctx.arc(rx2, ry2, 1.1, 0, Math.PI * 2); ctx.fill();
+    // Specular highlight dot
+    ctx.fillStyle = 'rgba(230,245,255,0.55)';
+    ctx.beginPath(); ctx.arc(rx2 - 0.3, ry2 - 0.3, 0.45, 0, Math.PI * 2); ctx.fill();
   }
 }
 
