@@ -48,3 +48,5 @@ There are no DOM elements for UI — everything is drawn on canvas. Clickable bu
 **Every time the user asks to add or change anything in the game, bump the version.** No exceptions — even single-line tweaks get a PATCH bump.
 
 When bumping the version, add a new entry to the **END** of the `CHANGELOG` array in `src/config.js`. `renderChangelog()` reverses the array, so the last entry appears at the top (newest first). Also update the `verText` string inside `renderMenu()` in `src/core.js`.
+
+**Always use the real system time for changelog `date` fields.** Run `date '+%-I:%M %p, %d %b %Y'` in a Bash tool call to get the actual current time before writing a changelog entry. Never guess or make up timestamps.

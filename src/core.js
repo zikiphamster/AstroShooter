@@ -1704,7 +1704,7 @@ function renderMenu() {
   // Subtitle
   ctx.font = '18px "Courier New", monospace';
   ctx.fillStyle = '#8cf';
-  ctx.fillText('Navigate the asteroid field and survive as long as you can', CANVAS_W / 2, CANVAS_H / 2 - 78);
+  ctx.fillText('Navigate the asteroid field and survive as long as you can', CANVAS_W / 2, CANVAS_H / 2 - 78, CANVAS_W - 40);
 
   // Buttons
   menuButtonRects.length = 0;
@@ -1752,7 +1752,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.69.0';
+  const verText = 'v1.70.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -2280,7 +2280,7 @@ function renderPlayMode() {
   ctx.shadowBlur  = 0;
 
   playModeButtonRects.length = 0;
-  const btnW = 380, cx = CANVAS_W / 2, btnH = 88, gap = 20;
+  const btnW = Math.min(380, CANVAS_W - 40), cx = CANVAS_W / 2, btnH = 88, gap = 20;
   let   btnY = CANVAS_H / 2 - 80;
 
   // ── ENDLESS MODE button ──────────────────────────────────────────────────
@@ -2347,14 +2347,6 @@ function renderDifficulty() {
   ctx.fillStyle = 'rgba(0,0,20,0.88)';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Title
-  ctx.font = 'bold 42px "Courier New", monospace';
-  ctx.fillStyle = '#fff';
-  ctx.shadowColor = '#44f';
-  ctx.shadowBlur = 18;
-  ctx.fillText('SELECT DIFFICULTY', CANVAS_W / 2, CANVAS_H / 2 - 110);
-  ctx.shadowBlur = 0;
-
   // Buttons
   diffButtonRects.length = 0;
   const diffs = [
@@ -2375,25 +2367,47 @@ function renderDifficulty() {
     },
   ];
 
-  const btnW = 270, btnH = 115, gap = 24;
-  const totalW = diffs.length * btnW + (diffs.length - 1) * gap;
-  const startX = CANVAS_W / 2 - totalW / 2;
-  const btnY   = CANVAS_H / 2 - btnH / 2;
+  const narrow = CANVAS_W < 700;
+  const btnW   = narrow ? Math.min(270, CANVAS_W - 40) : 270;
+  const btnH   = narrow ? 90 : 115;
+  const gap    = narrow ? 14 : 24;
+
+  let startX, startY;
+  if (narrow) {
+    const totalH = diffs.length * btnH + (diffs.length - 1) * gap;
+    startX = CANVAS_W / 2 - btnW / 2;
+    startY = CANVAS_H / 2 - totalH / 2;
+  } else {
+    const totalW = diffs.length * btnW + (diffs.length - 1) * gap;
+    startX = CANVAS_W / 2 - totalW / 2;
+    startY = CANVAS_H / 2 - btnH / 2;
+  }
+
+  // Title — repositioned above buttons on narrow screens
+  const titleSize = CANVAS_W < 500 ? 26 : 42;
+  const titleY    = narrow ? startY - 50 : CANVAS_H / 2 - 110;
+  ctx.font = `bold ${titleSize}px "Courier New", monospace`;
+  ctx.fillStyle = '#fff';
+  ctx.shadowColor = '#44f';
+  ctx.shadowBlur = 18;
+  ctx.fillText('SELECT DIFFICULTY', CANVAS_W / 2, titleY, CANVAS_W - 32);
+  ctx.shadowBlur = 0;
 
   for (let i = 0; i < diffs.length; i++) {
     const d    = diffs[i];
     const diff = DIFFICULTIES[d.key];
-    const bx   = startX + i * (btnW + gap);
-    const bcx  = bx + btnW / 2;   // button center x
-    const bcy  = btnY + btnH / 2; // button center y
-    diffButtonRects.push({ x: bx, y: btnY, w: btnW, h: btnH, key: d.key });
+    const bx   = narrow ? startX                    : startX + i * (btnW + gap);
+    const by   = narrow ? startY + i * (btnH + gap) : startY;
+    const bcx  = bx + btnW / 2;
+    const bcy  = by + btnH / 2;
+    diffButtonRects.push({ x: bx, y: by, w: btnW, h: btnH, key: d.key });
 
     // Button background
     ctx.fillStyle = 'rgba(255,255,255,0.05)';
     ctx.strokeStyle = diff.color;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.roundRect(bx, btnY, btnW, btnH, 10);
+    ctx.roundRect(bx, by, btnW, btnH, 10);
     ctx.fill();
     ctx.stroke();
 
@@ -2401,31 +2415,36 @@ function renderDifficulty() {
     ctx.fillStyle = diff.color;
     ctx.font = 'bold 13px "Courier New", monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(d.num, bx + 10, btnY + 14);
+    ctx.fillText(d.num, bx + 10, by + 14);
     ctx.textAlign = 'center';
 
     // Label — above center
     ctx.fillStyle = diff.color;
-    ctx.font = 'bold 26px "Courier New", monospace';
-    ctx.fillText(diff.label, bcx, bcy - 20);
+    ctx.font = `bold ${narrow ? 20 : 26}px "Courier New", monospace`;
+    ctx.fillText(diff.label, bcx, bcy - (narrow ? 15 : 20));
 
     // Sub-line 1
     ctx.fillStyle = '#aaa';
     ctx.font = '13px "Courier New", monospace';
-    ctx.fillText(d.sub1, bcx, bcy + 8, btnW - 24);
+    ctx.fillText(d.sub1, bcx, bcy + (narrow ? 5 : 8), btnW - 24);
 
-    // Sub-line 2
-    ctx.fillStyle = '#666';
-    ctx.font = '12px "Courier New", monospace';
-    ctx.fillText(d.sub2, bcx, bcy + 28, btnW - 24);
+    // Sub-line 2 — omit on narrow to save vertical space
+    if (!narrow) {
+      ctx.fillStyle = '#666';
+      ctx.font = '12px "Courier New", monospace';
+      ctx.fillText(d.sub2, bcx, bcy + 28, btnW - 24);
+    }
   }
 
-  // Hints
+  // Hints — positioned below the button stack
+  const hintY = narrow
+    ? startY + diffs.length * (btnH + gap) - gap + 28
+    : CANVAS_H / 2 + 80;
   ctx.textAlign = 'center';
   ctx.fillStyle = '#555';
   ctx.font = '14px "Courier New", monospace';
-  ctx.fillText('Press 1, 2, 3  or  click a button', CANVAS_W / 2, CANVAS_H / 2 + 80);
-  ctx.fillText('ESC — Back', CANVAS_W / 2, CANVAS_H / 2 + 104);
+  ctx.fillText('Press 1, 2, 3  or  click a button', CANVAS_W / 2, hintY);
+  ctx.fillText('ESC — Back', CANVAS_W / 2, hintY + 24);
 
   ctx.restore();
 }
@@ -3366,7 +3385,7 @@ function renderSolarMap() {
   const canGoPrev = currentGalaxy > 0;
   const canGoNext = currentGalaxy === 0 && progressUnlocked >= 9;
   if (canGoPrev) {
-    const ax = CANVAS_W / 2 - 200 - arrW;
+    const ax = 8;
     solarMapButtonRects.push({ x: ax, y: arrY, w: arrW, h: arrH, key: 'galaxy_prev', cx: 0, cy: 0, r: 0 });
     ctx.shadowColor = '#a8f'; ctx.shadowBlur = 8;
     ctx.fillStyle   = 'rgba(20,10,50,0.88)'; ctx.strokeStyle = '#a8f'; ctx.lineWidth = 1.5;
@@ -3376,7 +3395,7 @@ function renderSolarMap() {
     ctx.fillText('◀', ax + arrW / 2, 40);
   }
   if (canGoNext) {
-    const ax = CANVAS_W / 2 + 200;
+    const ax = CANVAS_W - arrW - 8;
     solarMapButtonRects.push({ x: ax, y: arrY, w: arrW, h: arrH, key: 'galaxy_next', cx: 0, cy: 0, r: 0 });
     ctx.shadowColor = '#a8f'; ctx.shadowBlur = 8;
     ctx.fillStyle   = 'rgba(20,10,50,0.88)'; ctx.strokeStyle = '#a8f'; ctx.lineWidth = 1.5;
@@ -3386,8 +3405,8 @@ function renderSolarMap() {
     ctx.fillText('▶', ax + arrW / 2, 40);
   }
 
-  const mapLeft  = 170;
-  const mapRight = CANVAS_W - 130;
+  const mapLeft  = Math.max(64, Math.min(170, CANVAS_W * 0.22));
+  const mapRight = CANVAS_W - Math.max(36, Math.min(130, CANVAS_W * 0.16));
   const step     = (mapRight - mapLeft) / (planets.length - 1);
   const cy       = CANVAS_H * 0.60;
   const now      = performance.now() / 1000;
@@ -4026,7 +4045,7 @@ function renderSettings() {
   ctx.shadowBlur  = 0;
 
   settingsButtonRects.length = 0;
-  const btnW = 380, gap = 20;
+  const btnW = Math.min(380, CANVAS_W - 40), gap = 20;
   let btnY = CANVAS_H / 2 - 110;
 
   // ── Sound toggle ────────────────────────────────────────────────────────────
