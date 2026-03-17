@@ -65,6 +65,7 @@ function loadGame() {
   neptuneDeathStep       = 0;
   neptuneDeathLineStep   = 0;
   portalTimer            = 0;
+  neptuneShipFallVy      = 0;
 }
 
 function loadLevel(level) {
@@ -360,74 +361,82 @@ function update(dt) {
 
   // ── PLAYING ──────────────────────────────────────────────────────────────
 
-  // ── Neptune dying phase (boss slides left, burns, pushes player right) ────
-  if (neptuneDeathDying) {
-    neptuneDeathDyingTimer += dt;
-
-    // Manually update + prune particles so fire animates
+  // ── Neptune death cinematic — asteroids keep moving, no dark overlay ─────
+  if (neptuneDeathActive) {
+    // Keep particles and asteroids alive and moving
     for (const p of particles) p.update(dt);
     particles = particles.filter(p => p.active);
+    for (const a of asteroids) a.update(dt);
+    asteroids = asteroids.filter(a => a.active);
+    bullets = [];  // no shooting during cutscene
 
-    if (dyingBoss) {
-      // Boss slides to the far-left centre of the screen
-      const bossTargetX = 40;
-      const bossTargetY = CANVAS_H / 2 - dyingBoss.h / 2;
-      dyingBoss.x += (bossTargetX - dyingBoss.x) * 2.5 * dt;
-      dyingBoss.y += (bossTargetY - dyingBoss.y) * 2.5 * dt;
-      dyingBoss.anim = (dyingBoss.anim || 0) + dt;
-
-      // Fire erupts from the back (right side) of the boss
-      const fireX = dyingBoss.x + dyingBoss.w;
-      const fireY = dyingBoss.y + dyingBoss.h * 0.25 + Math.random() * dyingBoss.h * 0.5;
-      spawnParticles(fireX, fireY, Math.ceil(rand(3, 7)), ['#f44', '#f84', '#ff0', '#ffa000', '#fff']);
-
-      // Big burst every ~0.3 s
-      const burstIdx = Math.floor(neptuneDeathDyingTimer / 0.3);
-      const prevIdx  = Math.floor((neptuneDeathDyingTimer - dt) / 0.3);
-      if (burstIdx > prevIdx) {
-        spawnParticles(fireX, dyingBoss.y + dyingBoss.h / 2, 20, ['#f44', '#f84', '#ff0', '#fff', '#f00']);
-        playExplosion(0);
+    if (neptuneDeathStep === 0) {
+      // Ship catches fire and falls off screen under gravity
+      neptuneShipFallVy  += 70 * dt;
+      player.y           += neptuneShipFallVy * dt;
+      player.x           += 14 * dt;   // slight rightward drift
+      player.thrusterAnim = (player.thrusterAnim ?? 0) + dt * 4;
+      // Spawn fire + smoke at ship back
+      if (player.y < CANVAS_H + 60) {
+        const fireX = player.x - 8;
+        const fireY = player.y + player.h / 2 + (Math.random() - 0.5) * player.h * 0.8;
+        spawnParticles(fireX, fireY, 2, ['#f44', '#f84', '#ff0', '#ffa000']);
+        spawnParticles(fireX - 10, fireY, 3, ['#666', '#888', '#555', '#777', '#444']);
       }
-    }
-
-    // Player gets pushed rightward toward the portal by the boss's thruster wash
-    player.x += (CANVAS_W * 0.62 - player.w / 2 - player.x) * 2 * dt;
-    player.y += (CANVAS_H / 2    - player.h / 2 - player.y) * 2 * dt;
-    player.thrusterAnim += dt * 8;
-
-    // Transition to dialogue once timer expires
-    if (neptuneDeathDyingTimer >= NEPTUNE_DYING_DUR) {
-      neptuneDeathDying    = false;
-      dyingBoss            = null;
-      neptuneDeathActive   = true;
-      neptuneDeathStep     = 0;
-      neptuneDeathLineStep = 0;
-    }
-    return;
-  }
-
-  // ── Neptune death cutscene ─────────────────────────────────────────────────
-  if (neptuneDeathActive) {
-    if (neptuneDeathStep === 0 || neptuneDeathStep === 2) {
       if (keys['Space'] || keys['Enter']) {
         keys['Space'] = keys['Enter'] = false;
         advanceNeptuneDeath();
       }
       return;
     }
+
     if (neptuneDeathStep === 1) {
-      // Portal cinematic: autopilot player rightward into portal
+      // Portal cinematic — ship re-enters and flies into portal
       portalTimer += dt;
-      const lerpSpeed = Math.min(6, 1 + portalTimer * 2.5);
-      player.x += (CANVAS_W * 0.74 - player.w / 2 - player.x) * lerpSpeed * dt;
-      player.y += (CANVAS_H / 2 - player.h / 2 - player.y) * lerpSpeed * dt;
-      player.thrusterAnim += dt * 14;
+      const PHASE_C = 3.5, PHASE_D = 4.5;
+      if (portalTimer < 1.5) {
+        // Ship off screen, portal building
+        player.y = CANVAS_H + 60;
+        player.x = CANVAS_W * 0.74 - player.w / 2;
+      } else if (portalTimer < PHASE_C) {
+        // Portal opening, ship still off screen
+        player.y = CANVAS_H + 60;
+      } else if (portalTimer < PHASE_D) {
+        // Ship re-enters from below, flies toward portal
+        const t = (portalTimer - PHASE_C) / (PHASE_D - PHASE_C);
+        player.y = CANVAS_H + 60 - (CANVAS_H + 60 - (CANVAS_H / 2 - player.h / 2)) * t;
+        player.x += (CANVAS_W * 0.74 - player.w / 2 - player.x) * 5 * dt;
+        player.thrusterAnim = (player.thrusterAnim ?? 0) + dt * 10;
+        const fireX = player.x - 8, fireY = player.y + player.h / 2;
+        spawnParticles(fireX, fireY, 2, ['#f84', '#ffa000', '#ff0']);
+        spawnParticles(fireX - 8, fireY, 2, ['#777', '#888', '#555']);
+      } else {
+        // Ship absorbed into portal
+        player.x += (CANVAS_W * 0.74 + 20 - player.x) * 6 * dt;
+        player.y += (CANVAS_H / 2 - player.h / 2 - player.y) * 6 * dt;
+      }
       if (portalTimer >= PORTAL_DUR) {
         currentGalaxy        = 1;
         neptuneDeathStep     = 2;
         neptuneDeathLineStep = 0;
         portalTimer          = 0;
         saveShop();
+        // Ship emerges from portal on right side, slides left
+        player.x = CANVAS_W * 0.74 - player.w / 2;
+        player.y = CANVAS_H / 2 - player.h / 2;
+        neptuneShipFallVy = 0;
+      }
+      return;
+    }
+
+    if (neptuneDeathStep === 2) {
+      // Ship slides left from portal toward center of screen
+      if (portalTimer < 1.5) portalTimer += dt;
+      player.x += (CANVAS_W * 0.38 - player.w / 2 - player.x) * 3 * dt;
+      player.thrusterAnim = (player.thrusterAnim ?? 0) + dt * 4;
+      if (keys['Space'] || keys['Enter']) {
+        keys['Space'] = keys['Enter'] = false;
+        advanceNeptuneDeath();
       }
       return;
     }
@@ -601,20 +610,20 @@ function update(dt) {
           }
           playBossDefeat();
           if (gameMode === 'progress' && currentPlanet === 8 && currentGalaxy === 0) {
-            // Neptune defeated — explode asteroids, then start dying phase
-            for (const a of asteroids) {
-              if (!a.active) continue;
-              spawnParticles(a.x, a.y, 8, ['#fa0', '#f60', '#ff0', '#fff']);
-              playExplosion(a.tier);
-              a.active = false;
-            }
+            // Neptune defeated — instant explosion, start cinematic immediately
+            const bcx = boss.x + boss.w / 2, bcy = boss.y + boss.h / 2;
+            spawnParticles(bcx, bcy, 60, ['#f44', '#f84', '#ff0', '#fff', '#ffa000', '#f00']);
             bossBullets.length   = 0;
             progressUnlocked     = 9;
             saveShop();
-            dyingBoss            = boss;
             boss                 = null;
-            neptuneDeathDying      = true;
-            neptuneDeathDyingTimer = 0;
+            dyingBoss            = null;
+            neptuneDeathDying    = false;
+            neptuneDeathActive   = true;
+            neptuneDeathStep     = 0;
+            neptuneDeathLineStep = 0;
+            neptuneShipFallVy    = 0;
+            portalTimer          = 0;
           } else {
             boss = null;
             gameState = 'LEVEL_COMPLETE';
@@ -1752,7 +1761,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.70.0';
+  const verText = 'v1.71.0';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -3031,6 +3040,18 @@ function renderBossDialogue() {
 
 // ─── Neptune Death Cutscene Overlays ──────────────────────────────────────────
 function renderNeptuneDeathOverlay() {
+  // Faint pinkish glow throughout the entire cutscene
+  const pinkAlpha = neptuneDeathStep === 2 ? 0.14 : 0.09;
+  const pg = ctx.createRadialGradient(
+    CANVAS_W / 2, CANVAS_H / 2, CANVAS_W * 0.05,
+    CANVAS_W / 2, CANVAS_H / 2, CANVAS_W * 0.75
+  );
+  pg.addColorStop(0,   `rgba(255,40,120,${pinkAlpha})`);
+  pg.addColorStop(0.5, `rgba(180,20,80,${pinkAlpha * 0.4})`);
+  pg.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = pg;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
   if (neptuneDeathStep === 0)
     renderNeptuneDialoguePanel(NEPTUNE_DEATH_LINES, neptuneDeathLineStep, '#1050ff');
   else if (neptuneDeathStep === 1)
@@ -3043,9 +3064,12 @@ function renderNeptuneDialoguePanel(lines, step, accentColor) {
   const line = lines[step];
   if (!line) return;
 
-  // Semi-transparent overlay — game world remains visible
-  ctx.fillStyle = 'rgba(0,0,0,0.75)';
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  // Subtle gradient fade only behind the bottom panel — no full-screen darkening
+  const panelFade = ctx.createLinearGradient(0, CANVAS_H - 200, 0, CANVAS_H);
+  panelFade.addColorStop(0, 'rgba(0,0,10,0)');
+  panelFade.addColorStop(1, 'rgba(0,0,10,0.60)');
+  ctx.fillStyle = panelFade;
+  ctx.fillRect(0, CANVAS_H - 200, CANVAS_W, 200);
 
   const panelH = 120, panelX = 20, panelW = CANVAS_W - 40;
   const panelY = CANVAS_H - panelH - 16;
@@ -3106,17 +3130,19 @@ function renderNeptuneDialoguePanel(lines, step, accentColor) {
 }
 
 function renderPortalCinematic() {
-  const prog = Math.min(1, portalTimer / PORTAL_DUR);
+  // Portal opens during the 1.5s–3.5s window; vignette/flash use full PORTAL_DUR
+  const portalOpenProg = Math.min(1, Math.max(0, (portalTimer - 1.5) / 2.0));
+  const prog           = Math.min(1, portalTimer / PORTAL_DUR);
   const now  = performance.now() / 1000;
   const portalX = CANVAS_W * 0.74;
   const portalY = CANVAS_H / 2;
-  const portalR = Math.min(prog * 1.5, 1) * 130;
+  const portalR = portalOpenProg * 130;
 
   // Outer glow
   if (portalR > 2) {
     const glow = ctx.createRadialGradient(portalX, portalY, 0, portalX, portalY, portalR * 2.2);
-    glow.addColorStop(0,   `rgba(140,40,255,${0.55 * prog})`);
-    glow.addColorStop(0.5, `rgba(100,20,200,${0.20 * prog})`);
+    glow.addColorStop(0,   `rgba(140,40,255,${0.55 * portalOpenProg})`);
+    glow.addColorStop(0.5, `rgba(100,20,200,${0.20 * portalOpenProg})`);
     glow.addColorStop(1,   'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.beginPath(); ctx.arc(portalX, portalY, portalR * 2.2, 0, Math.PI * 2); ctx.fill();
@@ -3128,7 +3154,7 @@ function renderPortalCinematic() {
     const ringPulse = 2 + Math.sin(now * 6) * 1.2;
     ctx.shadowColor = '#a030ff';
     ctx.shadowBlur  = 20;
-    ctx.strokeStyle = `rgba(200,120,255,${0.85 * prog})`;
+    ctx.strokeStyle = `rgba(200,120,255,${0.85 * portalOpenProg})`;
     ctx.lineWidth   = ringPulse;
     ctx.beginPath(); ctx.arc(portalX, portalY, portalR, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
