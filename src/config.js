@@ -1056,6 +1056,8 @@ const CHANGELOG = [
   { v: 'v1.71.1', date: '8:02 PM, 17 Mar 2026', title: 'Difficulty Back Button',            desc: 'Added a "← BACK" button to the Select Difficulty screen. Clicking it returns to the Play Mode selection screen (Endless / Story Mode). ESC already worked; the button makes it discoverable.' },
   { v: 'v1.71.2', date: '5:38 PM, 18 Mar 2026', title: 'Difficulty Back Button Animation',  desc: 'The "← BACK" button on the Select Difficulty screen now plays the standard flash animation on click, consistent with all other navigation buttons.' },
   { v: 'v1.71.3', date: '12:26 PM, 19 Mar 2026', title: 'Story Mode Completion Percentage', desc: 'The Story Mode button now shows overall completion as a percentage across both galaxies (Solar System + Veil Expanse, 18 planets total) instead of just the Solar System planet count. The subtitle also updated from "9 planets" to "18 planets across 2 galaxies".' },
+  { v: 'v1.71.4', date: '1:58 PM, 19 Mar 2026',  title: 'Story Mode Button Subtitle Removed',  desc: 'Removed the subtitle description line from the Story Mode button. Only the title and completion percentage are now shown.' },
+  { v: 'v1.71.5', date: '2:05 PM, 19 Mar 2026',  title: 'Story Mode % Text Repositioned',       desc: 'Moved the completion percentage text on the Story Mode button down to be vertically centered between the title and the bottom of the button.' },
 ];
 
 // ─── Power-Ups ────────────────────────────────────────────────────────────────

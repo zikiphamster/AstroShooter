@@ -1761,7 +1761,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.71.3';
+  const verText = 'v1.71.5';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -2321,13 +2321,10 @@ function renderPlayMode() {
   ctx.fillStyle   = '#fff';
   ctx.font        = 'bold 22px "Courier New", monospace';
   ctx.fillText('STORY MODE', cx, btnY + 28);
-  ctx.font        = '13px "Courier New", monospace';
-  ctx.fillStyle   = '#a8f';
-  ctx.fillText('18 planets across 2 galaxies. Sequential unlock.', cx, btnY + 52);
   ctx.font        = '11px "Courier New", monospace';
   ctx.fillStyle   = '#886ccc';
   const storyPct = Math.round((progressUnlocked + veilProgressUnlocked) / 18 * 100);
-  ctx.fillText(`${storyPct}% complete`, cx, btnY + 70);
+  ctx.fillText(`${storyPct}% complete`, cx, btnY + 62);
 
   btnY += btnH + gap;
 
