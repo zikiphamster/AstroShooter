@@ -448,6 +448,7 @@ function handleCanvasClick(mx, my) {
   } else if (gameState === 'DIFFICULTY') {
     for (const btn of diffButtonRects) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+        if (btn.key === 'back') { startBtnAnim(btn, '#48f', () => { gameState = 'PLAY_MODE'; }); break; }
         currentDiff = btn.key;
         startBtnAnim(btn, DIFFICULTIES[btn.key]?.color ?? '#fff', () => { gameState = 'PLAYING'; loadGame(); });
         break;

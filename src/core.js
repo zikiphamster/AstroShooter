@@ -1761,7 +1761,7 @@ function renderMenu() {
   ctx.font         = '15px "Courier New", monospace';
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'bottom';
-  const verText = 'v1.71.0';
+  const verText = 'v1.71.3';
   const verW    = ctx.measureText(verText).width;
   const verH    = 18;
   const verX    = CANVAS_W - 10 - verW;
@@ -2323,10 +2323,11 @@ function renderPlayMode() {
   ctx.fillText('STORY MODE', cx, btnY + 28);
   ctx.font        = '13px "Courier New", monospace';
   ctx.fillStyle   = '#a8f';
-  ctx.fillText('9 planets. Fixed challenges. Sequential unlock.', cx, btnY + 52);
+  ctx.fillText('18 planets across 2 galaxies. Sequential unlock.', cx, btnY + 52);
   ctx.font        = '11px "Courier New", monospace';
   ctx.fillStyle   = '#886ccc';
-  ctx.fillText(`${progressUnlocked} / 9 planets complete`, cx, btnY + 70);
+  const storyPct = Math.round((progressUnlocked + veilProgressUnlocked) / 18 * 100);
+  ctx.fillText(`${storyPct}% complete`, cx, btnY + 70);
 
   btnY += btnH + gap;
 
@@ -2453,7 +2454,20 @@ function renderDifficulty() {
   ctx.fillStyle = '#555';
   ctx.font = '14px "Courier New", monospace';
   ctx.fillText('Press 1, 2, 3  or  click a button', CANVAS_W / 2, hintY);
-  ctx.fillText('ESC — Back', CANVAS_W / 2, hintY + 24);
+
+  // Back button
+  const backW = 180, backH = 44;
+  const backX = CANVAS_W / 2 - backW / 2, backY = hintY + 34;
+  diffButtonRects.push({ x: backX, y: backY, w: backW, h: backH, key: 'back' });
+  ctx.shadowColor = '#48f'; ctx.shadowBlur = 8;
+  ctx.fillStyle   = 'rgba(10,20,60,0.85)';
+  ctx.strokeStyle = '#48f';
+  ctx.lineWidth   = 2;
+  ctx.beginPath(); ctx.roundRect(backX, backY, backW, backH, 10); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur  = 0;
+  ctx.fillStyle   = '#fff';
+  ctx.font        = 'bold 16px "Courier New", monospace';
+  ctx.fillText('← BACK', CANVAS_W / 2, backY + backH / 2);
 
   ctx.restore();
 }
