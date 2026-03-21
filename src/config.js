@@ -97,7 +97,7 @@ const TUTORIAL_SLIDES = [
     icon: '🚀', title: 'STORY MODE',
     color: '#a8f',
     body: [
-      'Journey through all 9 planets of the Solar System,',
+      'Journey through all 2 galaxies of the universe,',
       'starting from the Sun and working your way out to Neptune.',
       'Defeat each planet\'s boss to unlock the next world.',
     ],
