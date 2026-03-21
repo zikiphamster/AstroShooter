@@ -125,7 +125,7 @@ const TUTORIAL_SLIDES = [
     color: '#f55',
     body: [
       'Each planet ends with a powerful boss fight.',
-      'Destroying the boss grants bonus lives and unlocks',
+      'Destroying the boss grants unlocks',
       'the next planet on the Solar Map.',
     ],
   },
