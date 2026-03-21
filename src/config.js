@@ -126,7 +126,7 @@ const TUTORIAL_SLIDES = [
     body: [
       'Each planet ends with a powerful boss fight.',
       'Destroying the boss grants unlocks',
-      'the next planet on the Solar Map.',
+      'the next planet on the Space Map.',
     ],
   },
   {
